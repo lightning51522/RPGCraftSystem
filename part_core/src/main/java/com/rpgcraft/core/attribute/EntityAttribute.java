@@ -68,9 +68,9 @@ public class EntityAttribute {
      * 创建一个当前值和最大值均为 100 的属性实例。
      * 作为 AttachmentType 的默认工厂方法使用。
      */
-    public EntityAttribute() {
-        this(100, 100);
-    }
+    //public EntityAttribute() {
+    //    this(100, 100);
+    //}
 
     /**
      * 获取属性最大值

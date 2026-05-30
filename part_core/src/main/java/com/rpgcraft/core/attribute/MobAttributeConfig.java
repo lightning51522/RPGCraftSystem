@@ -11,13 +11,14 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+// import java.util.concurrent.CompletableFuture;
+// import java.util.concurrent.Executor;
 
 /**
  * 生物属性 JSON 配置加载器
@@ -59,7 +60,7 @@ public class MobAttributeConfig {
     public static void onAddReloadListener(AddServerReloadListenersEvent event) {
         event.addListener(CONFIG_ID, new SimplePreparableReloadListener<JsonObject>() {
             @Override
-            protected JsonObject prepare(ResourceManager resourceManager, ProfilerFiller profiler) {
+            protected @NonNull JsonObject prepare(@NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
                 try {
                     var resource = resourceManager.getResource(CONFIG_ID);
                     if (resource.isPresent()) {
@@ -74,7 +75,7 @@ public class MobAttributeConfig {
             }
 
             @Override
-            protected void apply(JsonObject json, ResourceManager resourceManager, ProfilerFiller profiler) {
+            protected void apply(@NonNull JsonObject json, @NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
                 Map<Identifier, MobAttributes> newMap = new HashMap<>();
                 for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
                     try {
