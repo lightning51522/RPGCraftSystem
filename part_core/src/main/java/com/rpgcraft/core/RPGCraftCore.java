@@ -1,7 +1,7 @@
 package com.rpgcraft.core;
 
-import com.rpgcraft.core.attribute.GenericPlayerData;
-import com.rpgcraft.core.attribute.PlayerAttribute;
+import com.rpgcraft.core.attribute.EntityAttribute;
+import com.rpgcraft.core.attribute.GenericEntityData;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 
@@ -19,9 +19,7 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
@@ -46,14 +44,14 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * <b>注册的内容：</b>
  * <ul>
  *   <li>方块、物品、创造模式标签页（通过 DeferredRegister）</li>
- *   <li>玩家属性 AttachmentType（通过 {@link GenericPlayerData#ATTRIBUTE_ATTACHMENT_TYPES}）</li>
+ *   <li>玩家属性 AttachmentType（通过 {@link GenericEntityData#ATTRIBUTE_ATTACHMENT_TYPES}）</li>
  *   <li>网络包（通过 {@link PacketHandler#register}）</li>
  *   <li>配置文件（通过 ModContainer）</li>
  * </ul>
  * <p>
  * <b>事件监听：</b>
  * <ul>
- *   <li>Mod 事件总线（modEventBus）：{@link #commonSetup}、{@link PacketHandler#register}、{@link GenericPlayerData} 注册</li>
+ *   <li>Mod 事件总线（modEventBus）：{@link #commonSetup}、{@link PacketHandler#register}、{@link GenericEntityData} 注册</li>
  *   <li>Game 事件总线（{@link NeoForge#EVENT_BUS}）：{@link #onServerStarting}、{@link #onPlayerLogin}</li>
  * </ul>
  */
@@ -113,7 +111,7 @@ public class RPGCraftCore {
         CREATIVE_MODE_TABS.register(modEventBus);
 
         // 注册玩家属性 AttachmentType
-        GenericPlayerData.ATTRIBUTE_ATTACHMENT_TYPES.register(modEventBus);
+        GenericEntityData.ATTRIBUTE_ATTACHMENT_TYPES.register(modEventBus);
 
         // 注册网络包处理器
         modEventBus.addListener(PacketHandler::register);
@@ -184,8 +182,8 @@ public class RPGCraftCore {
      */
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        for (GenericPlayerData.AttributeEntry entry : GenericPlayerData.ALL_ATTRIBUTES) {
-            PlayerAttribute attr = event.getEntity().getData(entry.supplier());
+        for (GenericEntityData.AttributeEntry entry : GenericEntityData.ALL_ATTRIBUTES) {
+            EntityAttribute attr = event.getEntity().getData(entry.supplier());
             SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.id(), attr);
         }
     }

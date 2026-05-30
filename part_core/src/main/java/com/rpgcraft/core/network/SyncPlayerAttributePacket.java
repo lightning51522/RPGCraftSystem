@@ -1,7 +1,7 @@
 package com.rpgcraft.core.network;
 
-import com.rpgcraft.core.attribute.GenericPlayerData;
-import com.rpgcraft.core.attribute.PlayerAttribute;
+import com.rpgcraft.core.attribute.EntityAttribute;
+import com.rpgcraft.core.attribute.GenericEntityData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -28,7 +28,7 @@ import org.jspecify.annotations.NonNull;
  * <b>序列化说明：</b>
  * <ul>
  *   <li>{@link #STREAM_CODEC} —— 用于网络传输的字节流序列化器（StreamCodec）</li>
- *   <li>{@link PlayerAttribute#CODEC} —— 用于存档保存的 NBT/JSON 序列化器（MapCodec）</li>
+ *   <li>{@link EntityAttribute#CODEC} —— 用于存档保存的 NBT/JSON 序列化器（MapCodec）</li>
  *   <li>两者用途不同，不可混用</li>
  * </ul>
  *
@@ -88,7 +88,7 @@ public record SyncPlayerAttributePacket(Identifier attrId, int current, int max)
      * @param attrId 属性的 Identifier，客户端通过此 ID 查找对应的 AttachmentType
      * @param attr   要同步的属性数据对象
      */
-    public static void sendToClient(Player player, Identifier attrId, PlayerAttribute attr) {
+    public static void sendToClient(Player player, Identifier attrId, EntityAttribute attr) {
         if (player instanceof ServerPlayer serverPlayer) {
             serverPlayer.connection.send(new SyncPlayerAttributePacket(attrId, attr.getValue(), attr.getMaxValue()));
         }
@@ -109,10 +109,10 @@ public record SyncPlayerAttributePacket(Identifier attrId, int current, int max)
             Player clientPlayer = Minecraft.getInstance().player;
             if (clientPlayer != null) {
                 // 通过包中的 Identifier 查找对应的 AttachmentType
-                AttachmentType<PlayerAttribute> type = GenericPlayerData.getTypeById(data.attrId());
+                AttachmentType<EntityAttribute> type = GenericEntityData.getTypeById(data.attrId());
                 if (type != null) {
                     // 从客户端玩家身上获取属性实例，并用服务端发来的数据覆盖
-                    PlayerAttribute clientAttr = clientPlayer.getData(type);
+                    EntityAttribute clientAttr = clientPlayer.getData(type);
                     clientAttr.setValue(data.current());
                 }
             }

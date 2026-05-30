@@ -1,5 +1,6 @@
 package com.rpgcraft.core.attribute;
 
+import java.lang.Math;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -7,7 +8,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 /**
  * 玩家自定义属性的基础数据类
  * <p>
- * 每个 RPG 属性（如生命、力量、暴击率等）都由一个 PlayerAttribute 实例表示。
+ * 每个 RPG 属性（如生命、力量、暴击率等）都由一个 EntityAttribute 实例表示。
  * 包含两个核心字段：
  * <ul>
  *   <li>{@link #currentValue} —— 属性当前值，可通过 {@link #setValue(int)} 修改</li>
@@ -17,7 +18,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * 该类同时提供了 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
  * 网络传输的序列化则在 {@link com.rpgcraft.core.network.SyncPlayerAttributePacket} 中单独处理。
  */
-public class PlayerAttribute {
+public class EntityAttribute {
 
     /**
      * 属性上限值
@@ -42,7 +43,7 @@ public class PlayerAttribute {
      *
      * @param value 属性的初始值和最大值
      */
-    public PlayerAttribute(int value) {
+    public EntityAttribute(int value) {
         this.maxValue = value;
         this.currentValue = value;
     }
@@ -55,7 +56,7 @@ public class PlayerAttribute {
      * @param currentValue 属性当前值
      * @param maxValue     属性最大值
      */
-    public PlayerAttribute(int currentValue, int maxValue) {
+    public EntityAttribute(int currentValue, int maxValue) {
         this.maxValue = maxValue;
         this.currentValue = currentValue;
     }
@@ -66,7 +67,7 @@ public class PlayerAttribute {
      * 创建一个当前值和最大值均为 100 的属性实例。
      * 作为 AttachmentType 的默认工厂方法使用。
      */
-    public PlayerAttribute() {
+    public EntityAttribute() {
         this(100, 100);
     }
 
@@ -91,7 +92,7 @@ public class PlayerAttribute {
     /**
      * 设置属性当前值
      * <p>
-     * 数值会被限制在 [0, maxValue] 范围内，
+     * 数值会通过 {@link Math#clamp(long, int, int)} 被限制在 [0, maxValue] 范围内，
      * 无需调用者手动校验边界。
      *
      * @param newVal 期望设置的新值
@@ -103,7 +104,7 @@ public class PlayerAttribute {
     /**
      * MapCodec 序列化器，用于 AttachmentType 的存档读写
      * <p>
-     * NeoForge 在保存/加载游戏存档时，会使用此 Codec 将 PlayerAttribute 序列化为 NBT/JSON 格式。
+     * NeoForge 在保存/加载游戏存档时，会使用此 Codec 将 EntityAttribute 序列化为 NBT/JSON 格式。
      * 字段映射关系：
      * <ul>
      *   <li>{@code "current"} → {@link #getValue()} 当前值</li>
@@ -114,10 +115,10 @@ public class PlayerAttribute {
      * {@link com.rpgcraft.core.network.SyncPlayerAttributePacket#STREAM_CODEC}（StreamCodec），
      * 两者不可混用。
      */
-    public static final MapCodec<PlayerAttribute> CODEC = RecordCodecBuilder.mapCodec(instance ->
+    public static final MapCodec<EntityAttribute> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
-                    Codec.INT.fieldOf("current").forGetter(PlayerAttribute::getValue),
-                    Codec.INT.fieldOf("max").forGetter(PlayerAttribute::getMaxValue)
-            ).apply(instance, PlayerAttribute::new)
+                    Codec.INT.fieldOf("current").forGetter(EntityAttribute::getValue),
+                    Codec.INT.fieldOf("max").forGetter(EntityAttribute::getMaxValue)
+            ).apply(instance, EntityAttribute::new)
     );
 }

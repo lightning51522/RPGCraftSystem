@@ -1,7 +1,7 @@
 package com.rpgcraft.core.client;
 
-import com.rpgcraft.core.attribute.GenericPlayerData;
-import com.rpgcraft.core.attribute.PlayerAttribute;
+import com.rpgcraft.core.attribute.EntityAttribute;
+import com.rpgcraft.core.attribute.GenericEntityData;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -49,20 +49,20 @@ public class AttributeHudOverlay {
      * <p>
      * 如果未来需要新增或隐藏某个属性的显示，只需修改此 Map 即可。
      */
-    private static final Map<String, Supplier<AttachmentType<PlayerAttribute>>> ATTRIBUTES_TO_DISPLAY = new LinkedHashMap<>();
+    private static final Map<String, Supplier<AttachmentType<EntityAttribute>>> ATTRIBUTES_TO_DISPLAY = new LinkedHashMap<>();
 
     static {
-        ATTRIBUTES_TO_DISPLAY.put("生命", GenericPlayerData.LIFE);
-        ATTRIBUTES_TO_DISPLAY.put("技力", GenericPlayerData.SKILL_POINT);
-        ATTRIBUTES_TO_DISPLAY.put("法力", GenericPlayerData.MAGIC_POINT);
-        ATTRIBUTES_TO_DISPLAY.put("力量", GenericPlayerData.STRENGTH);
-        ATTRIBUTES_TO_DISPLAY.put("魔力", GenericPlayerData.MANA);
-        ATTRIBUTES_TO_DISPLAY.put("敏捷", GenericPlayerData.AGILE);
-        ATTRIBUTES_TO_DISPLAY.put("精准", GenericPlayerData.PRECISION);
-        ATTRIBUTES_TO_DISPLAY.put("防御", GenericPlayerData.DEFENSE);
-        ATTRIBUTES_TO_DISPLAY.put("法抗", GenericPlayerData.RESISTANCE);
-        ATTRIBUTES_TO_DISPLAY.put("暴击率", GenericPlayerData.CRITICAL_RATE);
-        ATTRIBUTES_TO_DISPLAY.put("暴击伤害", GenericPlayerData.CRITICAL_RATIO);
+        ATTRIBUTES_TO_DISPLAY.put("生命", GenericEntityData.LIFE);
+        ATTRIBUTES_TO_DISPLAY.put("技力", GenericEntityData.SKILL_POINT);
+        ATTRIBUTES_TO_DISPLAY.put("法力", GenericEntityData.MAGIC_POINT);
+        ATTRIBUTES_TO_DISPLAY.put("力量", GenericEntityData.STRENGTH);
+        ATTRIBUTES_TO_DISPLAY.put("魔力", GenericEntityData.MANA);
+        ATTRIBUTES_TO_DISPLAY.put("敏捷", GenericEntityData.AGILE);
+        ATTRIBUTES_TO_DISPLAY.put("精准", GenericEntityData.PRECISION);
+        ATTRIBUTES_TO_DISPLAY.put("防御", GenericEntityData.DEFENSE);
+        ATTRIBUTES_TO_DISPLAY.put("法抗", GenericEntityData.RESISTANCE);
+        ATTRIBUTES_TO_DISPLAY.put("暴击率", GenericEntityData.CRITICAL_RATE);
+        ATTRIBUTES_TO_DISPLAY.put("暴击伤害", GenericEntityData.CRITICAL_RATIO);
     }
 
     /**
@@ -108,13 +108,13 @@ public class AttributeHudOverlay {
         int y = 10;
         int lineHeight = 12;
 
-        for (Map.Entry<String, Supplier<AttachmentType<PlayerAttribute>>> entry : ATTRIBUTES_TO_DISPLAY.entrySet()) {
+        for (Map.Entry<String, Supplier<AttachmentType<EntityAttribute>>> entry : ATTRIBUTES_TO_DISPLAY.entrySet()) {
             String attrName = entry.getKey();
-            AttachmentType<PlayerAttribute> type = entry.getValue().get();
+            AttachmentType<EntityAttribute> type = entry.getValue().get();
 
             // 从客户端玩家的 Attachment 中读取属性数据
             // 数据由 SyncPlayerAttributePacket 从服务端同步
-            PlayerAttribute attr = player.getData(type);
+            EntityAttribute attr = player.getData(type);
 
             // 根据是否有上限选择不同的显示格式
             String displayText;
