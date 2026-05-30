@@ -83,77 +83,77 @@ public class GenericEntityData {
 
     /** 生命值：上限 100，默认满值 */
     public static final Supplier<AttachmentType<EntityAttribute>> LIFE = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "life", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(100))
+            "life", () -> AttachmentType.builder(() -> new EntityAttribute(100))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 技力值：上限 100，默认满值 */
     public static final Supplier<AttachmentType<EntityAttribute>> SKILL_POINT = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "skill_point", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(100))
+            "skill_point", () -> AttachmentType.builder(() -> new EntityAttribute(100))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 法力值：上限 100，默认满值 */
     public static final Supplier<AttachmentType<EntityAttribute>> MAGIC_POINT = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "magic_point", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(100))
+            "magic_point", () -> AttachmentType.builder(() -> new EntityAttribute(100))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 力量：无上限，默认 10 */
     public static final Supplier<AttachmentType<EntityAttribute>> STRENGTH = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "strength", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
+            "strength", () -> AttachmentType.builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 魔力：无上限，默认 10 */
     public static final Supplier<AttachmentType<EntityAttribute>> MANA = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "mana", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
+            "mana", () -> AttachmentType.builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 敏捷：无上限，默认 10 */
     public static final Supplier<AttachmentType<EntityAttribute>> AGILE = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "agile", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
+            "agile", () -> AttachmentType.builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 精准：无上限，默认 10 */
     public static final Supplier<AttachmentType<EntityAttribute>> PRECISION = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "precision", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
+            "precision", () -> AttachmentType.builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 防御：无上限，默认 10 */
     public static final Supplier<AttachmentType<EntityAttribute>> DEFENSE = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "defense", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
+            "defense", () -> AttachmentType.builder(() -> new EntityAttribute(10, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 法术抗性：上限 100，默认 2 */
     public static final Supplier<AttachmentType<EntityAttribute>> RESISTANCE = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "resistance", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(2, 100))
+            "resistance", () -> AttachmentType.builder(() -> new EntityAttribute(2, 100))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 暴击率：上限 100，默认 5 */
     public static final Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATE = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "critical_rate", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(5, 100))
+            "critical_rate", () -> AttachmentType.builder(() -> new EntityAttribute(5, 100))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );
 
     /** 暴击伤害倍率：无上限，默认 50（表示 50%） */
     public static final Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATIO = ATTRIBUTE_ATTACHMENT_TYPES.register(
-            "critical_ratio", () -> AttachmentType.<EntityAttribute>builder(() -> new EntityAttribute(50, Integer.MAX_VALUE))
+            "critical_ratio", () -> AttachmentType.builder(() -> new EntityAttribute(50, Integer.MAX_VALUE))
                     .serialize(EntityAttribute.CODEC)
                     .build()
     );

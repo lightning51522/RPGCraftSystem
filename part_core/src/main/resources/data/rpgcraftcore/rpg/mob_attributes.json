@@ -1,0 +1,122 @@
+{
+  "minecraft:zombie": {
+    "life": 100,
+    "strength": 15,
+    "defense": 5,
+    "resistance": 0,
+    "critical_rate": 5,
+    "critical_ratio": 50
+  },
+  "minecraft:husk": {
+    "life": 110,
+    "strength": 16,
+    "defense": 6,
+    "resistance": 0,
+    "critical_rate": 5,
+    "critical_ratio": 50
+  },
+  "minecraft:drowned": {
+    "life": 100,
+    "strength": 14,
+    "defense": 5,
+    "resistance": 5,
+    "critical_rate": 5,
+    "critical_ratio": 50
+  },
+  "minecraft:skeleton": {
+    "life": 80,
+    "strength": 10,
+    "defense": 3,
+    "resistance": 0,
+    "critical_rate": 5,
+    "critical_ratio": 50
+  },
+  "minecraft:stray": {
+    "life": 90,
+    "strength": 11,
+    "defense": 3,
+    "resistance": 5,
+    "critical_rate": 5,
+    "critical_ratio": 50
+  },
+  "minecraft:wither_skeleton": {
+    "life": 120,
+    "strength": 20,
+    "defense": 8,
+    "resistance": 10,
+    "critical_rate": 10,
+    "critical_ratio": 60
+  },
+  "minecraft:creeper": {
+    "life": 60,
+    "strength": 30,
+    "defense": 0,
+    "resistance": 0,
+    "critical_rate": 0,
+    "critical_ratio": 0
+  },
+  "minecraft:spider": {
+    "life": 70,
+    "strength": 8,
+    "defense": 2,
+    "resistance": 0,
+    "critical_rate": 5,
+    "critical_ratio": 40
+  },
+  "minecraft:cave_spider": {
+    "life": 50,
+    "strength": 6,
+    "defense": 1,
+    "resistance": 0,
+    "critical_rate": 10,
+    "critical_ratio": 40
+  },
+  "minecraft:enderman": {
+    "life": 150,
+    "strength": 25,
+    "defense": 5,
+    "resistance": 10,
+    "critical_rate": 15,
+    "critical_ratio": 80
+  },
+  "minecraft:blaze": {
+    "life": 80,
+    "strength": 18,
+    "defense": 0,
+    "resistance": 30,
+    "critical_rate": 10,
+    "critical_ratio": 60
+  },
+  "minecraft:pig": {
+    "life": 50,
+    "strength": 2,
+    "defense": 0,
+    "resistance": 0,
+    "critical_rate": 0,
+    "critical_ratio": 0
+  },
+  "minecraft:cow": {
+    "life": 60,
+    "strength": 2,
+    "defense": 0,
+    "resistance": 0,
+    "critical_rate": 0,
+    "critical_ratio": 0
+  },
+  "minecraft:sheep": {
+    "life": 40,
+    "strength": 1,
+    "defense": 1,
+    "resistance": 0,
+    "critical_rate": 0,
+    "critical_ratio": 0
+  },
+  "minecraft:chicken": {
+    "life": 20,
+    "strength": 1,
+    "defense": 0,
+    "resistance": 0,
+    "critical_rate": 0,
+    "critical_ratio": 0
+  }
+}
