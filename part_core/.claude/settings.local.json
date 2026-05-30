@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__web-reader__webReader",
+      "mcp__web-search-prime__web_search_prime",
+      "mcp__zread__search_doc",
+      "mcp__zread__read_file",
+      "Bash(unzip *)",
+      "Bash(jar tf *)",
+      "Bash(xargs grep -l \"class.*DeltaTracker\")",
+      "Bash(xargs -I{} sh -c 'jar tf \"{}\" 2>/dev/null | grep -l \"EventBusSubscriber\" && echo \"{}\"')",
+      "Bash(jar xf *)",
+      "Read(//tmp/neoforge_extract/net/neoforged/fml/common/**)",
+      "Bash(mkdir -p /tmp/neoforge_extract)",
+      "Read(//tmp/**)",
+      "Bash(cat \"net/neoforged/fml/common/EventBusSubscriber.java\")",
+      "Bash(echo \"EXIT: $?\")"
+    ]
+  }
+}

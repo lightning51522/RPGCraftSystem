@@ -1,0 +1,36 @@
+// 根目录 build.gradle
+
+plugins {
+    // 第三方插件：声明版本 + apply false
+    id 'net.neoforged.moddev' version '2.0.141' apply false
+}
+
+// 对所有子项目（如 part_core）生效的统一配置
+subprojects {
+    // 应用 Gradle 核心插件（不需要写版本号）
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'idea'
+
+    // 统一设置子项目的 Java 版本（这里设置后，子项目就不需要再重复设置了）
+    java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+    // 统一设置编译编码
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+
+    // 如果有全生态共享的仓库，也可以放在这里
+    repositories {
+        // mavenCentral()
+    }
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    // Define wrapper values here so as to not have to always do so when updating gradlew.properties.
+    // Switching this to Wrapper.DistributionType.ALL will download the full gradle sources that comes with
+    // documentation attached on cursor hover of gradle classes and methods. However, this comes with increased
+    // file size for Gradle. If you do switch this to ALL, run the Gradle wrapper task twice afterwards.
+    // (Verify by checking gradle/wrapper/gradle-wrapper.properties to see if distributionUrl now points to `-all`)
+    distributionType = Wrapper.DistributionType.BIN
+}
