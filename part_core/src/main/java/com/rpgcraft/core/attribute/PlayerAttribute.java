@@ -91,7 +91,7 @@ public class PlayerAttribute {
     /**
      * 设置属性当前值
      * <p>
-     * 数值会通过 {@link Math#clamp(int, int, int)} 被限制在 [0, maxValue] 范围内，
+     * 数值会被限制在 [0, maxValue] 范围内，
      * 无需调用者手动校验边界。
      *
      * @param newVal 期望设置的新值
