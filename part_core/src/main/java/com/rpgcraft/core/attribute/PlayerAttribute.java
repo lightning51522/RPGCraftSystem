@@ -6,36 +6,113 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
  * 玩家自定义属性的基础数据类
- * 包含当前值和最大值，并提供了序列化/反序列化所需的 Codec
+ * <p>
+ * 每个 RPG 属性（如生命、力量、暴击率等）都由一个 PlayerAttribute 实例表示。
+ * 包含两个核心字段：
+ * <ul>
+ *   <li>{@link #currentValue} —— 属性当前值，可通过 {@link #setValue(int)} 修改</li>
+ *   <li>{@link #maxValue} —— 属性上限值，构造后不可变</li>
+ * </ul>
+ * <p>
+ * 该类同时提供了 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
+ * 网络传输的序列化则在 {@link com.rpgcraft.core.network.SyncPlayerAttributePacket} 中单独处理。
  */
 public class PlayerAttribute {
-    // 最大值 (如果是 Integer.MAX_VALUE 代表无上限)
+
+    /**
+     * 属性上限值
+     * <p>
+     * 构造后不可修改。当值为 {@link Integer#MAX_VALUE} 时，表示该属性无上限（如力量、魔力等成长型属性）。
+     * 有上限的属性（如生命 100、暴击率 100）在此字段中存储具体最大值。
+     */
     private final int maxValue;
-    // 当前值
+
+    /**
+     * 属性当前值
+     * <p>
+     * 通过 {@link #setValue(int)} 修改时，会自动被夹紧（clamp）到 [0, maxValue] 范围内，
+     * 保证数值不会出现负数或超过上限的非法状态。
+     */
     private int currentValue;
 
+    /**
+     * 构造一个当前值等于最大值的属性（满值构造）
+     * <p>
+     * 适用于初始化场景，属性创建时即为满状态。
+     *
+     * @param value 属性的初始值和最大值
+     */
     public PlayerAttribute(int value) {
         this.maxValue = value;
         this.currentValue = value;
     }
 
+    /**
+     * 构造一个指定当前值和最大值的属性
+     * <p>
+     * 适用于从存档数据恢复或网络包反序列化时重建属性实例。
+     *
+     * @param currentValue 属性当前值
+     * @param maxValue     属性最大值
+     */
     public PlayerAttribute(int currentValue, int maxValue) {
         this.maxValue = maxValue;
         this.currentValue = currentValue;
     }
 
-    public PlayerAttribute() { this(100, 100); }
-
-    public int getMaxValue() { return maxValue; }
-    public int getValue() { return currentValue; }
-
-    // 设置属性值，使用 Math.clamp 确保数值不会低于0或超过最大值
-    public void setValue(int newVal) { currentValue = Math.clamp(newVal, 0, maxValue); }
+    /**
+     * 默认构造函数
+     * <p>
+     * 创建一个当前值和最大值均为 100 的属性实例。
+     * 作为 AttachmentType 的默认工厂方法使用。
+     */
+    public PlayerAttribute() {
+        this(100, 100);
+    }
 
     /**
-     * 声明 MapCodec 用于 AttachmentType 的序列化。
-     * NeoForge 会利用这个 Codec 将数据保存到存档文件中，并在需要时读取。
-     * 字段名("current", "max")将作为存档中的 NBT/JSON 键名。
+     * 获取属性最大值
+     *
+     * @return 属性上限值
+     */
+    public int getMaxValue() {
+        return maxValue;
+    }
+
+    /**
+     * 获取属性当前值
+     *
+     * @return 属性当前值
+     */
+    public int getValue() {
+        return currentValue;
+    }
+
+    /**
+     * 设置属性当前值
+     * <p>
+     * 数值会通过 {@link Math#clamp(int, int, int)} 被限制在 [0, maxValue] 范围内，
+     * 无需调用者手动校验边界。
+     *
+     * @param newVal 期望设置的新值
+     */
+    public void setValue(int newVal) {
+        currentValue = Math.clamp(newVal, 0, maxValue);
+    }
+
+    /**
+     * MapCodec 序列化器，用于 AttachmentType 的存档读写
+     * <p>
+     * NeoForge 在保存/加载游戏存档时，会使用此 Codec 将 PlayerAttribute 序列化为 NBT/JSON 格式。
+     * 字段映射关系：
+     * <ul>
+     *   <li>{@code "current"} → {@link #getValue()} 当前值</li>
+     *   <li>{@code "max"} → {@link #getMaxValue()} 最大值</li>
+     * </ul>
+     * <p>
+     * <b>注意：</b>此 Codec 仅用于存档序列化，网络传输使用的是
+     * {@link com.rpgcraft.core.network.SyncPlayerAttributePacket#STREAM_CODEC}（StreamCodec），
+     * 两者不可混用。
      */
     public static final MapCodec<PlayerAttribute> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(

@@ -14,7 +14,14 @@
       "Bash(mkdir -p /tmp/neoforge_extract)",
       "Read(//tmp/**)",
       "Bash(cat \"net/neoforged/fml/common/EventBusSubscriber.java\")",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(xargs grep -l \"RegisterGuiLayersEvent\\\\|GuiLayer\\\\|GuiGraphicsExtractor\")",
+      "Bash(xargs grep -l \"EventBusSubscriber\")",
+      "Bash(xargs grep -l \"enum Bus\\\\|Bus\\\\\\\\.FORGE\\\\|Bus\\\\\\\\.MOD\\\\|Bus\\\\\\\\.GAME\")",
+      "Bash(xargs grep -l \"IModBusEvent\")",
+      "Bash(xargs grep -l \"EventBus\\\\|SubscribeEvent\\\\|IModBusEvent\")",
+      "Bash(xargs -I {} sh -c 'jar tf \"{}\" 2>/dev/null | grep -l \"EventBusSubscriber\" && echo \"{}\"')",
+      "Bash(xargs -I {} sh -c 'jar tf \"{}\" 2>/dev/null | grep \"EventBusSubscriber\" >/dev/null 2>&1 && echo \"{}\"')"
     ]
   }
 }

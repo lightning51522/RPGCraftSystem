@@ -1,8 +1,9 @@
 package com.rpgcraft.core;
 
 import com.rpgcraft.core.attribute.GenericPlayerData;
-import com.rpgcraft.core.attribute.GenericPlayerData;
+import com.rpgcraft.core.attribute.PlayerAttribute;
 import com.rpgcraft.core.network.PacketHandler;
+import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 
 import org.slf4j.Logger;
 
@@ -29,83 +30,113 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
+/**
+ * RPGCraftCore 模组主类 —— 模组的入口点和核心注册中心
+ * <p>
+ * 使用 {@code @Mod} 注解标记，FML 在加载模组时会自动实例化此类。
+ * 构造函数中完成所有注册和事件总线的挂载。
+ * <p>
+ * <b>注册的内容：</b>
+ * <ul>
+ *   <li>方块、物品、创造模式标签页（通过 DeferredRegister）</li>
+ *   <li>玩家属性 AttachmentType（通过 {@link GenericPlayerData#ATTRIBUTE_ATTACHMENT_TYPES}）</li>
+ *   <li>网络包（通过 {@link PacketHandler#register}）</li>
+ *   <li>配置文件（通过 ModContainer）</li>
+ * </ul>
+ * <p>
+ * <b>事件监听：</b>
+ * <ul>
+ *   <li>Mod 事件总线（modEventBus）：{@link #commonSetup}、{@link PacketHandler#register}、{@link GenericPlayerData} 注册</li>
+ *   <li>Game 事件总线（{@link NeoForge#EVENT_BUS}）：{@link #onServerStarting}、{@link #onPlayerLogin}</li>
+ * </ul>
+ */
 @Mod(RPGCraftCore.MODID)
 public class RPGCraftCore {
-    // Define mod id in a common place for everything to reference
+
+    /** 模组 ID，必须与 neoforge.mods.toml 中的 modId 一致 */
     public static final String MODID = "rpgcraftcore";
-    // Directly reference a slf4j logger
+
+    /** SLF4J 日志记录器 */
     public static final Logger LOGGER = LogUtils.getLogger();
-    // Create a Deferred Register to hold Blocks which will all be registered under the "rpgcraftcore" namespace
+
+    // ====================================================================
+    // 原版注册器（方块、物品、创造标签页）
+    // 使用 DeferredRegister 延迟注册模式，在构造函数中统一挂载到 Mod 事件总线
+    // ====================================================================
+
+    /** 方块注册器 */
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
-    // Create a Deferred Register to hold Items which will all be registered under the "rpgcraftcore" namespace
+    /** 物品注册器 */
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    // Create a Deferred Register to hold CreativeModeTabs which will all be registered under the "rpgcraftcore" namespace
+    /** 创造模式标签页注册器 */
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
 
-    // Creates a new Block with the id "rpgcraftcore:example_block", combining the namespace and path
+    /** 示例方块 */
     public static final DeferredBlock<Block> EXAMPLE_BLOCK = BLOCKS.registerSimpleBlock("example_block", p -> p.mapColor(MapColor.STONE));
-    // Creates a new BlockItem with the id "rpgcraftcore:example_block", combining the namespace and path
+    /** 示例方块对应的物品 */
     public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
-
-    // Creates a new food item with the id "rpgcraftcore:example_id", nutrition 1 and saturation 2
+    /** 示例食物物品 */
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", p -> p.food(new FoodProperties.Builder()
             .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
-
-    // Creates a creative tab with the id "rpgcraftcore:example_tab" for the example item, that is placed after the combat tab
+    /** 示例创造模式标签页 */
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
-            .title(Component.translatable("itemGroup.rpgcraftcore")) //The language key for the title of your CreativeModeTab
+            .title(Component.translatable("itemGroup.rpgcraftcore"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
             .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
             .displayItems((parameters, output) -> {
-                output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
+                output.accept(EXAMPLE_ITEM.get());
             }).build());
 
-    // The constructor for the mod class is the first code that is run when your mod is loaded.
-    // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
+    /**
+     * 模组主构造函数 —— FML 自动调用
+     * <p>
+     * FML 识别参数类型并自动注入 {@link IEventBus}（Mod 事件总线）和 {@link ModContainer}。
+     * 所有注册操作在此完成。
+     *
+     * @param modEventBus Mod 事件总线，用于注册生命周期事件和延迟注册器
+     * @param modContainer 模组容器，用于注册配置等扩展点
+     */
     public RPGCraftCore(IEventBus modEventBus, ModContainer modContainer) {
-        // Register the commonSetup method for modloading
+        // 注册通用初始化回调
         modEventBus.addListener(this::commonSetup);
 
-        // Register the Deferred Register to the mod event bus so blocks get registered
+        // 注册原版内容的延迟注册器
         BLOCKS.register(modEventBus);
-        // Register the Deferred Register to the mod event bus so items get registered
         ITEMS.register(modEventBus);
-        // Register the Deferred Register to the mod event bus so tabs get registered
         CREATIVE_MODE_TABS.register(modEventBus);
 
-        /**
-         * 用户代码区域开始
-         */
-        // 注册玩家属性
+        // 注册玩家属性 AttachmentType
         GenericPlayerData.ATTRIBUTE_ATTACHMENT_TYPES.register(modEventBus);
-        // 注册属性通信的网络包
+
+        // 注册网络包处理器
         modEventBus.addListener(PacketHandler::register);
 
-        /**
-         * 用户代码区域结束
-         */
-
-        // Register ourselves for server and other game events we are interested in.
-        // Note that this is necessary if and only if we want *this* class (RPGCraftCore) to respond directly to events.
-        // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
+        // 将本类注册到 Game 事件总线，使 @SubscribeEvent 方法生效
         NeoForge.EVENT_BUS.register(this);
 
-        // Register the item to a creative tab
+        // 注册创造标签页内容回调
         modEventBus.addListener(this::addCreative);
 
-        // Register our mod's ModConfigSpec so that FML can create and load the config file for us
+        // 注册模组配置文件
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
+    /**
+     * 通用初始化回调（Mod 事件总线）
+     * <p>
+     * 在模组加载的 FMLCommonSetupEvent 阶段触发，此时所有注册已完成。
+     * 用于执行仅需运行一次的初始化逻辑。
+     *
+     * @param event 通用设置事件
+     */
     private void commonSetup(FMLCommonSetupEvent event) {
-        // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
 
         if (Config.LOG_DIRT_BLOCK.getAsBoolean()) {
@@ -117,17 +148,45 @@ public class RPGCraftCore {
         Config.ITEM_STRINGS.get().forEach((item) -> LOGGER.info("ITEM >> {}", item));
     }
 
-    // Add the example block item to the building blocks tab
+    /**
+     * 创造标签页内容回调（Mod 事件总线）
+     * <p>
+     * 将示例方块物品添加到原版 "建筑方块" 创造标签页中。
+     *
+     * @param event 标签页内容构建事件
+     */
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
             event.accept(EXAMPLE_BLOCK_ITEM);
         }
     }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
+    /**
+     * 服务器启动回调（Game 事件总线）
+     *
+     * @param event 服务器启动事件
+     */
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-        // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+    }
+
+    /**
+     * 玩家登录回调 —— 全量同步属性到客户端（Game 事件总线）
+     * <p>
+     * 当玩家进入世界时（无论创造模式还是生存模式），遍历所有自定义 RPG 属性，
+     * 逐个通过 {@link SyncPlayerAttributePacket#sendToClient} 发送给该玩家的客户端。
+     * <p>
+     * 此同步确保客户端 HUD 在玩家进入世界后立即显示正确的属性值，
+     * 而不需要等待属性发生变更才触发同步。
+     *
+     * @param event 玩家登录事件，通过 {@code event.getEntity()} 获取登录的玩家实例
+     */
+    @SubscribeEvent
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        for (GenericPlayerData.AttributeEntry entry : GenericPlayerData.ALL_ATTRIBUTES) {
+            PlayerAttribute attr = event.getEntity().getData(entry.supplier());
+            SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.id(), attr);
+        }
     }
 }
