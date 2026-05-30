@@ -6,13 +6,13 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
- * 玩家自定义属性的基础数据类
+ * 玩家/生物自定义属性的基础数据类
  * <p>
  * 每个 RPG 属性（如生命、力量、暴击率等）都由一个 EntityAttribute 实例表示。
  * 包含两个核心字段：
  * <ul>
  *   <li>{@link #currentValue} —— 属性当前值，可通过 {@link #setValue(int)} 修改</li>
- *   <li>{@link #maxValue} —— 属性上限值，构造后不可变</li>
+ *   <li>{@link #maxValue} —— 属性上限值，可通过 {@link #setMaxValue(int)} 修改</li>
  * </ul>
  * <p>
  * 该类同时提供了 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
@@ -23,10 +23,11 @@ public class EntityAttribute {
     /**
      * 属性上限值
      * <p>
-     * 构造后不可修改。当值为 {@link Integer#MAX_VALUE} 时，表示该属性无上限（如力量、魔力等成长型属性）。
+     * 当值为 {@link Integer#MAX_VALUE} 时，表示该属性无上限（如力量、魔力等成长型属性）。
      * 有上限的属性（如生命 100、暴击率 100）在此字段中存储具体最大值。
+     * 可通过 {@link #setMaxValue(int)} 动态修改。
      */
-    private final int maxValue;
+    private int maxValue;
 
     /**
      * 属性当前值
@@ -78,6 +79,20 @@ public class EntityAttribute {
      */
     public int getMaxValue() {
         return maxValue;
+    }
+
+    /**
+     * 设置属性最大值
+     * <p>
+     * 修改后若当前值超过新的最大值，会自动被夹紧。
+     *
+     * @param max 新的最大值
+     */
+    public void setMaxValue(int max) {
+        this.maxValue = max;
+        if (currentValue > maxValue) {
+            currentValue = maxValue;
+        }
     }
 
     /**

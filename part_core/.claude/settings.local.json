@@ -23,7 +23,15 @@
       "Bash(xargs -I {} sh -c 'jar tf \"{}\" 2>/dev/null | grep -l \"EventBusSubscriber\" && echo \"{}\"')",
       "Bash(xargs -I {} sh -c 'jar tf \"{}\" 2>/dev/null | grep \"EventBusSubscriber\" >/dev/null 2>&1 && echo \"{}\"')",
       "WebSearch",
-      "Bash(java -jar \"d15b53a14cf20fdcaa98f731af5dda654452c010/brigadier-1.3.10.jar\")"
+      "Bash(java -jar \"d15b53a14cf20fdcaa98f731af5dda654452c010/brigadier-1.3.10.jar\")",
+      "Bash(find *)",
+      "Bash(javap -cp \".:C:/Users/10348/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/26.1.2.68-beta/5fbc2ea60176567d80eba088036bac9a3fbfb63/neoforge-26.1.2.68-beta-universal.jar\" net.neoforged.neoforge.attachment.IAttachmentHolder)",
+      "Bash(javap -cp \"C:/Users/10348/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/26.1.2.68-beta/5fbc2ea60176567d80eba088036bac9a3fbfb63/neoforge-26.1.2.68-beta-universal.jar\" net.neoforged.neoforge.attachment.IAttachmentHolder)",
+      "Bash(xargs grep -l \"implements.*IAttachmentHolder\")",
+      "Bash(xargs grep -l \"extends.*Entity\")",
+      "Bash(rm -f AttachmentType.java)",
+      "Bash(rm -rf tmp/ neoforge-sources/)",
+      "Bash(xargs grep -l \"LivingHurt\\\\|LivingDamage\")"
     ]
   }
 }

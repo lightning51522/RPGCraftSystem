@@ -1,7 +1,7 @@
 package com.rpgcraft.core.attribute;
 
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
@@ -237,22 +237,22 @@ public class GenericEntityData {
      *   <li><b>其他混合类型：</b>暂不处理，返回原始伤害</li>
      * </ul>
      *
-     * @param player         受击玩家，用于读取其防御力和法术抗性属性
+     * @param entity         受击实体，用于读取其防御力和法术抗性属性
      * @param originalDamage 原始伤害数值（未被减免前）
      * @param type           伤害类型
      * @return 减免后的最终伤害数值（不低于 0）
      */
-    public static int getHurt(Player player, int originalDamage, AttackType type) {
+    public static int getHurt(LivingEntity entity, int originalDamage, AttackType type) {
         return switch (type) {
             case PHYSICAL -> {
                 // 物理伤害：直接减去防御力值，最低为 0
-                int defense = player.getData(DEFENSE).getValue();
+                int defense = entity.getData(DEFENSE).getValue();
                 yield Math.max(0, originalDamage - defense);
             }
             case MAGIC -> {
                 // 法术伤害：按法术抗性百分比减免
                 // resistance 范围 0~100，表示减免百分比（如 resistance=2 → 减免 2%）
-                int resistance = player.getData(RESISTANCE).getValue();
+                int resistance = entity.getData(RESISTANCE).getValue();
                 yield (int) Math.max(0, originalDamage * (1.0 - resistance / 100.0));
             }
             // 混合类型暂不处理，直接返回原始伤害
@@ -272,27 +272,27 @@ public class GenericEntityData {
      *       （暴击伤害默认 50 表示 50%，即暴击时伤害 ×1.5）</li>
      * </ul>
      *
-     * @param player 攻击方玩家，用于读取力量/魔力、暴击率和暴击伤害属性
+     * @param entity 攻击方实体，用于读取力量/魔力、暴击率和暴击伤害属性
      * @param type   攻击类型（仅 PHYSICAL 和 MAGIC 已实现）
      * @return 计算后的最终伤害数值；若攻击类型未实现则返回 0
      */
-    public static int causeDamage(Player player, AttackType type) {
+    public static int causeDamage(LivingEntity entity, AttackType type) {
         // 根据攻击类型确定基础伤害
         int baseDamage = switch (type) {
-            case PHYSICAL -> player.getData(STRENGTH).getValue();
-            case MAGIC -> player.getData(MANA).getValue();
+            case PHYSICAL -> entity.getData(STRENGTH).getValue();
+            case MAGIC -> entity.getData(MANA).getValue();
             // 混合类型暂不处理
             default -> 0;
         };
 
         // 暴击判定：暴击率范围 0~100，表示暴击概率百分比
-        int critRate = player.getData(CRITICAL_RATE).getValue();
+        int critRate = entity.getData(CRITICAL_RATE).getValue();
         boolean isCrit = ThreadLocalRandom.current().nextInt(100) < critRate;
 
         if (isCrit) {
             // 暴击伤害：基础伤害 × (1 + 暴击伤害百分比)
             // critRatio 默认 50 → 50% 加成 → 最终伤害 = base × 1.5
-            int critRatio = player.getData(CRITICAL_RATIO).getValue();
+            int critRatio = entity.getData(CRITICAL_RATIO).getValue();
             return (int) (baseDamage * (1.0 + critRatio / 100.0));
         }
 
