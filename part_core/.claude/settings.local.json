@@ -31,7 +31,8 @@
       "Bash(xargs grep -l \"extends.*Entity\")",
       "Bash(rm -f AttachmentType.java)",
       "Bash(rm -rf tmp/ neoforge-sources/)",
-      "Bash(xargs grep -l \"LivingHurt\\\\|LivingDamage\")"
+      "Bash(xargs grep -l \"LivingHurt\\\\|LivingDamage\")",
+      "Bash(./gradlew :part_core:build)"
     ]
   }
 }

@@ -4,9 +4,10 @@ import java.lang.Math;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.rpgcraft.core.attribute.api.IAttribute;
 
 /**
- * 玩家/生物自定义属性的基础数据类
+ * {@link IAttribute} 的默认实现
  * <p>
  * 每个 RPG 属性（如生命、力量、暴击率等）都由一个 EntityAttribute 实例表示。
  * 包含两个核心字段：
@@ -18,7 +19,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * 该类同时提供了 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
  * 网络传输的序列化则在 {@link com.rpgcraft.core.network.SyncPlayerAttributePacket} 中单独处理。
  */
-public class EntityAttribute {
+public class EntityAttribute implements IAttribute {
 
     /**
      * 属性上限值
@@ -67,6 +68,7 @@ public class EntityAttribute {
      *
      * @return 属性上限值
      */
+    @Override
     public int getMaxValue() {
         return maxValue;
     }
@@ -78,6 +80,7 @@ public class EntityAttribute {
      *
      * @param max 新的最大值
      */
+    @Override
     public void setMaxValue(int max) {
         this.maxValue = max;
         if (currentValue > maxValue) {
@@ -90,6 +93,7 @@ public class EntityAttribute {
      *
      * @return 属性当前值
      */
+    @Override
     public int getValue() {
         return currentValue;
     }
@@ -102,8 +106,19 @@ public class EntityAttribute {
      *
      * @param newVal 期望设置的新值
      */
+    @Override
     public void setValue(int newVal) {
         currentValue = Math.clamp(newVal, 0, maxValue);
+    }
+
+    /**
+     * 是否有上限
+     *
+     * @return {@code true} 如果 maxValue &lt; Integer.MAX_VALUE
+     */
+    @Override
+    public boolean hasMaxValue() {
+        return maxValue < Integer.MAX_VALUE;
     }
 
     /**

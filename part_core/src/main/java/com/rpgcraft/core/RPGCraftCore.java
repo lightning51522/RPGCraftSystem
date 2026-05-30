@@ -2,6 +2,7 @@ package com.rpgcraft.core;
 
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.GenericEntityData;
+import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 
@@ -102,6 +103,9 @@ public class RPGCraftCore {
      * @param modContainer 模组容器，用于注册配置等扩展点
      */
     public RPGCraftCore(IEventBus modEventBus, ModContainer modContainer) {
+        // 初始化属性注册中心和战斗计算器
+        GenericEntityData.init();
+
         // 注册通用初始化回调
         modEventBus.addListener(this::commonSetup);
 
@@ -110,8 +114,8 @@ public class RPGCraftCore {
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
-        // 注册玩家属性 AttachmentType
-        GenericEntityData.ATTRIBUTE_ATTACHMENT_TYPES.register(modEventBus);
+        // 注册属性 AttachmentType（通过注册中心的 DeferredRegister）
+        GenericEntityData.getRegistry().getDeferredRegister().register(modEventBus);
 
         // 注册网络包处理器
         modEventBus.addListener(PacketHandler::register);
@@ -182,9 +186,9 @@ public class RPGCraftCore {
      */
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        for (GenericEntityData.AttributeEntry entry : GenericEntityData.ALL_ATTRIBUTES) {
-            EntityAttribute attr = event.getEntity().getData(entry.supplier());
-            SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.id(), attr);
+        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+            EntityAttribute attr = (EntityAttribute) event.getEntity().getData(entry.getSupplier());
+            SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.getId(), attr);
         }
     }
 }

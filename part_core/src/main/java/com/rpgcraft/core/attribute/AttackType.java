@@ -1,9 +1,12 @@
 package com.rpgcraft.core.attribute;
 
+import com.rpgcraft.core.attribute.api.ICombatType;
+
 /**
  * 攻击/伤害类型枚举
  * <p>
- * 定义了模组中所有伤害的分类方式，用于 {@link GenericEntityData} 中的伤害计算。
+ * 实现 {@link ICombatType} 接口，定义模组中所有伤害的分类方式。
+ * 用于 {@link com.rpgcraft.core.attribute.api.ICombatCalculator} 中的伤害计算。
  * <p>
  * <b>当前已实现的类型：</b>
  * <ul>
@@ -11,14 +14,14 @@ package com.rpgcraft.core.attribute;
  *   <li>{@link #MAGIC} —— 纯法术伤害，受法术抗性百分比减免</li>
  * </ul>
  * <p>
- * <b>暂未实现的混合类型（按原设计暂时跳过）：</b>
+ * <b>暂未实现的混合类型：</b>
  * <ul>
  *   <li>{@link #PHYSICAL_WITH_MAGIC} —— 物理为主附带法术</li>
  *   <li>{@link #MAGIC_WITH_PHYSICAL} —— 法术为主附带物理</li>
  *   <li>{@link #MIX_TYPE} —— 混合伤害</li>
  * </ul>
  */
-public enum AttackType {
+public enum AttackType implements ICombatType {
     /** 纯物理伤害：计算时减去目标防御力 */
     PHYSICAL,
     /** 纯法术伤害：计算时减去目标法术抗性对应的百分比 */
@@ -28,5 +31,20 @@ public enum AttackType {
     /** 法术为主附带物理（暂未实现） */
     MAGIC_WITH_PHYSICAL,
     /** 混合伤害（暂未实现） */
-    MIX_TYPE
+    MIX_TYPE;
+
+    @Override
+    public String getName() {
+        return name().toLowerCase();
+    }
+
+    @Override
+    public boolean isPhysical() {
+        return this == PHYSICAL || this == PHYSICAL_WITH_MAGIC;
+    }
+
+    @Override
+    public boolean isMagic() {
+        return this == MAGIC || this == MAGIC_WITH_PHYSICAL;
+    }
 }
