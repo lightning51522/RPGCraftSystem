@@ -63,16 +63,6 @@ public class EntityAttribute {
     }
 
     /**
-     * 默认构造函数
-     * <p>
-     * 创建一个当前值和最大值均为 100 的属性实例。
-     * 作为 AttachmentType 的默认工厂方法使用。
-     */
-    //public EntityAttribute() {
-    //    this(100, 100);
-    //}
-
-    /**
      * 获取属性最大值
      *
      * @return 属性上限值
