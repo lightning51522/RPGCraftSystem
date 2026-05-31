@@ -2,6 +2,7 @@ package com.rpgcraft.core;
 
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.GenericEntityData;
+import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
@@ -31,6 +32,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -64,6 +66,24 @@ public class RPGCraftCore {
 
     /** SLF4J 日志记录器 */
     public static final Logger LOGGER = LogUtils.getLogger();
+
+    /** 死亡时属性快照缓存：UUID → AttributeSnapshot */
+    private static final java.util.Map<java.util.UUID, AttributeSnapshot> deathSnapshot = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 检测玩家生命是否归零，如果是则立即缓存全属性快照
+     * <p>
+     * 在生命属性可能变为 0 的所有位置调用（指令设置、战斗伤害同步等），
+     * 确保在游戏处理角色死亡之前捕获所有属性值。
+     * 使用 {@code putIfAbsent} 避免覆盖已有的快照（只保存第一次归零时的值）。
+     *
+     * @param player 可能即将死亡的玩家
+     */
+    public static void checkAndSnapshotIfDying(net.minecraft.server.level.ServerPlayer player) {
+        if (player.getData(GenericEntityData.LIFE).getValue() <= 0) {
+            deathSnapshot.putIfAbsent(player.getUUID(), GenericEntityData.getRegistry().createSnapshot(player));
+        }
+    }
 
     // ====================================================================
     // 原版注册器（方块、物品、创造标签页）
@@ -189,6 +209,40 @@ public class RPGCraftCore {
         for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
             EntityAttribute attr = (EntityAttribute) event.getEntity().getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.getId(), attr);
+        }
+    }
+
+    /**
+     * 玩家死亡回调 —— 兜底缓存属性快照（Game 事件总线）
+     * <p>
+     * 作为 {@link #checkAndSnapshotIfDying} 的兜底，处理非生命归零导致的死亡
+     * （如 void、/kill 等）。使用 {@code putIfAbsent} 不覆盖已有的快照。
+     */
+    // @SubscribeEvent
+    // public void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
+    //     if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
+    //     deathSnapshot.putIfAbsent(serverPlayer.getUUID(), GenericEntityData.getRegistry().createSnapshot(serverPlayer));
+    // }
+
+    /**
+     * 玩家克隆回调 —— 从快照恢复属性数据（Game 事件总线）
+     * <p>
+     * 默认初始化已由 NeoForge 完成后，通过注册中心的快照 API 恢复全部属性值：
+     * 资源型属性恢复到最大值，能力型属性保持死亡前的值。
+     */
+    @SubscribeEvent
+    public void onPlayerClone(PlayerEvent.Clone event) {
+        if (!event.isWasDeath()) return;
+        if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
+
+        AttributeSnapshot snapshot = deathSnapshot.remove(serverPlayer.getUUID());
+        if (snapshot == null) return;
+
+        GenericEntityData.getRegistry().applySnapshot(serverPlayer, snapshot);
+
+        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+            EntityAttribute attr = (EntityAttribute) serverPlayer.getData(entry.getSupplier());
+            SyncPlayerAttributePacket.sendToClient(serverPlayer, entry.getId(), attr);
         }
     }
 }

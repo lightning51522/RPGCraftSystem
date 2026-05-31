@@ -21,6 +21,7 @@ import com.rpgcraft.core.attribute.api.IAttribute;
  */
 public class EntityAttribute implements IAttribute {
 
+    private String name;
     /**
      * 属性上限值
      * <p>
@@ -58,10 +59,14 @@ public class EntityAttribute implements IAttribute {
      * @param currentValue 属性当前值
      * @param maxValue     属性最大值
      */
-    public EntityAttribute(int currentValue, int maxValue) {
+    public EntityAttribute(String name, int currentValue, int maxValue) {
+        this.name = name;
         this.maxValue = maxValue;
         this.currentValue = currentValue;
     }
+
+    @Override
+    public String getName() { return this.name; }
 
     /**
      * 获取属性最大值
@@ -139,6 +144,6 @@ public class EntityAttribute implements IAttribute {
             instance.group(
                     Codec.INT.fieldOf("current").forGetter(EntityAttribute::getValue),
                     Codec.INT.fieldOf("max").forGetter(EntityAttribute::getMaxValue)
-            ).apply(instance, EntityAttribute::new)
+            ).apply(instance, (current, max) -> new EntityAttribute("", current, max))
     );
 }

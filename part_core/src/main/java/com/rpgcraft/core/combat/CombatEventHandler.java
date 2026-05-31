@@ -4,7 +4,7 @@ import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.GenericEntityData;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
-import com.rpgcraft.core.attribute.api.ICombatCalculator;
+import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.RPGCraftCore;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -25,7 +25,7 @@ import java.util.Optional;
  * 自定义战斗系统事件处理器
  * <p>
  * 仅替换原版的伤害数值计算（攻击力 + 防御减免），其余所有机制保持原版行为。
- * 通过 {@link ICombatCalculator} 接口进行伤害计算，可被扩展模组替换。
+ * 通过 {@link IDamageCalculator} 接口进行伤害计算，可被扩展模组替换。
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
 public class CombatEventHandler {
@@ -67,7 +67,7 @@ public class CombatEventHandler {
         float originalDamage = event.getOriginalDamage();
         Entity attackerEntity = event.getSource().getEntity();
 
-        ICombatCalculator calculator = GenericEntityData.getCombatCalculator();
+        IDamageCalculator calculator = GenericEntityData.getDamageCalculator();
 
         int damage;
         if (attackerEntity instanceof LivingEntity attacker) {
@@ -88,10 +88,11 @@ public class CombatEventHandler {
         LivingEntity target = event.getEntity();
 
         EntityAttribute lifeAttr = target.getData(GenericEntityData.LIFE);
-        int currentVanillaHealth = (int) Math.ceil(target.getHealth());
+        int currentVanillaHealth = (int) target.getHealth() + (target.getHealth() > (int) target.getHealth() ? 1 : 0);
         lifeAttr.setValue(currentVanillaHealth);
 
         if (target instanceof ServerPlayer serverPlayer) {
+            com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(serverPlayer);
             SyncPlayerAttributePacket.sendToClient(serverPlayer, GenericEntityData.LIFE_ID, lifeAttr);
         }
     }

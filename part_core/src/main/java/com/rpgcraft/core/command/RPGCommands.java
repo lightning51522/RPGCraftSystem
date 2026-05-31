@@ -92,6 +92,16 @@ public class RPGCommands {
                                 )
                         )
                 )
+
+                .then(Commands.literal("reset")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .executes(context -> executeReset(context,
+                                context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(context -> executeReset(context,
+                                        EntityArgument.getPlayer(context, "player")))
+                        )
+                )
         );
     }
 
@@ -147,9 +157,6 @@ public class RPGCommands {
         IAttributeEntry entry = resolved.get();
         IAttribute attr = target.getData(entry.getSupplier());
 
-        if (attr.hasMaxValue()) {
-            attr.setMaxValue(value);
-        }
         attr.setValue(value);
 
         if (entry.getId().equals(GenericEntityData.LIFE_ID)) {
@@ -159,6 +166,8 @@ public class RPGCommands {
             }
             target.setHealth(attr.getValue());
         }
+
+        com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(target);
 
         EntityAttribute entityAttr = (EntityAttribute) attr;
         SyncPlayerAttributePacket.sendToClient(target, entry.getId(), entityAttr);
@@ -175,5 +184,20 @@ public class RPGCommands {
             }
         }
         return Optional.empty();
+    }
+
+    private static int executeReset(CommandContext<CommandSourceStack> context, ServerPlayer target) {
+        GenericEntityData.getRegistry().resetToDefaults(target);
+
+        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+            EntityAttribute attr = (EntityAttribute) target.getData(entry.getSupplier());
+            SyncPlayerAttributePacket.sendToClient(target, entry.getId(), attr);
+        }
+
+        context.getSource().sendSuccess(
+                () -> Component.literal("已重置 " + target.getName().getString() + " 的所有属性"),
+                true
+        );
+        return GenericEntityData.getRegistry().getAllEntries().size();
     }
 }

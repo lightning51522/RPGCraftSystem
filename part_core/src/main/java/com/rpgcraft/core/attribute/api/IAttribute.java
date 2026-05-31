@@ -8,6 +8,7 @@ package com.rpgcraft.core.attribute.api;
  */
 public interface IAttribute {
 
+    String getName();
     /**
      * 获取属性当前值
      */

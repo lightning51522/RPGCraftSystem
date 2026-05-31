@@ -34,61 +34,98 @@ Version properties (`minecraft_version`, `neo_version`) are defined in the root 
 
 ## Architecture
 
-This is the core module of the RPGCraftSystem multi-project workspace. It provides the foundational RPG attribute system and combat calculation that other modules will depend on.
+This is the core module of the RPGCraftSystem multi-project workspace. It provides the foundational RPG attribute system and damage calculation that other modules will depend on.
 
-### Entity Attribute System (`attribute/`)
+### Attribute API Layer (`attribute/api/`)
 
-The central mechanic. Uses NeoForge's `AttachmentType` system to attach custom RPG attributes to entities.
+Public interfaces that other mods depend on. Each functional module has its own `api/` sub-package under its domain:
 
-- **`EntityAttribute`** — Value object with `currentValue` and `maxValue`. Provides a `MapCodec` for save serialization and `Math.clamp` on mutation.
-- **`GenericEntityData`** — Declares all attachment types via a `DeferredRegister<AttachmentType<?>>`. Each attribute (life, skill_point, magic_point, strength, mana, agile, precision, defense, resistance, critical_rate, critical_ratio) is registered with:
-  - An explicit `Identifier` constant (used by the network layer)
-  - A `Supplier<AttachmentType<EntityAttribute>>` with default values and the `EntityAttribute.CODEC`
-  - A `getTypeById(Identifier)` lookup for client-side deserialization
-  - An `ALL_ATTRIBUTES` list of `AttributeEntry` records for batch iteration (e.g., login sync)
-- **`AttackType`** — Enum defining damage types: `PHYSICAL`, `MAGIC`, `PHYSICAL_WITH_MAGIC`, `MAGIC_WITH_PHYSICAL`, `MIX_TYPE`. Only `PHYSICAL` and `MAGIC` are currently implemented in combat calculations.
+- **`IAttribute`** — Attribute value contract: `getValue()`, `setValue()`, `getMaxValue()`, `setMaxValue()`, `hasMaxValue()`.
+- **`IAttributeEntry`** — Metadata for a registered attribute: `getId()`, `getDisplayName()`, `getSupplier()`, `getDefaultValue()`, `getDefaultMaxValue()`, `isCapped()`, `shouldResetOnRespawn()`.
+- **`IAttributeRegistry`** — Registration, lookup, and iteration: `register()` (4-param and 5-param with `resetOnRespawn`), `getEntry()`, `getTypeById()`, `getAllEntries()`, `getAttribute()`, `createSnapshot()`, `applySnapshot()`.
+- **`AttributeSnapshot`** — Immutable snapshot of all attribute values (current + max per attribute). Created by `createSnapshot()`, restored by `applySnapshot()`.
+- **`IDamageCalculator`** — Attribute-based damage formula contract: `calculateIncomingDamage()`, `calculateOutgoingDamage()`. Replaceable by extension mods via `GenericEntityData.setDamageCalculator()`.
+- **`IDamageType`** — Damage type contract: `getName()`, `isPhysical()`, `isMagic()`. Implemented by `AttackType` enum.
+- **`IAttributeProvider`** — SPI for mods to register custom attributes: `registerAttributes(IAttributeRegistry)`.
 
-#### Combat Calculations (`GenericEntityData` static methods)
+### Default Implementations (`attribute/`)
 
-- **`getHurt(Player, int, AttackType)`** — Calculates damage after reduction:
-  - Physical: `max(0, originalDamage - defense)`
-  - Magic: `originalDamage * (1 - resistance%)`
-  - Mixed types: pass-through (not yet implemented)
-- **`causeDamage(Player, AttackType)`** — Calculates outgoing damage:
-  - Physical base = strength, Magic base = mana
-  - Crit check: `random < critRate%` → crit bonus: `base * (1 + critRatio%)`
+- **`EntityAttribute`** — `IAttribute` default impl. Value object with `currentValue` and `maxValue`, `Math.clamp` on mutation, `MapCodec` for save serialization.
+- **`DefaultAttributeRegistry`** — `IAttributeRegistry` default impl. Manages `DeferredRegister<AttachmentType<?>>`, `Map<Identifier, DefaultEntry>`, and cached entry list. Inner `DefaultEntry` class implements `IAttributeEntry` including `shouldResetOnRespawn()`. Provides `getRawSupplier(Identifier)` for direct Supplier access (performance optimization). Separate `respawnResetEntries` list tracks resource attributes.
+- **`DefaultDamageCalculator`** — `IDamageCalculator` default impl. Attribute-based damage formulas:
+  - Physical incoming: `max(0, originalDamage - defense)`
+  - Magic incoming: `originalDamage * (1 - resistance%)`
+  - Physical outgoing: base = strength, crit check, crit bonus
+  - Magic outgoing: base = mana, crit check, crit bonus
+- **`AttackType`** — Enum implementing `IDamageType`: `PHYSICAL`, `MAGIC`, `PHYSICAL_WITH_MAGIC`, `MAGIC_WITH_PHYSICAL`, `MIX_TYPE`. Only `PHYSICAL` and `MAGIC` are implemented in damage calculations.
+- **`GenericEntityData`** — Backward-compatible facade. Holds `Identifier` constants and `Supplier<AttachmentType<EntityAttribute>>` accessors, delegates to `DefaultAttributeRegistry` and `DefaultDamageCalculator`. Must call `init()` before registering its `DeferredRegister` on the mod event bus.
+- **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload.
 
 #### Attribute Classification
 
-- **Capped** (maxValue < Integer.MAX_VALUE): life(100), skill_point(100), magic_point(100), resistance(100→2), critical_rate(100→5)
-- **Uncapped** (maxValue = Integer.MAX_VALUE): strength(10), mana(10), agile(10), precision(10), defense(10), critical_ratio(50)
+- **Resource attributes** (capped + reset on respawn): life(100), skill_point(100), magic_point(100). These restore to max on respawn.
+- **Ability attributes** (preserve on respawn): strength(10), mana(10), agile(10), precision(10), defense(10), critical_ratio(50). These keep pre-death values.
+- **Capped ability attributes** (capped but preserved): resistance(2→100), critical_rate(5→100). Have max but keep values on respawn.
+- Note: `isCapped()` and `shouldResetOnRespawn()` are orthogonal — resistance/critical_rate are capped but NOT reset on respawn.
+
+### Initialization Flow
+
+`RPGCraftCore` constructor:
+1. `GenericEntityData.init()` — creates `DefaultAttributeRegistry`, `DefaultDamageCalculator`, registers all 11 attributes
+2. `GenericEntityData.getRegistry().getDeferredRegister().register(modEventBus)` — submits AttachmentTypes to NeoForge
+3. Other registrations (blocks, items, packets, config)
 
 ### Network Sync (`network/`)
 
 Client-server attribute synchronization using NeoForge's payload system:
 
 - **`PacketHandler`** — Registers payloads on the mod event bus with protocol version `"1"`.
-- **`SyncPlayerAttributePacket`** — A `record` implementing `CustomPacketPayload`. Uses `StreamCodec` (network) — distinct from `MapCodec` (save). Server calls `sendToClient()`, client handles via `handle()` which enqueues work on the main thread and writes data into the client player's attachment.
+- **`SyncPlayerAttributePacket`** — A `record` implementing `CustomPacketPayload`. Uses `StreamCodec` (network) — distinct from `MapCodec` (save). Server calls `sendToClient()`, client handles via `handle()` which looks up the AttachmentType through `IAttributeRegistry.getTypeById()` and enqueues write on the main thread.
 
 ### Client HUD (`client/`)
 
-- **`AttributeHudOverlay`** — `@EventBusSubscriber(Dist.CLIENT)` that renders attributes as a HUD overlay via NeoForge 26.1's `GuiLayer` system (registered through `RegisterGuiLayersEvent` on the mod bus, NOT the old `RenderGuiEvent.Post`). Uses `GuiGraphicsExtractor.text()` for string rendering with ARGB colors (`0xFFFFFFFF` for opaque white). `@EventBusSubscriber` has no `bus` parameter in 26.1 — routing is automatic per method based on whether the event type implements `IModBusEvent`.
+- **`AttributeHudOverlay`** — `@EventBusSubscriber(Dist.CLIENT)` that renders attributes as a HUD overlay via NeoForge 26.1's `GuiLayer` system (registered through `RegisterGuiLayersEvent`). Iterates `IAttributeRegistry.getAllEntries()` and reads `IAttribute` from client player attachments. Uses `GuiGraphicsExtractor.text()` with ARGB colors (`0xFFFFFFFF`).
 - **`RPGCraftCoreClient`** — Client-side entry point (`@Mod(dist = Dist.CLIENT)`).
 
-### Login Sync (`RPGCraftCore`)
+### Combat System (`combat/`)
 
-- **`onPlayerLogin(PlayerLoggedInEvent)`** — Registered on `NeoForge.EVENT_BUS` (game bus). Iterates `GenericEntityData.ALL_ATTRIBUTES` and sends each attribute to the client via `SyncPlayerAttributePacket.sendToClient()`. Fires on every login regardless of game mode.
+- **`CombatEventHandler`** — `@EventBusSubscriber` on the game bus:
+  - `onEntityJoinLevel()` — Sets mob attributes from `MobAttributeConfig` JSON
+  - `onLivingDamagePre()` — Overrides vanilla damage via `IDamageCalculator` (obtained from `GenericEntityData.getDamageCalculator()`)
+  - `onLivingDamagePost()` — Syncs custom life attribute with vanilla health
 
-### API Stubs (`api/`)
+### Commands (`command/`)
 
-Placeholder interfaces for the planned RPG system: `IAttribute`, `IEquipment`, `INpc`, `IProfession`.
+- **`RPGCommands`** — `/rpg list [player]`, `/rpg get <attr> [player]`, `/rpg set <attr> <value> [player]`. Uses `IAttributeRegistry.getAllEntries()` for suggestions and `IAttributeEntry` for attribute lookup.
+
+### Death & Respawn (`RPGCraftCore`)
+
+Attribute preservation across player death uses the registry's snapshot API:
+
+1. **`LivingDeathEvent`** — Calls `IAttributeRegistry.createSnapshot(player)` to capture all attribute values into an immutable `AttributeSnapshot`, cached by player UUID.
+2. **`PlayerEvent.Clone`** (only when `isWasDeath()`) — Calls `IAttributeRegistry.applySnapshot(newPlayer, snapshot)` to restore:
+   - All attributes: restore `maxValue` from snapshot
+   - Resource attributes (`shouldResetOnRespawn=true`): set `currentValue` to `maxValue`
+   - Ability attributes: restore snapshot's `currentValue`
+   - Then syncs each attribute to client via `SyncPlayerAttributePacket`
+3. **`PlayerLoggedInEvent`** — Full sync of all attributes to client on join.
+
+**Known issue:** NeoForge 26.1.2.68-beta's `copyOnDeath()` on `AttachmentType.builder` does not reliably preserve attachment data across death (old entity's attachment map is cleared before Clone fires). The manual snapshot approach in `RPGCraftCore` is the working solution.
+
+### Cross-Module API Stubs (`api/`)
+
+Placeholder interfaces for the planned RPG system: `IEquipment`, `INpc`, `IProfession`. Each domain will get its own `api/` sub-package as it develops (following the `attribute/api/` pattern).
 
 ### Data Flow
 
 ```
-Login: PlayerLoggedInEvent → iterate ALL_ATTRIBUTES → sendToClient() per attribute
-Runtime: EntityAttribute change → sendToClient() → network → client handle() → setValue()
-Render: GuiLayer.render() every frame → read client attachment → GuiGraphicsExtractor.text()
+Init: GenericEntityData.init() → DefaultAttributeRegistry registers 11 attributes → DeferredRegister on modEventBus
+Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry
+Runtime: IAttribute change → sendToClient() → network → client handle() → IAttributeRegistry.getTypeById() → setValue()
+Combat: LivingDamageEvent.Pre → IDamageCalculator.calculateOutgoingDamage → calculateIncomingDamage → setNewDamage
+Death: LivingDeathEvent → snapshot all attributes (UUID → {id: [current, max]})
+Respawn: PlayerEvent.Clone → restore from snapshot → reset resource attrs to max → sync to client
+Render: GuiLayer.render() every frame → IAttributeRegistry.getAllEntries() → IAttribute from client attachment → text()
 ```
 
 ## NeoForge 26.1 API Notes
@@ -107,9 +144,13 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 
 ## Key Conventions
 
-- Registration names in `GenericEntityData` must match exactly between the `Identifier` path string and the `DeferredRegister.register()` name parameter.
+- `GenericEntityData.init()` must be called before `getRegistry().getDeferredRegister().register(modEventBus)`. The init order in `RPGCraftCore` constructor matters.
+- New attributes should be registered through `IAttributeRegistry.register()` in `GenericEntityData.init()`. The `Identifier` path must match the DeferredRegister entry name.
+- Damage formulas can be replaced at runtime via `GenericEntityData.setDamageCalculator(IDamageCalculator)`.
 - `StreamCodec` is for network serialization; `MapCodec`/`Codec` is for save file serialization. Do not mix them.
 - Client-side code lives under `client/` and uses `@EventBusSubscriber(value = Dist.CLIENT)`.
 - Data-generated resources go to `src/generated/resources/` (already on the resource classpath). Hand-written resources go to `src/main/resources/`.
-- The `getTypeById()` lookup in `GenericEntityData` must be kept in sync when adding new attributes — there is no automatic registry-based alternative.
+- Generic type casts between `AttachmentType<EntityAttribute>` and `AttachmentType<IAttribute>` are unavoidable due to Java generics limitations with NeoForge's type system. Always annotate with `@SuppressWarnings("unchecked")`.
+- Death/respawn attribute preservation uses the `AttributeSnapshot` API (`createSnapshot` on death → `applySnapshot` on clone), not `copyOnDeath()`, because NeoForge 26.1.2.68-beta clears old entity attachments before the Clone event fires.
+- `shouldResetOnRespawn` is orthogonal to `isCapped`: resource attributes (life, skill_point, magic_point) reset to max; ability attributes (strength, defense, etc.) preserve pre-death values.
 - Code comments and language keys are in Chinese (zh_CN).

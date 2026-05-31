@@ -48,4 +48,12 @@ public interface IAttributeEntry {
      * 是否为有上限的属性
      */
     boolean isCapped();
+
+    /**
+     * 重生时是否恢复到最大值
+     * <p>
+     * 生命、技力、法力等"资源型"属性应在重生时恢复满值，
+     * 而法抗、暴击率等"能力型"属性应保持不变。
+     */
+    boolean shouldResetOnRespawn();
 }

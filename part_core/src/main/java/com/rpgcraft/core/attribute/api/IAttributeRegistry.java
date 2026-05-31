@@ -20,12 +20,23 @@ public interface IAttributeRegistry {
     /**
      * 注册一个新属性
      *
-     * @param id            属性的唯一标识符（如 rpgcraftcore:life）
-     * @param displayName   HUD/命令中的显示名称
-     * @param defaultValue  属性默认值
+     * @param id              属性的唯一标识符（如 rpgcraftcore:life）
+     * @param displayName     HUD/命令中的显示名称
+     * @param defaultValue    属性默认值
      * @param defaultMaxValue 属性默认上限值（Integer.MAX_VALUE 表示无上限）
      */
     void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue);
+
+    /**
+     * 注册一个新属性（指定重生行为）
+     *
+     * @param id              属性的唯一标识符
+     * @param displayName     HUD/命令中的显示名称
+     * @param defaultValue    属性默认值
+     * @param defaultMaxValue 属性默认上限值（Integer.MAX_VALUE 表示无上限）
+     * @param resetOnRespawn  重生时是否恢复到最大值（资源型属性如生命、技力、法力为 true）
+     */
+    void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn);
 
     /**
      * 通过 ID 查询属性条目
@@ -60,4 +71,39 @@ public interface IAttributeRegistry {
      * @return 属性实例，未找到返回 null
      */
     IAttribute getAttribute(LivingEntity entity, Identifier id);
+
+    /**
+     * 一次性捕获实体上所有已注册属性的快照
+     * <p>
+     * 将每个属性的 currentValue 和 maxValue 保存为不可变映射，
+     * 可安全缓存用于后续恢复（如死亡→重生场景）。
+     *
+     * @param entity 目标实体
+     * @return 包含所有属性值的快照
+     */
+    AttributeSnapshot createSnapshot(LivingEntity entity);
+
+    /**
+     * 将实体上所有已注册属性重置为注册时的默认值
+     * <p>
+     * 每个属性的 maxValue 恢复为 defaultMaxValue，currentValue 恢复为 defaultValue。
+     *
+     * @param entity 目标实体
+     */
+    void resetToDefaults(LivingEntity entity);
+
+    /**
+     * 将快照中的属性值恢复到实体上
+     * <p>
+     * 恢复规则：
+     * <ul>
+     *   <li>所有属性：先恢复 maxValue</li>
+     *   <li>资源型属性（{@code shouldResetOnRespawn=true}）：currentValue 设为 maxValue</li>
+     *   <li>能力型属性：恢复快照中的 currentValue</li>
+     * </ul>
+     *
+     * @param entity   目标实体（新实体）
+     * @param snapshot 之前通过 {@link #createSnapshot} 创建的快照
+     */
+    void applySnapshot(LivingEntity entity, AttributeSnapshot snapshot);
 }

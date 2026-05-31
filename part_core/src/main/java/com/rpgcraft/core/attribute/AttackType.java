@@ -1,12 +1,12 @@
 package com.rpgcraft.core.attribute;
 
-import com.rpgcraft.core.attribute.api.ICombatType;
+import com.rpgcraft.core.attribute.api.IDamageType;
 
 /**
  * 攻击/伤害类型枚举
  * <p>
- * 实现 {@link ICombatType} 接口，定义模组中所有伤害的分类方式。
- * 用于 {@link com.rpgcraft.core.attribute.api.ICombatCalculator} 中的伤害计算。
+ * 实现 {@link IDamageType} 接口，定义模组中所有伤害的分类方式。
+ * 用于 {@link com.rpgcraft.core.attribute.api.IDamageCalculator} 中的伤害计算。
  * <p>
  * <b>当前已实现的类型：</b>
  * <ul>
@@ -21,7 +21,7 @@ import com.rpgcraft.core.attribute.api.ICombatType;
  *   <li>{@link #MIX_TYPE} —— 混合伤害</li>
  * </ul>
  */
-public enum AttackType implements ICombatType {
+public enum AttackType implements IDamageType {
     /** 纯物理伤害：计算时减去目标防御力 */
     PHYSICAL,
     /** 纯法术伤害：计算时减去目标法术抗性对应的百分比 */

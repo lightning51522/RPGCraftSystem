@@ -49,18 +49,18 @@ public class AttributeHudOverlay {
         int x = 10;
         int y = 10;
         int lineHeight = 12;
+        StringBuilder sb = new StringBuilder(32);
 
         for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
             IAttribute attr = player.getData(entry.getSupplier());
 
-            String displayText;
+            sb.setLength(0);
+            sb.append(entry.getDisplayName()).append(": ").append(attr.getValue());
             if (attr.hasMaxValue()) {
-                displayText = String.format("%s: %d / %d", entry.getDisplayName(), attr.getValue(), attr.getMaxValue());
-            } else {
-                displayText = String.format("%s: %d", entry.getDisplayName(), attr.getValue());
+                sb.append(" / ").append(attr.getMaxValue());
             }
 
-            guiGraphics.text(mc.font, displayText, x, y, 0xFFFFFFFF, true);
+            guiGraphics.text(mc.font, sb.toString(), x, y, 0xFFFFFFFF, true);
             y += lineHeight;
         }
     }

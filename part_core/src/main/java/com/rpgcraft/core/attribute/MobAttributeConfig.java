@@ -53,6 +53,8 @@ public class MobAttributeConfig {
     /** 生物类型ID → 属性配置 的映射，不可变快照 */
     private static volatile Map<Identifier, MobAttributes> configMap = Collections.emptyMap();
 
+    private static final Gson GSON = new Gson();
+
     /**
      * 注册资源重载监听器（Game 事件总线）
      */
@@ -65,7 +67,7 @@ public class MobAttributeConfig {
                     var resource = resourceManager.getResource(CONFIG_ID);
                     if (resource.isPresent()) {
                         try (var reader = resource.get().openAsReader()) {
-                            return new Gson().fromJson(reader, JsonObject.class);
+                            return GSON.fromJson(reader, JsonObject.class);
                         }
                     }
                 } catch (Exception e) {
