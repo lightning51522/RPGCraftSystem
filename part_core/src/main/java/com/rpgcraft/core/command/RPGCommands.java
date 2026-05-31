@@ -5,8 +5,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.rpgcraft.core.RPGCraftCore;
+import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
-import com.rpgcraft.core.attribute.GenericEntityData;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
@@ -53,7 +53,7 @@ public class RPGCommands {
                 .then(Commands.literal("get")
                         .then(Commands.argument("attribute", StringArgumentType.word())
                                 .suggests((context, builder) -> {
-                                    for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+                                    for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
                                         builder.suggest(entry.getId().getPath());
                                     }
                                     return builder.buildFuture();
@@ -74,7 +74,7 @@ public class RPGCommands {
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("attribute", StringArgumentType.word())
                                 .suggests((context, builder) -> {
-                                    for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+                                    for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
                                         builder.suggest(entry.getId().getPath());
                                     }
                                     return builder.buildFuture();
@@ -98,7 +98,7 @@ public class RPGCommands {
                         .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                         .then(Commands.argument("attribute", StringArgumentType.word())
                                 .suggests((context, builder) -> {
-                                    for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+                                    for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
                                         builder.suggest(entry.getId().getPath());
                                     }
                                     return builder.buildFuture();
@@ -131,7 +131,7 @@ public class RPGCommands {
     }
 
     private static int executeList(CommandContext<CommandSourceStack> context, ServerPlayer target) {
-        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             IAttribute attr = target.getData(entry.getSupplier());
             String path = entry.getId().getPath();
 
@@ -148,7 +148,7 @@ public class RPGCommands {
                 () -> Component.literal("—— " + target.getName().getString() + " 的属性列表 ——"),
                 false
         );
-        return GenericEntityData.getRegistry().getAllEntries().size();
+        return AttributeManager.getRegistry().getAllEntries().size();
     }
 
     private static int executeGet(CommandContext<CommandSourceStack> context, ServerPlayer target, String attrName) {
@@ -184,7 +184,7 @@ public class RPGCommands {
 
         attr.setValue(value);
 
-        if (entry.getId().equals(GenericEntityData.LIFE_ID)) {
+        if (entry.getId().equals(AttributeManager.LIFE_ID)) {
             var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
             if (maxHealthAttr != null) {
                 maxHealthAttr.setBaseValue(attr.getMaxValue());
@@ -214,13 +214,16 @@ public class RPGCommands {
 
         attr.setMaxValue(value);
 
-        if (entry.getId().equals(GenericEntityData.LIFE_ID)) {
+        if (entry.getId().equals(AttributeManager.LIFE_ID)) {
             var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
             if (maxHealthAttr != null) {
                 maxHealthAttr.setBaseValue(value);
             }
             target.setHealth(Math.min(target.getHealth(), value));
         }
+
+        // setmax 可能导致 currentValue 被钳制到极低值，检测是否需要创建死亡快照
+        com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(target);
 
         EntityAttribute entityAttr = (EntityAttribute) attr;
         SyncPlayerAttributePacket.sendToClient(target, entry.getId(), entityAttr);
@@ -231,7 +234,7 @@ public class RPGCommands {
     }
 
     private static Optional<IAttributeEntry> resolveAttribute(String name) {
-        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             if (entry.getId().getPath().equals(name)) {
                 return Optional.of(entry);
             }
@@ -240,17 +243,25 @@ public class RPGCommands {
     }
 
     private static int executeReset(CommandContext<CommandSourceStack> context, ServerPlayer target) {
-        GenericEntityData.getRegistry().resetToDefaults(target);
+        AttributeManager.getRegistry().resetToDefaults(target);
 
-        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             EntityAttribute attr = (EntityAttribute) target.getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(target, entry.getId(), attr);
         }
+
+        // 重置后同步原版生命值，确保原版血条与自定义 life 属性一致
+        IAttribute lifeAttr = target.getData(AttributeManager.LIFE);
+        var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        if (maxHealthAttr != null) {
+            maxHealthAttr.setBaseValue(lifeAttr.getMaxValue());
+        }
+        target.setHealth(lifeAttr.getValue());
 
         context.getSource().sendSuccess(
                 () -> Component.literal("已重置 " + target.getName().getString() + " 的所有属性"),
                 true
         );
-        return GenericEntityData.getRegistry().getAllEntries().size();
+        return AttributeManager.getRegistry().getAllEntries().size();
     }
 }

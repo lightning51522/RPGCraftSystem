@@ -1,7 +1,7 @@
 package com.rpgcraft.core;
 
+import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
-import com.rpgcraft.core.attribute.GenericEntityData;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
@@ -47,14 +47,14 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * <b>注册的内容：</b>
  * <ul>
  *   <li>方块、物品、创造模式标签页（通过 DeferredRegister）</li>
- *   <li>玩家属性 AttachmentType（通过 {@link GenericEntityData#ATTRIBUTE_ATTACHMENT_TYPES}）</li>
+ *   <li>玩家属性 AttachmentType（通过 {@link AttributeManager}）</li>
  *   <li>网络包（通过 {@link PacketHandler#register}）</li>
  *   <li>配置文件（通过 ModContainer）</li>
  * </ul>
  * <p>
  * <b>事件监听：</b>
  * <ul>
- *   <li>Mod 事件总线（modEventBus）：{@link #commonSetup}、{@link PacketHandler#register}、{@link GenericEntityData} 注册</li>
+ *   <li>Mod 事件总线（modEventBus）：{@link #commonSetup}、{@link PacketHandler#register}、{@link AttributeManager} 注册</li>
  *   <li>Game 事件总线（{@link NeoForge#EVENT_BUS}）：{@link #onServerStarting}、{@link #onPlayerLogin}</li>
  * </ul>
  */
@@ -80,8 +80,8 @@ public class RPGCraftCore {
      * @param player 可能即将死亡的玩家
      */
     public static void checkAndSnapshotIfDying(net.minecraft.server.level.ServerPlayer player) {
-        if (player.getData(GenericEntityData.LIFE).getValue() <= 0) {
-            deathSnapshot.putIfAbsent(player.getUUID(), GenericEntityData.getRegistry().createSnapshot(player));
+        if (player.getData(AttributeManager.LIFE).getValue() <= 0) {
+            deathSnapshot.putIfAbsent(player.getUUID(), AttributeManager.getRegistry().createSnapshot(player));
         }
     }
 
@@ -127,7 +127,7 @@ public class RPGCraftCore {
         com.rpgcraft.core.equipment.EquipmentManager.init();
 
         // 初始化属性注册中心和战斗计算器
-        GenericEntityData.init();
+        AttributeManager.init();
 
         // 注册通用初始化回调
         modEventBus.addListener(this::commonSetup);
@@ -137,8 +137,8 @@ public class RPGCraftCore {
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
-        // 注册属性 AttachmentType（通过注册中心的 DeferredRegister）
-        GenericEntityData.getRegistry().getDeferredRegister().register(modEventBus);
+        // 注册属性 AttachmentType（通过门面的便捷方法）
+        AttributeManager.getDeferredRegister().register(modEventBus);
 
         // 注册装备模块附件
         com.rpgcraft.core.equipment.EquipmentData.getAttachmentRegister().register(modEventBus);
@@ -212,7 +212,7 @@ public class RPGCraftCore {
      */
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             EntityAttribute attr = (EntityAttribute) event.getEntity().getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.getId(), attr);
         }
@@ -243,7 +243,7 @@ public class RPGCraftCore {
     @SubscribeEvent
     public void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
         if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
-        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), GenericEntityData.getRegistry().createSnapshot(serverPlayer));
+        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), AttributeManager.getRegistry().createSnapshot(serverPlayer));
     }
 
     /**
@@ -261,7 +261,7 @@ public class RPGCraftCore {
         AttributeSnapshot snapshot = deathSnapshot.remove(serverPlayer.getUUID());
         if (snapshot == null) return;
 
-        GenericEntityData.getRegistry().applySnapshot(serverPlayer, snapshot);
+        AttributeManager.getRegistry().applySnapshot(serverPlayer, snapshot);
 
         // 重生后恢复装备加成追踪数据（属性值已由 applySnapshot 恢复，含加成）
         com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
@@ -278,7 +278,7 @@ public class RPGCraftCore {
         if (event.isEndConquered()) return;
         if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
 
-        for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             EntityAttribute attr = (EntityAttribute) serverPlayer.getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(serverPlayer, entry.getId(), attr);
         }

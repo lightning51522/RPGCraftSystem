@@ -1,5 +1,6 @@
 package com.rpgcraft.core.equipment.api;
 
+import com.google.gson.JsonObject;
 import com.rpgcraft.core.equipment.EquipmentBonus;
 import com.rpgcraft.core.equipment.EquipmentRarity;
 import net.minecraft.resources.Identifier;
@@ -50,4 +51,14 @@ public interface IEquipmentRegistry {
      * @return 稀有度，未找到返回 {@link EquipmentRarity#COMMON}
      */
     EquipmentRarity getRarity(Identifier itemId);
+
+    /**
+     * 从 JSON 配置加载装备加成数据和稀有度
+     * <p>
+     * 用于资源重载监听器（服务端和客户端）调用，
+     * 支持 {@code /reload} 热更新装备配置。
+     *
+     * @param json 装备属性配置 JSON
+     */
+    void loadFromJson(JsonObject json);
 }

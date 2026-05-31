@@ -1,7 +1,10 @@
 package com.rpgcraft.core.equipment;
 
 import com.rpgcraft.core.equipment.api.IEquipmentHandler;
+import com.rpgcraft.core.equipment.api.IEquipmentProvider;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
+
+import java.util.ServiceLoader;
 
 /**
  * 装备模块全局门面
@@ -24,6 +27,10 @@ public class EquipmentManager {
     public static void init() {
         registry = new DefaultEquipmentRegistry();
         handler = new DefaultEquipmentHandler(registry);
+
+        for (IEquipmentProvider provider : ServiceLoader.load(IEquipmentProvider.class)) {
+            provider.registerEquipment(registry);
+        }
     }
 
     public static IEquipmentRegistry getRegistry() {

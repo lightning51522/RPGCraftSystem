@@ -1,24 +1,32 @@
 package com.rpgcraft.core.attribute;
 
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.attribute.api.IAttributeProvider;
+import com.rpgcraft.core.attribute.api.IAttributeRegistry;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
 /**
- * 全局属性注册中心（门面）
+ * 属性模块全局门面
  * <p>
- * 保留 Identifier 常量和 Supplier 访问器，内部委托到
- * {@link DefaultAttributeRegistry} 和 {@link DefaultDamageCalculator}。
+ * 保留对 {@link IAttributeRegistry} 和 {@link IDamageCalculator} 的静态引用，
+ * 内部委托到 {@link DefaultAttributeRegistry} 和 {@link DefaultDamageCalculator}。
  * <p>
- * 新代码应通过 {@link com.rpgcraft.core.attribute.api.IAttributeRegistry} 和
- * {@link com.rpgcraft.core.attribute.api.IDamageCalculator} 接口访问。
+ * 新代码应通过 {@link IAttributeRegistry} 和 {@link IDamageCalculator} 接口访问。
+ * <p>
+ * 命名与装备模块的 {@link com.rpgcraft.core.equipment.EquipmentManager} 保持一致。
  */
-public class GenericEntityData {
+public class AttributeManager {
 
-    private static DefaultAttributeRegistry registry;
+    /** 内部注册中心实例（保留具体类型供包内直接访问） */
+    private static DefaultAttributeRegistry defaultRegistry;
+
+    /** 可替换的伤害计算器 */
     private static IDamageCalculator damageCalculator;
 
     /**
@@ -28,37 +36,55 @@ public class GenericEntityData {
      * 由 {@link com.rpgcraft.core.RPGCraftCore} 构造函数调用。
      */
     public static void init() {
-        registry = new DefaultAttributeRegistry("rpgcraftcore");
+        defaultRegistry = new DefaultAttributeRegistry("rpgcraftcore");
         damageCalculator = new DefaultDamageCalculator();
 
-        registry.register(LIFE_ID, "生命", 100, 100, true, true);
-        registry.register(SKILL_POINT_ID, "技力", 100, 100, true);
-        registry.register(MAGIC_POINT_ID, "法力", 100, 100, true);
-        registry.register(STRENGTH_ID, "力量", 10, Integer.MAX_VALUE);
-        registry.register(MANA_ID, "魔力", 10, Integer.MAX_VALUE);
-        registry.register(AGILE_ID, "敏捷", 10, Integer.MAX_VALUE);
-        registry.register(PRECISION_ID, "精准", 10, Integer.MAX_VALUE);
-        registry.register(DEFENSE_ID, "防御", 10, Integer.MAX_VALUE);
-    registry.register(RESISTANCE_ID, "法抗", 2, 100);
-        registry.register(CRITICAL_RATE_ID, "暴击率", 5, 100);
-        registry.register(CRITICAL_RATIO_ID, "暴击伤害", 50, Integer.MAX_VALUE);
+        defaultRegistry.register(LIFE_ID, "生命", 100, 100, true, true);
+        defaultRegistry.register(SKILL_POINT_ID, "技力", 100, 100, true);
+        defaultRegistry.register(MAGIC_POINT_ID, "法力", 100, 100, true);
+        defaultRegistry.register(STRENGTH_ID, "力量", 10, Integer.MAX_VALUE);
+        defaultRegistry.register(MANA_ID, "魔力", 10, Integer.MAX_VALUE);
+        defaultRegistry.register(AGILE_ID, "敏捷", 10, Integer.MAX_VALUE);
+        defaultRegistry.register(PRECISION_ID, "精准", 10, Integer.MAX_VALUE);
+        defaultRegistry.register(DEFENSE_ID, "防御", 10, Integer.MAX_VALUE);
+        defaultRegistry.register(RESISTANCE_ID, "法抗", 2, 100);
+        defaultRegistry.register(CRITICAL_RATE_ID, "暴击率", 5, 100);
+        defaultRegistry.register(CRITICAL_RATIO_ID, "暴击伤害", 50, Integer.MAX_VALUE);
 
         // 直接引用注册中心内部的 Supplier，消除每次 .get() 时的 Map 查找和类型转换
-        LIFE = registry.getRawSupplier(LIFE_ID);
-        SKILL_POINT = registry.getRawSupplier(SKILL_POINT_ID);
-        MAGIC_POINT = registry.getRawSupplier(MAGIC_POINT_ID);
-        STRENGTH = registry.getRawSupplier(STRENGTH_ID);
-        MANA = registry.getRawSupplier(MANA_ID);
-        AGILE = registry.getRawSupplier(AGILE_ID);
-        PRECISION = registry.getRawSupplier(PRECISION_ID);
-        DEFENSE = registry.getRawSupplier(DEFENSE_ID);
-        RESISTANCE = registry.getRawSupplier(RESISTANCE_ID);
-        CRITICAL_RATE = registry.getRawSupplier(CRITICAL_RATE_ID);
-        CRITICAL_RATIO = registry.getRawSupplier(CRITICAL_RATIO_ID);
+        LIFE = defaultRegistry.getRawSupplier(LIFE_ID);
+        SKILL_POINT = defaultRegistry.getRawSupplier(SKILL_POINT_ID);
+        MAGIC_POINT = defaultRegistry.getRawSupplier(MAGIC_POINT_ID);
+        STRENGTH = defaultRegistry.getRawSupplier(STRENGTH_ID);
+        MANA = defaultRegistry.getRawSupplier(MANA_ID);
+        AGILE = defaultRegistry.getRawSupplier(AGILE_ID);
+        PRECISION = defaultRegistry.getRawSupplier(PRECISION_ID);
+        DEFENSE = defaultRegistry.getRawSupplier(DEFENSE_ID);
+        RESISTANCE = defaultRegistry.getRawSupplier(RESISTANCE_ID);
+        CRITICAL_RATE = defaultRegistry.getRawSupplier(CRITICAL_RATE_ID);
+        CRITICAL_RATIO = defaultRegistry.getRawSupplier(CRITICAL_RATIO_ID);
+
+        for (IAttributeProvider provider : ServiceLoader.load(IAttributeProvider.class)) {
+            provider.registerAttributes(defaultRegistry);
+        }
     }
 
-    public static DefaultAttributeRegistry getRegistry() {
-        return registry;
+    /**
+     * 获取属性注册中心（接口类型）
+     * <p>
+     * 与 {@link com.rpgcraft.core.equipment.EquipmentManager#getRegistry()} 返回接口类型保持一致。
+     */
+    public static IAttributeRegistry getRegistry() {
+        return defaultRegistry;
+    }
+
+    /**
+     * 获取底层 DeferredRegister，用于注册到 Mod 事件总线
+     * <p>
+     * 与 {@link com.rpgcraft.core.equipment.EquipmentData#getAttachmentRegister()} 模式对齐。
+     */
+    public static DeferredRegister<AttachmentType<?>> getDeferredRegister() {
+        return defaultRegistry.getDeferredRegister();
     }
 
     public static IDamageCalculator getDamageCalculator() {
@@ -106,7 +132,7 @@ public class GenericEntityData {
     // ====================================================================
 
     public static AttachmentType<EntityAttribute> getTypeById(Identifier id) {
-        return registry.getRawSupplier(id).get();
+        return defaultRegistry.getRawSupplier(id).get();
     }
 
     // ====================================================================

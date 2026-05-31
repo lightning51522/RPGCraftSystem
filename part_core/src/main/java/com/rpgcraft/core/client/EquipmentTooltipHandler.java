@@ -3,7 +3,7 @@ package com.rpgcraft.core.client;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.rpgcraft.core.RPGCraftCore;
-import com.rpgcraft.core.attribute.GenericEntityData;
+import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.equipment.DefaultEquipmentRegistry;
 import com.rpgcraft.core.equipment.EquipmentBonus;
@@ -61,7 +61,7 @@ public class EquipmentTooltipHandler {
 
             @Override
             protected void apply(@NonNull JsonObject json, @NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
-                ((DefaultEquipmentRegistry) EquipmentManager.getRegistry()).loadFromJson(json);
+                EquipmentManager.getRegistry().loadFromJson(json);
             }
         });
     }
@@ -94,7 +94,7 @@ public class EquipmentTooltipHandler {
 
         // 追加属性加成
         for (Map.Entry<Identifier, EquipmentBonus> entry : bonuses.get().entrySet()) {
-            IAttributeEntry attrEntry = GenericEntityData.getRegistry().getEntry(entry.getKey());
+            IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(entry.getKey());
             if (attrEntry == null) continue;
 
             int value = entry.getValue().value();

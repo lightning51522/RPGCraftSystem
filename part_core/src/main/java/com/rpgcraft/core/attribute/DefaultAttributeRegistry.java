@@ -92,7 +92,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
     /**
      * 获取属性条目的内部 Supplier 引用（跳过 Map 查找）
      * <p>
-     * 用于 {@link GenericEntityData} 的 Supplier 字段直接引用，
+     * 用于 {@link AttributeManager} 的 Supplier 字段直接引用，
      * 消除每次 {@code .get()} 调用时的 HashMap 查找和类型转换开销。
      */
     Supplier<AttachmentType<EntityAttribute>> getRawSupplier(Identifier id) {

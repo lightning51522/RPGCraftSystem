@@ -18,10 +18,16 @@ import com.rpgcraft.core.attribute.api.IAttribute;
  * <p>
  * 该类同时提供了 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
  * 网络传输的序列化则在 {@link com.rpgcraft.core.network.SyncPlayerAttributePacket} 中单独处理。
+ * <p>
+ * <b>重要副作用提示：</b>{@link #setMaxValue(int)} 方法在修改上限时会自动将 currentValue
+ * 钳制到新上限以内。在同时修改 maxValue 和 currentValue 的场景中（如装备加成应用），
+ * 必须注意此副作用的影响顺序。
  */
 public class EntityAttribute implements IAttribute {
 
+    /** 属性显示名称（如"生命"、"力量"等），用于 HUD 和命令显示 */
     private String name;
+
     /**
      * 属性上限值
      * <p>
@@ -34,28 +40,17 @@ public class EntityAttribute implements IAttribute {
     /**
      * 属性当前值
      * <p>
-     * 通过 {@link #setValue(int)} 修改时，会自动被夹紧（clamp）到 [0, maxValue] 范围内，
+     * 通过 {@link #setValue(int)} 修改时，会自动被夹紧（clamp）到 {@code [0, maxValue]} 范围内，
      * 保证数值不会出现负数或超过上限的非法状态。
      */
     private int currentValue;
 
     /**
-     * 构造一个当前值等于最大值的属性（满值构造）
+     * 构造一个指定名称、当前值和最大值的属性
      * <p>
-     * 适用于初始化场景，属性创建时即为满状态。
+     * 适用于属性注册和存档数据恢复。
      *
-     * @param value 属性的初始值和最大值
-     */
-    public EntityAttribute(int value) {
-        this.maxValue = value;
-        this.currentValue = value;
-    }
-
-    /**
-     * 构造一个指定当前值和最大值的属性
-     * <p>
-     * 适用于从存档数据恢复或网络包反序列化时重建属性实例。
-     *
+     * @param name         属性显示名称
      * @param currentValue 属性当前值
      * @param maxValue     属性最大值
      */
@@ -81,7 +76,11 @@ public class EntityAttribute implements IAttribute {
     /**
      * 设置属性最大值
      * <p>
-     * 修改后若当前值超过新的最大值，会自动被夹紧。
+     * <b>副作用：</b>若当前值超过新的最大值，会自动将 {@link #currentValue} 钳制到新上限。
+     * 这意味着调用此方法后 {@link #getValue()} 的返回值可能发生变化。
+     * <p>
+     * 此副作用在装备系统的资源属性（{@code equipmentAffectsMax=true}）处理中被依赖：
+     * 脱下降低上限的装备时，通过此副作用自动将当前值钳制到新上限以内。
      *
      * @param max 新的最大值
      */
@@ -106,7 +105,7 @@ public class EntityAttribute implements IAttribute {
     /**
      * 设置属性当前值
      * <p>
-     * 数值会通过 {@link Math#clamp(long, int, int)} 被限制在 [0, maxValue] 范围内，
+     * 数值会通过 {@link Math#clamp(long, int, int)} 被限制在 {@code [0, maxValue]} 范围内，
      * 无需调用者手动校验边界。
      *
      * @param newVal 期望设置的新值
@@ -126,6 +125,12 @@ public class EntityAttribute implements IAttribute {
         return maxValue < Integer.MAX_VALUE;
     }
 
+    /**
+     * 将当前值直接设为最大值
+     * <p>
+     * 不通过 {@link #setValue} 的 clamp 逻辑（因为 maxValue 本身一定在合法范围内），
+     * 直接赋值以简化路径。用于资源型属性（生命、技力、法力）重生时的恢复。
+     */
     @Override
     public void fillMax() {
         currentValue = maxValue;
@@ -137,6 +142,7 @@ public class EntityAttribute implements IAttribute {
      * NeoForge 在保存/加载游戏存档时，会使用此 Codec 将 EntityAttribute 序列化为 NBT/JSON 格式。
      * 字段映射关系：
      * <ul>
+     *   <li>{@code "name"} → {@link #getName()} 属性名称</li>
      *   <li>{@code "current"} → {@link #getValue()} 当前值</li>
      *   <li>{@code "max"} → {@link #getMaxValue()} 最大值</li>
      * </ul>
@@ -147,8 +153,9 @@ public class EntityAttribute implements IAttribute {
      */
     public static final MapCodec<EntityAttribute> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
+                    Codec.STRING.fieldOf("name").forGetter(EntityAttribute::getName),
                     Codec.INT.fieldOf("current").forGetter(EntityAttribute::getValue),
                     Codec.INT.fieldOf("max").forGetter(EntityAttribute::getMaxValue)
-            ).apply(instance, (current, max) -> new EntityAttribute("", current, max))
+            ).apply(instance, EntityAttribute::new)
     );
 }

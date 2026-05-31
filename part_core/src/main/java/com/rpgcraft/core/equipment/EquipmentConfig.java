@@ -43,7 +43,7 @@ public class EquipmentConfig {
 
             @Override
             protected void apply(@NonNull JsonObject json, @NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
-                ((DefaultEquipmentRegistry) EquipmentManager.getRegistry()).loadFromJson(json);
+                EquipmentManager.getRegistry().loadFromJson(json);
             }
         });
     }

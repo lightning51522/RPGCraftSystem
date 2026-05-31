@@ -10,7 +10,7 @@ import net.minecraft.world.entity.LivingEntity;
  * {@link com.rpgcraft.core.attribute.DefaultDamageCalculator}。
  * <p>
  * 其他模组可以替换此实现来提供更复杂的伤害公式（元素克制、装备加成等），
- * 通过 {@code GenericEntityData.setDamageCalculator()} 注入。
+ * 通过 {@link com.rpgcraft.core.attribute.AttributeManager#setDamageCalculator(IDamageCalculator)} 注入。
  */
 public interface IDamageCalculator {
 
