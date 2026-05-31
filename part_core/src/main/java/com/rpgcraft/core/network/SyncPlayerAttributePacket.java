@@ -62,6 +62,7 @@ public record SyncPlayerAttributePacket(Identifier attrId, int current, int max)
                 var type = GenericEntityData.getRegistry().getTypeById(data.attrId());
                 if (type != null) {
                     IAttribute attr = clientPlayer.getData(type);
+                    attr.setMaxValue(data.max());
                     attr.setValue(data.current());
                 }
             }
