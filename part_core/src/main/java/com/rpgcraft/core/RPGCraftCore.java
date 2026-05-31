@@ -1,9 +1,11 @@
 package com.rpgcraft.core;
 
 import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.core.attribute.DeathAttributeMode;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
+import com.rpgcraft.core.equipment.EquipmentBonus;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 
@@ -67,11 +69,19 @@ public class RPGCraftCore {
     /** SLF4J 日志记录器 */
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    /** 死亡时属性快照缓存：UUID → AttributeSnapshot */
-    private static final java.util.Map<java.util.UUID, AttributeSnapshot> deathSnapshot = new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * 死亡时的完整数据快照，包含属性值和当时生效的装备加成
+     *
+     * @param snapshot         死亡时的属性快照（包含装备加成后的值）
+     * @param equipmentBonuses 死亡时生效的装备加成映射（字符串键，来自追踪附件）
+     */
+    record DeathData(AttributeSnapshot snapshot, java.util.Map<String, EquipmentBonus> equipmentBonuses) {}
+
+    /** 死亡时数据快照缓存：UUID → DeathData */
+    private static final java.util.Map<java.util.UUID, DeathData> deathSnapshot = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * 检测玩家生命是否归零，如果是则立即缓存全属性快照
+     * 检测玩家生命是否归零，如果是则立即缓存全属性快照和装备加成
      * <p>
      * 在生命属性可能变为 0 的所有位置调用（指令设置、战斗伤害同步等），
      * 确保在游戏处理角色死亡之前捕获所有属性值。
@@ -81,7 +91,9 @@ public class RPGCraftCore {
      */
     public static void checkAndSnapshotIfDying(net.minecraft.server.level.ServerPlayer player) {
         if (player.getData(AttributeManager.LIFE).getValue() <= 0) {
-            deathSnapshot.putIfAbsent(player.getUUID(), AttributeManager.getRegistry().createSnapshot(player));
+            AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(player);
+            java.util.Map<String, EquipmentBonus> bonuses = player.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
+            deathSnapshot.putIfAbsent(player.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses)));
         }
     }
 
@@ -237,7 +249,7 @@ public class RPGCraftCore {
     }
 
     /**
-     * 玩家死亡回调 —— 兜底缓存属性快照（Game 事件总线）
+     * 玩家死亡回调 —— 兜底缓存属性快照和装备加成（Game 事件总线）
      * <p>
      * 作为 {@link #checkAndSnapshotIfDying} 的兜底，处理非生命归零导致的死亡
      * （如 void、/kill 等）。使用 {@code putIfAbsent} 不覆盖已有的快照。
@@ -245,12 +257,19 @@ public class RPGCraftCore {
     @SubscribeEvent
     public void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
         if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
-        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), AttributeManager.getRegistry().createSnapshot(serverPlayer));
+        AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(serverPlayer);
+        java.util.Map<String, EquipmentBonus> bonuses = serverPlayer.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
+        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses)));
     }
 
     /**
      * 玩家克隆回调 —— 从快照恢复属性数据（Game 事件总线）
      * <p>
+     * 根据 {@link DeathAttributeMode} 选择恢复策略：
+     * <ul>
+     *   <li>{@code SNAPSHOT} — 直接恢复死亡时的属性快照（含装备加成）</li>
+     *   <li>{@code RESCAN} — 剥离旧装备加成，根据当前装备重新计算属性</li>
+     * </ul>
      * 仅恢复服务端属性值，不在此处同步客户端。
      * 因为 Clone 事件在客户端创建新实体之前触发，此时发送的同步包会被旧实体接收后丢失。
      * 客户端同步改在 {@link #onPlayerRespawn} 中完成。
@@ -260,13 +279,19 @@ public class RPGCraftCore {
         if (!event.isWasDeath()) return;
         if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
 
-        AttributeSnapshot snapshot = deathSnapshot.remove(serverPlayer.getUUID());
-        if (snapshot == null) return;
+        DeathData data = deathSnapshot.remove(serverPlayer.getUUID());
+        if (data == null) return;
 
-        AttributeManager.getRegistry().applySnapshot(serverPlayer, snapshot);
-
-        // 重生后恢复装备加成追踪数据（属性值已由 applySnapshot 恢复，含加成）
-        com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
+        if (DeathAttributeMode.getCurrentMode() == DeathAttributeMode.RESCAN) {
+            // 重扫模式：从快照剥离旧装备加成，根据当前装备重新计算
+            com.rpgcraft.core.equipment.EquipmentManager.getHandler()
+                    .rescanAndApplyAttributes(serverPlayer, data.snapshot(), data.equipmentBonuses());
+        } else {
+            // 快照模式：直接恢复死亡时的完整属性快照
+            AttributeManager.getRegistry().applySnapshot(serverPlayer, data.snapshot());
+            // 重生后恢复装备加成追踪数据（属性值已由 applySnapshot 恢复，含加成）
+            com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
+        }
     }
 
     /**

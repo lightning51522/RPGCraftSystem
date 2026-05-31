@@ -2,6 +2,7 @@ package com.rpgcraft.core.equipment;
 
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
+import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.equipment.api.IEquipmentHandler;
@@ -169,7 +170,79 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
     }
 
     /**
-     * 将字符串键的存储格式转换为 Identifier 键的计算格式
+     * 重扫模式下根据当前装备重新计算并应用所有属性
+     * <p>
+     * 核心思路：快照值 = 基础值 + 死亡时装备加成，因此 基础值 = 快照值 - 死亡时装备加成。
+     * 计算出基础值后，再加上当前实际装备的总加成，得到最终属性值。
+     * <p>
+     * 此方法同时更新装备加成追踪附件并同步所有属性到客户端。
+     * <p>
+     * <b>兼容自定义装备槽：</b>通过 {@link #calculateTotalBonus} 遍历所有装备槽位，
+     * 自定义槽位只需加入 {@link EquipmentSlot} 枚举即可自动被包含。
+     *
+     * @param player                重生后的新玩家实体
+     * @param deathSnapshot         死亡时的属性快照
+     * @param deathEquipmentBonuses 死亡时的装备加成映射（字符串键，来自追踪附件）
+     */
+    @Override
+    public void rescanAndApplyAttributes(ServerPlayer player,
+                                          AttributeSnapshot deathSnapshot,
+                                          Map<String, EquipmentBonus> deathEquipmentBonuses) {
+        // 1. 将死亡时的装备加成从存储格式转换为计算格式
+        Map<Identifier, EquipmentBonus> deathBonuses = storageToMap(deathEquipmentBonuses);
+
+        // 2. 计算玩家当前装备的总加成（自动处理护甲/武器槽位判断）
+        Map<Identifier, EquipmentBonus> currentBonuses = calculateTotalBonus(player);
+
+        // 3. 逐属性计算基础值并应用当前装备加成
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
+            AttributeSnapshot.AttributeData deathData = deathSnapshot.get(entry.getId());
+            if (deathData == null) continue;
+
+            EquipmentBonus deathBonus = deathBonuses.getOrDefault(entry.getId(), EquipmentBonus.ZERO);
+            EquipmentBonus currentBonus = currentBonuses.getOrDefault(entry.getId(), EquipmentBonus.ZERO);
+
+            IAttribute attr = player.getData(entry.getSupplier());
+
+            if (entry.equipmentAffectsMax()) {
+                // 资源型属性（如生命）：装备影响上限
+                int baseMax = deathData.maxValue() - deathBonus.value();
+                int newMax = Math.max(0, baseMax + currentBonus.value());
+                attr.setMaxValue(newMax);
+                // setMaxValue 会自动将 currentValue 钳制到 [0, newMax]
+            } else {
+                // 能力型属性（如力量、防御）：装备影响当前值
+                int baseValue = deathData.currentValue() - deathBonus.value();
+                int newValue = Math.max(0, baseValue + currentBonus.value());
+                attr.setValue(Math.min(newValue, attr.getMaxValue()));
+            }
+        }
+
+        // 4. 脱装备导致上限降低后，若生命被钳制到 0 则保留 1 点防止死亡
+        EntityAttribute lifeAttr = player.getData(AttributeManager.LIFE);
+        if (lifeAttr.getValue() < 1) {
+            lifeAttr.setValue(1);
+        }
+
+        // 5. 资源型属性重生时恢复到满值（life、skill_point、magic_point）
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
+            if (entry.shouldResetOnRespawn()) {
+                IAttribute attr = player.getData(entry.getSupplier());
+                attr.fillMax();
+            }
+        }
+
+        // 6. 更新装备加成追踪附件
+        player.setData(EquipmentData.EQUIPMENT_BONUS.get(), mapToStorage(currentBonuses));
+
+        // 7. 同步所有属性到客户端
+        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
+            EntityAttribute attr = (EntityAttribute) player.getData(entry.getSupplier());
+            SyncPlayerAttributePacket.sendToClient(player, entry.getId(), attr);
+        }
+    }
+
+    /**
      * <p>
      * 用于从 {@link EquipmentData#EQUIPMENT_BONUS} 附件读取旧加成数据时，
      * 将存储用的字符串键（{@code "rpgcraftcore:strength"}）解析为 {@link Identifier}。

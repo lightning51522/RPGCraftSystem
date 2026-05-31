@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.core.attribute.DeathAttributeMode;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
@@ -127,6 +128,20 @@ public class RPGCommands {
                                         EntityArgument.getPlayer(context, "player")))
                         )
                 )
+
+                .then(Commands.literal("deathmode")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("mode", StringArgumentType.word())
+                                .suggests((context, builder) -> {
+                                    for (DeathAttributeMode mode : DeathAttributeMode.values()) {
+                                        builder.suggest(mode.getCommandKey());
+                                    }
+                                    return builder.buildFuture();
+                                })
+                                .executes(context -> executeDeathMode(context,
+                                        StringArgumentType.getString(context, "mode")))
+                        )
+                )
         );
     }
 
@@ -146,6 +161,10 @@ public class RPGCommands {
         }
         context.getSource().sendSuccess(
                 () -> Component.literal("—— " + target.getName().getString() + " 的属性列表 ——"),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal("当前死亡恢复模式: " + DeathAttributeMode.getCurrentMode().getDisplayName()),
                 false
         );
         return AttributeManager.getRegistry().getAllEntries().size();
@@ -223,6 +242,20 @@ public class RPGCommands {
         String text = String.format("已将 %s 的 %s 最大值设置为 %d", target.getName().getString(), attrName, value);
         context.getSource().sendSuccess(() -> Component.literal(text), true);
         return value;
+    }
+
+    private static int executeDeathMode(CommandContext<CommandSourceStack> context, String modeKey) {
+        DeathAttributeMode mode = DeathAttributeMode.fromCommandKey(modeKey);
+        if (mode == null) {
+            context.getSource().sendFailure(Component.literal("未知死亡恢复模式: " + modeKey + "（可选: snapshot, rescan）"));
+            return 0;
+        }
+        DeathAttributeMode.setCurrentMode(mode);
+        context.getSource().sendSuccess(
+                () -> Component.literal("死亡属性恢复模式已设置为: " + mode.getDisplayName()),
+                true
+        );
+        return 1;
     }
 
     private static Optional<IAttributeEntry> resolveAttribute(String name) {

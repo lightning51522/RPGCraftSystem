@@ -1,5 +1,6 @@
 package com.rpgcraft.core.equipment.api;
 
+import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.equipment.EquipmentBonus;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,4 +41,22 @@ public interface IEquipmentHandler {
      * @param player 目标玩家
      */
     void restoreBonusTracking(ServerPlayer player);
+
+    /**
+     * 重扫模式下根据当前装备重新计算并应用所有属性
+     * <p>
+     * 从死亡快照中剥离死亡时的装备加成得到基础值，
+     * 再根据玩家当前身上实际装备重新计算总加成并应用。
+     * 适用于装备在死亡时掉落的场景。
+     * <p>
+     * 该方法同时会更新装备加成追踪附件（等效于调用 {@link #restoreBonusTracking}），
+     * 并将所有属性同步到客户端。
+     *
+     * @param player                重生后的新玩家实体
+     * @param deathSnapshot         死亡时的属性快照
+     * @param deathEquipmentBonuses 死亡时的装备加成映射（字符串键，来自追踪附件）
+     */
+    void rescanAndApplyAttributes(ServerPlayer player,
+                                   AttributeSnapshot deathSnapshot,
+                                   Map<String, EquipmentBonus> deathEquipmentBonuses);
 }
