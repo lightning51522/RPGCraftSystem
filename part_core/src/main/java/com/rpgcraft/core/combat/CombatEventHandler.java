@@ -32,12 +32,19 @@ import java.util.Optional;
  * <h3>伤害分类与处理策略：</h3>
  * <ul>
  *   <li><b>不可减免伤害</b>（虚空、/kill，{@link DamageTypeTags#BYPASSES_INVULNERABILITY}）：
- *       直接透传原版伤害，不做任何修改</li>
+ *       直接将自定义生命值设为 0，原版伤害透传以触发死亡</li>
  *   <li><b>战斗伤害</b>（有 LivingEntity 攻击者的怪物/玩家攻击）：
- *       使用自定义输出公式计算攻击力，再通过防御力/法抗减免</li>
+ *       使用自定义输出公式计算攻击力（绝对值），直接扣除自定义生命值</li>
  *   <li><b>环境伤害</b>（摔落、溺水、火灾、仙人掌、闪电等无攻击者伤害）：
- *       使用原版伤害值直接生效，不应用 RPG 防御力或法抗减免</li>
+ *       使用原版伤害值直接扣除自定义生命值（不按比例缩放）</li>
  * </ul>
+ * <p>
+ * <h3>伤害流程：</h3>
+ * <ol>
+ *   <li>在 Pre 中计算自定义伤害并直接应用到自定义生命属性</li>
+ *   <li>将原版伤害设为对应比例值（使原版生命值同步，确保回血事件正常触发）</li>
+ *   <li>在 Post 中校正原版生命值并同步到客户端</li>
+ * </ol>
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
 public class CombatEventHandler {
@@ -76,47 +83,76 @@ public class CombatEventHandler {
      * <p>
      * 根据伤害来源类型采用不同的处理策略：
      * <ol>
-     *   <li>不可减免伤害（虚空、/kill）→ 直接透传，不调用 {@code setNewDamage()}</li>
-     *   <li>战斗伤害（有 LivingEntity 攻击者）→ RPG 攻击力公式 + 防御力减免</li>
-     *   <li>环境伤害（摔落、溺水、火灾等）→ 不调用 {@code setNewDamage()}，原版伤害直接生效</li>
+     *   <li>不可减免伤害（虚空、/kill）→ 将自定义生命设为 0，原版伤害透传以触发死亡</li>
+     *   <li>战斗伤害（有 LivingEntity 攻击者）→ RPG 攻击力公式（绝对值）直接扣除自定义生命</li>
+     *   <li>环境伤害（摔落、溺水、火灾等）→ 原版伤害值直接扣除自定义生命（不按比例缩放）</li>
      * </ol>
+     * <p>
+     * 自定义生命变更后，将原版伤害设为对应比例值，使原版生命值同步变化。
+     * 这样原版回血系统（饱食度、药水等）仍能正常触发 {@code LivingHealEvent}。
      */
     @SubscribeEvent
     public static void onLivingDamagePre(LivingDamageEvent.Pre event) {
         LivingEntity target = event.getEntity();
         DamageSource source = event.getSource();
 
-        // 1. 不可减免的伤害（虚空、/kill）直接透传，不做任何修改
+        // 1. 不可减免的伤害（虚空、/kill）：直接将自定义生命设为 0，原版伤害透传
         if (source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
+            lifeAttr.setValue(0);
             return;
         }
 
         Entity attackerEntity = source.getEntity();
         IDamageCalculator calculator = AttributeManager.getDamageCalculator();
+        EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
 
+        int flatDamage;
         if (attackerEntity instanceof LivingEntity attacker) {
-            // 2. 战斗伤害：使用自定义输出公式 + 防御力减免
+            // 2. 战斗伤害：RPG 公式计算绝对伤害值
             int damage = calculator.calculateOutgoingDamage(attacker, AttackType.PHYSICAL);
-            int finalDamage = calculator.calculateIncomingDamage(target, damage, AttackType.PHYSICAL);
-            // 按比例缩放到原版血条刻度（玩家原版 MAX_HEALTH=20，生物已设为自定义值）
-            EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
-            float scaledDamage = (float) finalDamage * target.getMaxHealth() / lifeAttr.getMaxValue();
-            event.setNewDamage(scaledDamage);
+            flatDamage = calculator.calculateIncomingDamage(target, damage, AttackType.PHYSICAL);
+        } else {
+            // 3. 环境伤害：原版伤害值直接作为自定义生命扣减量（不按比例缩放）
+            flatDamage = Math.round(event.getNewDamage());
         }
-        // 3. 环境伤害（摔落、溺水、火灾等）：不设置 newDamage，原版伤害值直接生效
+
+        // 直接扣除自定义生命值
+        int newLife = Math.max(0, lifeAttr.getValue() - flatDamage);
+        lifeAttr.setValue(newLife);
+
+        // 将原版伤害设为对应比例值，使原版生命条同步变化
+        if (newLife <= 0) {
+            // 自定义生命耗尽：设为致命伤害确保原版死亡
+            event.setNewDamage(target.getHealth() + target.getAbsorptionAmount() + 1);
+        } else {
+            // 计算与自定义生命比例对应的原版伤害量
+            float newVanillaHealth = (float) newLife / lifeAttr.getMaxValue() * target.getMaxHealth();
+            event.setNewDamage(Math.max(0, target.getHealth() - newVanillaHealth));
+        }
     }
 
     /**
-     * 伤害应用后同步自定义 life 属性与原版生命值（按比例转换）
+     * 伤害应用后校正原版生命值并同步到客户端
+     * <p>
+     * 自定义生命值已在 {@link #onLivingDamagePre} 中更新，此处不再做比例转换。
+     * 仅校正原版生命值使其与自定义生命比例一致（确保原版回血系统正常工作），
+     * 并检查死亡快照、发送客户端同步包。
      */
     @SubscribeEvent
     public static void onLivingDamagePost(LivingDamageEvent.Post event) {
         LivingEntity target = event.getEntity();
 
         EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
-        // 按比例将原版血量转换回自定义生命值
-        float healthRatio = target.getHealth() / target.getMaxHealth();
-        lifeAttr.setValue(Math.round(healthRatio * lifeAttr.getMaxValue()));
+
+        // 校正原版生命值：使其与自定义生命比例一致
+        // （处理吸收等原版机制可能导致的偏差）
+        if (lifeAttr.getValue() > 0) {
+            float expected = (float) lifeAttr.getValue() / lifeAttr.getMaxValue() * target.getMaxHealth();
+            if (Math.abs(target.getHealth() - expected) > 0.5f) {
+                target.setHealth(expected);
+            }
+        }
 
         if (target instanceof ServerPlayer serverPlayer) {
             com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(serverPlayer);
