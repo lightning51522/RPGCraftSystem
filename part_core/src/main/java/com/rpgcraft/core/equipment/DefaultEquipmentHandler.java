@@ -153,6 +153,11 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
                 attr.setValue(1);
             }
 
+            // life 属性变更时同步原版生命条上限和当前值
+            if (entry.getId().equals(AttributeManager.LIFE_ID)) {
+                AttributeManager.syncVanillaHealth(player);
+            }
+
             SyncPlayerAttributePacket.sendToClient(player, entry.getId(), (EntityAttribute) attr);
         }
     }

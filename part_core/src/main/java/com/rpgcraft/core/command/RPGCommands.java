@@ -185,11 +185,7 @@ public class RPGCommands {
         attr.setValue(value);
 
         if (entry.getId().equals(AttributeManager.LIFE_ID)) {
-            var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
-            if (maxHealthAttr != null) {
-                maxHealthAttr.setBaseValue(attr.getMaxValue());
-            }
-            target.setHealth(attr.getValue());
+            AttributeManager.syncVanillaHealth(target);
         }
 
         com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(target);
@@ -215,11 +211,7 @@ public class RPGCommands {
         attr.setMaxValue(value);
 
         if (entry.getId().equals(AttributeManager.LIFE_ID)) {
-            var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
-            if (maxHealthAttr != null) {
-                maxHealthAttr.setBaseValue(value);
-            }
-            target.setHealth(Math.min(target.getHealth(), value));
+            AttributeManager.syncVanillaHealth(target);
         }
 
         // setmax 可能导致 currentValue 被钳制到极低值，检测是否需要创建死亡快照
@@ -251,12 +243,7 @@ public class RPGCommands {
         }
 
         // 重置后同步原版生命值，确保原版血条与自定义 life 属性一致
-        IAttribute lifeAttr = target.getData(AttributeManager.LIFE);
-        var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
-        if (maxHealthAttr != null) {
-            maxHealthAttr.setBaseValue(lifeAttr.getMaxValue());
-        }
-        target.setHealth(lifeAttr.getValue());
+        AttributeManager.syncVanillaHealth(target);
 
         context.getSource().sendSuccess(
                 () -> Component.literal("已重置 " + target.getName().getString() + " 的所有属性"),

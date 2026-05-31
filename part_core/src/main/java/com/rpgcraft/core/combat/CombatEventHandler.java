@@ -20,6 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 
 import java.util.Optional;
 
@@ -97,26 +98,53 @@ public class CombatEventHandler {
             // 2. 战斗伤害：使用自定义输出公式 + 防御力减免
             int damage = calculator.calculateOutgoingDamage(attacker, AttackType.PHYSICAL);
             int finalDamage = calculator.calculateIncomingDamage(target, damage, AttackType.PHYSICAL);
-            event.setNewDamage(finalDamage);
+            // 按比例缩放到原版血条刻度（玩家原版 MAX_HEALTH=20，生物已设为自定义值）
+            EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
+            float scaledDamage = (float) finalDamage * target.getMaxHealth() / lifeAttr.getMaxValue();
+            event.setNewDamage(scaledDamage);
         }
         // 3. 环境伤害（摔落、溺水、火灾等）：不设置 newDamage，原版伤害值直接生效
     }
 
     /**
-     * 伤害应用后同步自定义 life 属性与原版生命值
+     * 伤害应用后同步自定义 life 属性与原版生命值（按比例转换）
      */
     @SubscribeEvent
     public static void onLivingDamagePost(LivingDamageEvent.Post event) {
         LivingEntity target = event.getEntity();
 
         EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
-        int currentVanillaHealth = (int) target.getHealth() + (target.getHealth() > (int) target.getHealth() ? 1 : 0);
-        lifeAttr.setValue(currentVanillaHealth);
+        // 按比例将原版血量转换回自定义生命值
+        float healthRatio = target.getHealth() / target.getMaxHealth();
+        lifeAttr.setValue(Math.round(healthRatio * lifeAttr.getMaxValue()));
 
         if (target instanceof ServerPlayer serverPlayer) {
             com.rpgcraft.core.RPGCraftCore.checkAndSnapshotIfDying(serverPlayer);
             SyncPlayerAttributePacket.sendToClient(serverPlayer, AttributeManager.LIFE_ID, lifeAttr);
         }
+    }
+
+    /**
+     * 回血事件处理 —— 将原版回血同步到自定义 life 属性
+     * <p>
+     * 原版回血来源包括：饱食度自然回复、再生药水、信标效果、金苹果、治疗药水等。
+     * 所有通过 {@code LivingEntity.heal()} 触发的回血都会被此事件捕获。
+     * <p>
+     * 不会与 {@link AttributeManager#syncVanillaHealth} 形成循环：
+     * {@code syncVanillaHealth} 使用 {@code setHealth()} 而非 {@code heal()}，
+     * 因此不触发此事件。
+     */
+    @SubscribeEvent
+    public static void onLivingHeal(LivingHealEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
+
+        float healAmount = event.getAmount();
+        EntityAttribute lifeAttr = serverPlayer.getData(AttributeManager.LIFE);
+        // 将原版回血量按比例转换为自定义生命值
+        int customHeal = Math.round(healAmount * lifeAttr.getMaxValue() / serverPlayer.getMaxHealth());
+        lifeAttr.setValue(lifeAttr.getValue() + customHeal);
+
+        SyncPlayerAttributePacket.sendToClient(serverPlayer, AttributeManager.LIFE_ID, lifeAttr);
     }
 
     @SuppressWarnings("unchecked")

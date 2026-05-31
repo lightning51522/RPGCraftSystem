@@ -220,6 +220,8 @@ public class RPGCraftCore {
         // 登录时从当前装备计算加成映射并缓存，防止首次 tick 的 LivingEquipmentChangeEvent 重复加成
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
+            // 同步自定义 life 到原版生命条，确保原版血条上限和当前值与自定义属性一致
+            AttributeManager.syncVanillaHealth(serverPlayer);
         }
     }
 
@@ -282,5 +284,8 @@ public class RPGCraftCore {
             EntityAttribute attr = (EntityAttribute) serverPlayer.getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(serverPlayer, entry.getId(), attr);
         }
+
+        // 重生后同步自定义 life 到原版生命条
+        AttributeManager.syncVanillaHealth(serverPlayer);
     }
 }

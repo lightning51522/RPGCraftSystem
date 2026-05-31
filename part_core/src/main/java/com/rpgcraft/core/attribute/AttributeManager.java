@@ -4,6 +4,7 @@ import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.attribute.api.IAttributeProvider;
 import com.rpgcraft.core.attribute.api.IAttributeRegistry;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -126,6 +127,30 @@ public class AttributeManager {
     public static Supplier<AttachmentType<EntityAttribute>> RESISTANCE;
     public static Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATE;
     public static Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATIO;
+
+    // ====================================================================
+    // 原版生命条同步
+    // ====================================================================
+
+    /**
+     * 将自定义 life 属性同步到原版生命条（按比例缩放）
+     * <p>
+     * 原版 {@code MAX_HEALTH} 保持默认值 20（10 颗心）不变，
+     * 仅按比例设置原版 {@code health}，使心形血条反映自定义生命的百分比。
+     * <p>
+     * 例如：自定义生命 85/100 → 原版血条 17/20（8.5 颗心），
+     * 自定义生命 50/120 → 原版血条 8.33/20（约 4 颗心）。
+     * <p>
+     * 不负责发送网络同步包——调用方需自行处理客户端同步。
+     *
+     * @param player 目标玩家
+     */
+    public static void syncVanillaHealth(ServerPlayer player) {
+        EntityAttribute lifeAttr = player.getData(LIFE);
+        // 按比例映射：custom_value / custom_max = vanilla_health / vanilla_max
+        float scaledHealth = (float) lifeAttr.getValue() / lifeAttr.getMaxValue() * player.getMaxHealth();
+        player.setHealth(Math.min(scaledHealth, player.getMaxHealth()));
+    }
 
     // ====================================================================
     // 查询方法（委托到注册中心）
