@@ -7,11 +7,13 @@ import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.equipment.api.IEquipmentHandler;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.equipment.Equippable;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -57,6 +59,15 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = player.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
+
+            // 护甲类物品在手持槽位（主手/副手）时不应用加成，必须在装备栏（头盔/胸甲/护腿/靴子）中才生效
+            if (slot.getType() == EquipmentSlot.Type.HAND) {
+                Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
+                if (equippable != null && equippable.slot().getType() == EquipmentSlot.Type.HUMANOID_ARMOR) {
+                    continue;
+                }
+            }
+
             Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             Optional<Map<Identifier, EquipmentBonus>> bonuses = registry.getBonuses(itemId);
             if (bonuses.isEmpty()) continue;
@@ -151,11 +162,6 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
             // 脱装备导致上限降低后，若生命被钳制到 0 则保留 1 点防止死亡
             if (entry.getId().equals(AttributeManager.LIFE_ID) && attr.getValue() < 1) {
                 attr.setValue(1);
-            }
-
-            // life 属性变更时同步原版生命条上限和当前值
-            if (entry.getId().equals(AttributeManager.LIFE_ID)) {
-                AttributeManager.syncVanillaHealth(player);
             }
 
             SyncPlayerAttributePacket.sendToClient(player, entry.getId(), (EntityAttribute) attr);
