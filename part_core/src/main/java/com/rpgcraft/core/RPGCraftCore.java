@@ -213,6 +213,17 @@ public class RPGCraftCore {
     }
 
     /**
+     * 玩家断开连接回调 —— 清理残留的死亡快照（Game 事件总线）
+     * <p>
+     * 如果玩家死亡后直接断开（未点击重生），快照会留在内存中。
+     * 在断开时清理，避免长期运行服务器上的内存泄漏。
+     */
+    @SubscribeEvent
+    public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        deathSnapshot.remove(event.getEntity().getUUID());
+    }
+
+    /**
      * 玩家死亡回调 —— 兜底缓存属性快照（Game 事件总线）
      * <p>
      * 作为 {@link #checkAndSnapshotIfDying} 的兜底，处理非生命归零导致的死亡

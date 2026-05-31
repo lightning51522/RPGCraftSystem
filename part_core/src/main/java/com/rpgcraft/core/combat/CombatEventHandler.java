@@ -35,6 +35,7 @@ public class CombatEventHandler {
      */
     @SubscribeEvent
     public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof LivingEntity entity)) return;
         if (entity instanceof Player) return;
 
