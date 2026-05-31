@@ -31,7 +31,7 @@ public class GenericEntityData {
         registry = new DefaultAttributeRegistry("rpgcraftcore");
         damageCalculator = new DefaultDamageCalculator();
 
-        registry.register(LIFE_ID, "生命", 100, 100, true);
+        registry.register(LIFE_ID, "生命", 100, 100, true, true);
         registry.register(SKILL_POINT_ID, "技力", 100, 100, true);
         registry.register(MAGIC_POINT_ID, "法力", 100, 100, true);
         registry.register(STRENGTH_ID, "力量", 10, Integer.MAX_VALUE);
@@ -39,7 +39,7 @@ public class GenericEntityData {
         registry.register(AGILE_ID, "敏捷", 10, Integer.MAX_VALUE);
         registry.register(PRECISION_ID, "精准", 10, Integer.MAX_VALUE);
         registry.register(DEFENSE_ID, "防御", 10, Integer.MAX_VALUE);
-        registry.register(RESISTANCE_ID, "法抗", 2, 100);
+    registry.register(RESISTANCE_ID, "法抗", 2, 100);
         registry.register(CRITICAL_RATE_ID, "暴击率", 5, 100);
         registry.register(CRITICAL_RATIO_ID, "暴击伤害", 50, Integer.MAX_VALUE);
 

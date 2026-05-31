@@ -123,6 +123,9 @@ public class RPGCraftCore {
      * @param modContainer 模组容器，用于注册配置等扩展点
      */
     public RPGCraftCore(IEventBus modEventBus, ModContainer modContainer) {
+        // 初始化装备模块注册中心和处理器
+        com.rpgcraft.core.equipment.EquipmentManager.init();
+
         // 初始化属性注册中心和战斗计算器
         GenericEntityData.init();
 
@@ -136,6 +139,9 @@ public class RPGCraftCore {
 
         // 注册属性 AttachmentType（通过注册中心的 DeferredRegister）
         GenericEntityData.getRegistry().getDeferredRegister().register(modEventBus);
+
+        // 注册装备模块附件
+        com.rpgcraft.core.equipment.EquipmentData.getAttachmentRegister().register(modEventBus);
 
         // 注册网络包处理器
         modEventBus.addListener(PacketHandler::register);
@@ -210,6 +216,11 @@ public class RPGCraftCore {
             EntityAttribute attr = (EntityAttribute) event.getEntity().getData(entry.getSupplier());
             SyncPlayerAttributePacket.sendToClient(event.getEntity(), entry.getId(), attr);
         }
+
+        // 登录时从当前装备计算加成映射并缓存，防止首次 tick 的 LivingEquipmentChangeEvent 重复加成
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
+        }
     }
 
     /**
@@ -251,6 +262,9 @@ public class RPGCraftCore {
         if (snapshot == null) return;
 
         GenericEntityData.getRegistry().applySnapshot(serverPlayer, snapshot);
+
+        // 重生后恢复装备加成追踪数据（属性值已由 applySnapshot 恢复，含加成）
+        com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
     }
 
     /**

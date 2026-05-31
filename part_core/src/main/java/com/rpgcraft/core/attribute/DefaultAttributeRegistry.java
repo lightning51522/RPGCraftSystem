@@ -36,16 +36,18 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
         private final int defaultValue;
         private final int defaultMaxValue;
         private final boolean resetOnRespawn;
+        private final boolean equipmentAffectsMax;
 
         DefaultEntry(Identifier id, String displayName,
                      Supplier<AttachmentType<EntityAttribute>> supplier,
-                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn) {
+                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax) {
             this.id = id;
             this.displayName = displayName;
             this.supplier = supplier;
             this.defaultValue = defaultValue;
             this.defaultMaxValue = defaultMaxValue;
             this.resetOnRespawn = resetOnRespawn;
+            this.equipmentAffectsMax = equipmentAffectsMax;
         }
 
         @Override
@@ -71,6 +73,9 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 
         @Override
         public boolean shouldResetOnRespawn() { return resetOnRespawn; }
+
+        @Override
+        public boolean equipmentAffectsMax() { return equipmentAffectsMax; }
     }
 
     public DefaultAttributeRegistry(String modId) {
@@ -102,13 +107,18 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 
     @Override
     public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn) {
+        register(id, displayName, defaultValue, defaultMaxValue, resetOnRespawn, false);
+    }
+
+    @Override
+    public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax) {
         Supplier<AttachmentType<EntityAttribute>> supplier = deferredRegister.register(
                 id.getPath(),
                 () -> AttachmentType.builder(() -> new EntityAttribute(displayName, defaultValue, defaultMaxValue))
                         .serialize(EntityAttribute.CODEC)
                         .build()
         );
-        DefaultEntry entry = new DefaultEntry(id, displayName, supplier, defaultValue, defaultMaxValue, resetOnRespawn);
+        DefaultEntry entry = new DefaultEntry(id, displayName, supplier, defaultValue, defaultMaxValue, resetOnRespawn, equipmentAffectsMax);
         entries.put(id, entry);
         if (resetOnRespawn) {
             respawnResetEntries.add(entry);

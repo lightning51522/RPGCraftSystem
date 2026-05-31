@@ -56,4 +56,12 @@ public interface IAttributeEntry {
      * 而法抗、暴击率等"能力型"属性应保持不变。
      */
     boolean shouldResetOnRespawn();
+
+    /**
+     * 装备加成是否同时影响上限值
+     * <p>
+     * 为 true 时，装备加成同时改变 currentValue 和 maxValue；
+     * 为 false 时，装备加成仅改变 currentValue。
+     */
+    boolean equipmentAffectsMax();
 }

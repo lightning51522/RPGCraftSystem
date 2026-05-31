@@ -39,6 +39,18 @@ public interface IAttributeRegistry {
     void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn);
 
     /**
+     * 注册一个新属性（指定重生行为和装备影响上限标志）
+     *
+     * @param id                   属性的唯一标识符
+     * @param displayName          HUD/命令中的显示名称
+     * @param defaultValue         属性默认值
+     * @param defaultMaxValue      属性默认上限值（Integer.MAX_VALUE 表示无上限）
+     * @param resetOnRespawn       重生时是否恢复到最大值
+     * @param equipmentAffectsMax  装备加成是否同时影响上限值
+     */
+    void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax);
+
+    /**
      * 通过 ID 查询属性条目
      *
      * @param id 属性标识符

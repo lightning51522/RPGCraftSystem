@@ -37,7 +37,11 @@
       "Bash(xargs grep -l -i \"death\")",
       "Bash(grep -E \"\\\\\\\\.java$\")",
       "Bash(xargs grep -l \"respawn\")",
-      "Bash(xargs grep -l \"IAttachmentHolder\")"
+      "Bash(xargs grep -l \"IAttachmentHolder\")",
+      "Bash(xargs grep -l \"Tooltip\")",
+      "Bash(./gradlew dependencies *)",
+      "Read(//d/code/minecraft_mods/RPGCraftSystem/project/**)",
+      "Bash(./gradlew :part_core:dependencies --configuration compileClasspath)"
     ]
   }
 }

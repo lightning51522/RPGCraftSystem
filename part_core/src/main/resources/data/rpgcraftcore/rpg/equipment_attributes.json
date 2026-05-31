@@ -1,0 +1,54 @@
+{
+  "minecraft:diamond_sword": {
+    "rpgcraftcore:strength": 10,
+    "rpgcraftcore:critical_rate": 5
+  },
+  "minecraft:iron_sword": {
+    "rpgcraftcore:strength": 6
+  },
+  "minecraft:stone_sword": {
+    "rpgcraftcore:strength": 3
+  },
+  "minecraft:wooden_sword": {
+    "rpgcraftcore:strength": 1
+  },
+  "minecraft:diamond_chestplate": {
+    "rpgcraftcore:defense": 15,
+    "rpgcraftcore:life": 50
+  },
+  "minecraft:diamond_leggings": {
+    "rpgcraftcore:defense": 10,
+    "rpgcraftcore:life": 30
+  },
+  "minecraft:diamond_helmet": {
+    "rpgcraftcore:defense": 5,
+    "rpgcraftcore:resistance": 3
+  },
+  "minecraft:diamond_boots": {
+    "rpgcraftcore:defense": 5,
+    "rpgcraftcore:agile": 3
+  },
+  "minecraft:iron_chestplate": {
+    "rpgcraftcore:defense": 10,
+    "rpgcraftcore:life": 30
+  },
+  "minecraft:iron_leggings": {
+    "rpgcraftcore:defense": 7,
+    "rpgcraftcore:life": 20
+  },
+  "minecraft:iron_helmet": {
+    "rpgcraftcore:defense": 3,
+    "rpgcraftcore:resistance": 2
+  },
+  "minecraft:iron_boots": {
+    "rpgcraftcore:defense": 3,
+    "rpgcraftcore:agile": 1
+  },
+  "minecraft:bow": {
+    "rpgcraftcore:precision": 8,
+    "rpgcraftcore:critical_rate": 3
+  },
+  "minecraft:shield": {
+    "rpgcraftcore:defense": 10
+  }
+}
