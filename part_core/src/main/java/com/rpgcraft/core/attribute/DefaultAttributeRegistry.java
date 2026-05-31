@@ -178,7 +178,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
             IAttribute attr = entity.getData(entry.getSupplier());
             attr.setMaxValue(values.maxValue());
             if (entry.shouldResetOnRespawn()) {
-                attr.setValue(attr.getMaxValue());
+                attr.fillMax();
             } else {
                 attr.setValue(values.currentValue());
             }

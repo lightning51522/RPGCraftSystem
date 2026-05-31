@@ -35,7 +35,9 @@
       "Bash(./gradlew :part_core:build)",
       "Bash(javap -c -p net/minecraft/server/players/PlayerList.class)",
       "Bash(xargs grep -l -i \"death\")",
-      "Bash(grep -E \"\\\\\\\\.java$\")"
+      "Bash(grep -E \"\\\\\\\\.java$\")",
+      "Bash(xargs grep -l \"respawn\")",
+      "Bash(xargs grep -l \"IAttachmentHolder\")"
     ]
   }
 }

@@ -126,6 +126,11 @@ public class EntityAttribute implements IAttribute {
         return maxValue < Integer.MAX_VALUE;
     }
 
+    @Override
+    public void fillMax() {
+        currentValue = maxValue;
+    }
+
     /**
      * MapCodec 序列化器，用于 AttachmentType 的存档读写
      * <p>

@@ -218,17 +218,18 @@ public class RPGCraftCore {
      * 作为 {@link #checkAndSnapshotIfDying} 的兜底，处理非生命归零导致的死亡
      * （如 void、/kill 等）。使用 {@code putIfAbsent} 不覆盖已有的快照。
      */
-    // @SubscribeEvent
-    // public void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
-    //     if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
-    //     deathSnapshot.putIfAbsent(serverPlayer.getUUID(), GenericEntityData.getRegistry().createSnapshot(serverPlayer));
-    // }
+    @SubscribeEvent
+    public void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
+        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), GenericEntityData.getRegistry().createSnapshot(serverPlayer));
+    }
 
     /**
      * 玩家克隆回调 —— 从快照恢复属性数据（Game 事件总线）
      * <p>
-     * 默认初始化已由 NeoForge 完成后，通过注册中心的快照 API 恢复全部属性值：
-     * 资源型属性恢复到最大值，能力型属性保持死亡前的值。
+     * 仅恢复服务端属性值，不在此处同步客户端。
+     * 因为 Clone 事件在客户端创建新实体之前触发，此时发送的同步包会被旧实体接收后丢失。
+     * 客户端同步改在 {@link #onPlayerRespawn} 中完成。
      */
     @SubscribeEvent
     public void onPlayerClone(PlayerEvent.Clone event) {
@@ -239,6 +240,18 @@ public class RPGCraftCore {
         if (snapshot == null) return;
 
         GenericEntityData.getRegistry().applySnapshot(serverPlayer, snapshot);
+    }
+
+    /**
+     * 玩家重生回调 —— 同步属性到客户端（Game 事件总线）
+     * <p>
+     * PlayerRespawnEvent 在客户端已完成新实体创建之后触发，
+     * 此时发送的同步包能被正确接收。
+     */
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.isEndConquered()) return;
+        if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
 
         for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
             EntityAttribute attr = (EntityAttribute) serverPlayer.getData(entry.getSupplier());

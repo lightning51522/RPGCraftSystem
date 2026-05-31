@@ -39,4 +39,9 @@ public interface IAttribute {
      * @return {@code true} 如果 maxValue &lt; Integer.MAX_VALUE
      */
     boolean hasMaxValue();
+
+    /**
+     * 将当前值直接设为最大值
+     */
+    void fillMax();
 }
