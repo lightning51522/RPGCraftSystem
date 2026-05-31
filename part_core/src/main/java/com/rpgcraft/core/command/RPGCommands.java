@@ -30,6 +30,7 @@ import java.util.Optional;
  * /rpg list [player]
  * /rpg get &lt;attribute&gt; [player]
  * /rpg set &lt;attribute&gt; &lt;value&gt; [player]
+ * /rpg setmax &lt;attribute&gt; &lt;value&gt; [player]
  * </pre>
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
@@ -85,6 +86,30 @@ public class RPGCommands {
                                                 IntegerArgumentType.getInteger(context, "value")))
                                         .then(Commands.argument("player", EntityArgument.player())
                                                 .executes(context -> executeSet(context,
+                                                        EntityArgument.getPlayer(context, "player"),
+                                                        StringArgumentType.getString(context, "attribute"),
+                                                        IntegerArgumentType.getInteger(context, "value")))
+                                        )
+                                )
+                        )
+                )
+
+                .then(Commands.literal("setmax")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("attribute", StringArgumentType.word())
+                                .suggests((context, builder) -> {
+                                    for (IAttributeEntry entry : GenericEntityData.getRegistry().getAllEntries()) {
+                                        builder.suggest(entry.getId().getPath());
+                                    }
+                                    return builder.buildFuture();
+                                })
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(context -> executeSetMax(context,
+                                                context.getSource().getPlayerOrException(),
+                                                StringArgumentType.getString(context, "attribute"),
+                                                IntegerArgumentType.getInteger(context, "value")))
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(context -> executeSetMax(context,
                                                         EntityArgument.getPlayer(context, "player"),
                                                         StringArgumentType.getString(context, "attribute"),
                                                         IntegerArgumentType.getInteger(context, "value")))
@@ -175,6 +200,34 @@ public class RPGCommands {
         String text = String.format("已将 %s 的 %s 设置为 %d", target.getName().getString(), attrName, attr.getValue());
         context.getSource().sendSuccess(() -> Component.literal(text), true);
         return attr.getValue();
+    }
+
+    private static int executeSetMax(CommandContext<CommandSourceStack> context, ServerPlayer target, String attrName, int value) {
+        Optional<IAttributeEntry> resolved = resolveAttribute(attrName);
+        if (resolved.isEmpty()) {
+            context.getSource().sendFailure(Component.literal("未知属性: " + attrName));
+            return 0;
+        }
+
+        IAttributeEntry entry = resolved.get();
+        IAttribute attr = target.getData(entry.getSupplier());
+
+        attr.setMaxValue(value);
+
+        if (entry.getId().equals(GenericEntityData.LIFE_ID)) {
+            var maxHealthAttr = target.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+            if (maxHealthAttr != null) {
+                maxHealthAttr.setBaseValue(value);
+            }
+            target.setHealth(Math.min(target.getHealth(), value));
+        }
+
+        EntityAttribute entityAttr = (EntityAttribute) attr;
+        SyncPlayerAttributePacket.sendToClient(target, entry.getId(), entityAttr);
+
+        String text = String.format("已将 %s 的 %s 最大值设置为 %d", target.getName().getString(), attrName, value);
+        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        return value;
     }
 
     private static Optional<IAttributeEntry> resolveAttribute(String name) {
