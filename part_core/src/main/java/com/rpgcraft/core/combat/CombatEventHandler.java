@@ -125,11 +125,12 @@ public class CombatEventHandler {
         if (newLife <= 0) {
             // 自定义生命耗尽：设为致命伤害确保原版死亡
             event.setNewDamage(target.getHealth() + target.getAbsorptionAmount() + 1);
-        } else {
+        } else if (lifeAttr.getMaxValue() > 0) {
             // 计算与自定义生命比例对应的原版伤害量
             float newVanillaHealth = (float) newLife / lifeAttr.getMaxValue() * target.getMaxHealth();
             event.setNewDamage(Math.max(0, target.getHealth() - newVanillaHealth));
         }
+        // maxValue <= 0 时不设置原版伤害，避免除零错误；原版伤害保持原值
     }
 
     /**
@@ -147,7 +148,7 @@ public class CombatEventHandler {
 
         // 校正原版生命值：使其与自定义生命比例一致
         // （处理吸收等原版机制可能导致的偏差）
-        if (lifeAttr.getValue() > 0) {
+        if (lifeAttr.getValue() > 0 && lifeAttr.getMaxValue() > 0) {
             float expected = (float) lifeAttr.getValue() / lifeAttr.getMaxValue() * target.getMaxHealth();
             if (Math.abs(target.getHealth() - expected) > 0.5f) {
                 target.setHealth(expected);
@@ -176,6 +177,10 @@ public class CombatEventHandler {
 
         float healAmount = event.getAmount();
         EntityAttribute lifeAttr = serverPlayer.getData(AttributeManager.LIFE);
+
+        // 防御性检查：原版最大生命值为 0 时跳过比例转换（极罕见，可能由其他模组导致）
+        if (serverPlayer.getMaxHealth() <= 0) return;
+
         // 将原版回血量按比例转换为自定义生命值
         int customHeal = Math.round(healAmount * lifeAttr.getMaxValue() / serverPlayer.getMaxHealth());
         lifeAttr.setValue(lifeAttr.getValue() + customHeal);

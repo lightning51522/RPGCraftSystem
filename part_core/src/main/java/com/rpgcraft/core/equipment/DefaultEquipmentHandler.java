@@ -206,13 +206,15 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
 
             if (entry.equipmentAffectsMax()) {
                 // 资源型属性（如生命）：装备影响上限
-                int baseMax = deathData.maxValue() - deathBonus.value();
+                // 钳制基础值 >= 0，防止死亡快照与装备加成不一致时产生负值
+                int baseMax = Math.max(0, deathData.maxValue() - deathBonus.value());
                 int newMax = Math.max(0, baseMax + currentBonus.value());
                 attr.setMaxValue(newMax);
                 // setMaxValue 会自动将 currentValue 钳制到 [0, newMax]
             } else {
                 // 能力型属性（如力量、防御）：装备影响当前值
-                int baseValue = deathData.currentValue() - deathBonus.value();
+                // 钳制基础值 >= 0，防止死亡快照与装备加成不一致时产生负值
+                int baseValue = Math.max(0, deathData.currentValue() - deathBonus.value());
                 int newValue = Math.max(0, baseValue + currentBonus.value());
                 attr.setValue(Math.min(newValue, attr.getMaxValue()));
             }

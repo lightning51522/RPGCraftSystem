@@ -60,6 +60,7 @@ Public interfaces that other mods depend on. Each functional module has its own 
 - **`AttackType`** — Enum implementing `IDamageType`: `PHYSICAL`, `MAGIC`, `PHYSICAL_WITH_MAGIC`, `MAGIC_WITH_PHYSICAL`, `MIX_TYPE`. Only `PHYSICAL` and `MAGIC` are implemented in damage calculations.
 - **`AttributeManager`** — Attribute module facade (consistent naming with `EquipmentManager`). Holds `Identifier` constants and `Supplier<AttachmentType<EntityAttribute>>` accessors, delegates to `DefaultAttributeRegistry` and `DefaultDamageCalculator`. Must call `init()` before registering its `DeferredRegister` on the mod event bus. `getRegistry()` returns `IAttributeRegistry` interface; `getDeferredRegister()` is a convenience static method.
 - **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload.
+- **`DeathAttributeMode`** — Enum controlling death/respawn attribute recovery: `SNAPSHOT` (restore death values verbatim) or `RESCAN` (recompute from base + current equipment). Static `currentMode` field with getter/setter. Default: `SNAPSHOT`. Toggled via `/rpg deathmode` command.
 
 #### Attribute Classification
 
@@ -87,19 +88,27 @@ Client-server attribute synchronization using NeoForge's payload system:
 
 ### Client HUD (`client/`)
 
-- **`AttributeHudOverlay`** — `@EventBusSubscriber(Dist.CLIENT)` that renders attributes as a HUD overlay via NeoForge 26.1's `GuiLayer` system (registered through `RegisterGuiLayersEvent`). Iterates `IAttributeRegistry.getAllEntries()` and reads `IAttribute` from client player attachments. Uses `GuiGraphicsExtractor.text()` with ARGB colors (`0xFFFFFFFF`).
+- **`AttributeHudOverlay`** — `@EventBusSubscriber(Dist.CLIENT)` that renders via NeoForge 26.1's `GuiLayer` system:
+  - **Custom health bar** — Replaces `VanillaGuiLayers.PLAYER_HEALTH` via `RegisterGuiLayersEvent.replaceLayer()`. Renders a rounded-rectangle progress bar with gradient red fill (top: `0xFFE03030`, bottom: `0xFF8B0000`), dark gray lost-health area (`0xFF373737`), dark border (`0xFF222222`), and centered "current/max" text. Position matches vanilla hearts (`screenWidth/2 - 91`, `screenHeight - 39`). Bar: 90×9px, border 1px, corner radius 2px. Uses manual `fillRounded()`/`fillRoundedGradient()` helper methods.
+  - **Attribute text panel** — Registered via `registerAboveAll`, iterates `IAttributeRegistry.getAllEntries()` and displays all attributes (including life) as text in the top-left corner. Shows "name: value / maxValue" for capped attributes, "name: value" for uncapped.
 - **`RPGCraftCoreClient`** — Client-side entry point (`@Mod(dist = Dist.CLIENT)`).
+- **`EquipmentTooltipHandler`** — Client-side tooltip rendering for equipment bonuses. See Tooltip Display section below.
 
 ### Combat System (`combat/`)
 
 - **`CombatEventHandler`** — `@EventBusSubscriber` on the game bus:
   - `onEntityJoinLevel()` — Server-side only (has `isClientSide()` guard). Sets mob attributes from `MobAttributeConfig` JSON.
-  - `onLivingDamagePre()` — Overrides vanilla damage via `IDamageCalculator` (obtained from `AttributeManager.getDamageCalculator()`). Only fires on server thread — no side check needed.
-  - `onLivingDamagePost()` — Syncs custom life attribute with vanilla health. Calls `checkAndSnapshotIfDying()` for early death snapshot creation.
+  - `onLivingDamagePre()` — Flat damage system (not proportional). Three damage paths:
+    - **Bypass** (`BYPASSES_INVULNERABILITY`): sets custom life to 0, passes vanilla damage through to trigger death.
+    - **Combat** (attacker is `LivingEntity`): RPG formula via `IDamageCalculator` produces absolute damage value, applied directly to custom life.
+    - **Environmental** (no attacker): vanilla damage value applied directly to custom life (no scaling by max life).
+    - After custom life change, vanilla damage is set to a proportional value so vanilla health syncs (keeps vanilla healing working via `LivingHealEvent`).
+  - `onLivingDamagePost()` — Re-syncs vanilla health to match custom life ratio (handles absorption edge cases). Calls `checkAndSnapshotIfDying()` for early death snapshot creation.
+  - `onLivingHeal()` — Converts vanilla heal amounts to custom life proportionally. Uses `setHealth()` (not `heal()`) so no loop with `syncVanillaHealth()`.
 
 ### Commands (`command/`)
 
-- **`RPGCommands`** — `/rpg list [player]`, `/rpg get <attr> [player]`, `/rpg set <attr> <value> [player]`, `/rpg setmax <attr> <value> [player]`, `/rpg reset [player]`. Uses `IAttributeRegistry.getAllEntries()` for suggestions and `IAttributeEntry` for attribute lookup. `/rpg set` only modifies currentValue (clamped by maxValue); `/rpg setmax` modifies maxValue. Both require gamemaster permission.
+- **`RPGCommands`** — `/rpg list [player]`, `/rpg get <attr> [player]`, `/rpg set <attr> <value> [player]`, `/rpg setmax <attr> <value> [player]`, `/rpg reset [player]`, `/rpg deathmode <snapshot|rescan>`. Uses `IAttributeRegistry.getAllEntries()` for suggestions and `IAttributeEntry` for attribute lookup. `/rpg set` only modifies currentValue (clamped by maxValue); `/rpg setmax` modifies maxValue. Both require gamemaster permission. `/rpg list` also displays the current death recovery mode. `/rpg deathmode` toggles between SNAPSHOT and RESCAN modes (gamemaster permission).
 
 ### Equipment System (`equipment/`)
 
@@ -108,7 +117,7 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 #### Equipment API Layer (`equipment/api/`)
 
 - **`IEquipmentRegistry`** — Equipment bonus registration and lookup: `register(itemId, bonuses)`, `register(itemId, bonuses, rarity)`, `getBonuses(itemId)`, `getRarity(itemId)`. Default impl: `DefaultEquipmentRegistry`.
-- **`IEquipmentHandler`** — Replaceable equipment bonus application logic: `calculateTotalBonus(player)`, `onEquipmentChange(player)`, `restoreBonusTracking(player)`. Default impl: `DefaultEquipmentHandler`. Replaceable via `EquipmentManager.setHandler()`.
+- **`IEquipmentHandler`** — Replaceable equipment bonus application logic: `calculateTotalBonus(player)`, `onEquipmentChange(player)`, `restoreBonusTracking(player)`, `rescanAndApplyAttributes(player, deathSnapshot, deathEquipmentBonuses)`. Default impl: `DefaultEquipmentHandler`. Replaceable via `EquipmentManager.setHandler()`.
 - **`IEquipmentProvider`** — SPI for sub-mods to register custom equipment bonuses: `registerEquipment(IEquipmentRegistry)`.
 
 #### Equipment Data Types
@@ -120,9 +129,10 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 
 - **`DefaultEquipmentRegistry`** — Implements `IEquipmentRegistry`. Loads from JSON via `loadFromJson(JsonObject)`, also supports programmatic `register()`. Stores separate maps for bonuses (`configMap`) and rarities (`rarityMap`). JSON uses `"rarity": "rare"` key (skipped during attribute parsing) alongside attribute bonus entries.
 - **`DefaultEquipmentHandler`** — Implements `IEquipmentHandler`. Takes `IEquipmentRegistry` in constructor. Core logic:
-  - `calculateTotalBonus()`: iterates all equipment slots, queries registry, sums bonuses per attribute via `EquipmentBonus.add()`.
-  - `onEquipmentChange()`: computes diff between old and new totals, applies via `applyBonusDiff()`. Uses `equipmentAffectsMax` flag: when `true`, only maxValue changes (equipping raises cap, unequipping lowers cap and clamps currentValue if it exceeds new max); when `false`, only currentValue changes. Min-1-HP guard prevents death from unequipping life-boosting gear.
+  - `calculateTotalBonus()`: iterates all equipment slots, queries registry, sums bonuses per attribute via `EquipmentBonus.add()`. **Skips armor items in hand slots** — checks `DataComponents.EQUIPPABLE` component: if item has `Equippable` data targeting `HUMANOID_ARMOR` type and is in a `HAND` type slot, it is skipped. This ensures armor only applies bonuses when in armor slots, while weapons work from hand slots.
+  - `onEquipmentChange()`: computes diff between old and new totals, applies via `applyBonusDiff()`. Uses `equipmentAffectsMax` flag: when `true`, only maxValue changes (equipping raises cap, unequipping lowers cap and clamps currentValue if it exceeds new max); when `false`, only currentValue changes. Min-1-HP guard prevents death from unequipping life-boosting gear. Does NOT call `syncVanillaHealth()` — prevents hurt animation on armor equip/unequip.
   - `restoreBonusTracking()`: recalculates and stores tracking data in `EquipmentData.EQUIPMENT_BONUS` attachment.
+  - `rescanAndApplyAttributes()`: for RESCAN death mode. Computes base values (death snapshot minus death equipment bonuses), scans current equipment via `calculateTotalBonus()`, applies current bonuses to base values. Fills resource attributes to max, updates tracking attachment, syncs all attributes to client. Compatible with future custom equipment slots because it delegates slot iteration to `calculateTotalBonus()`.
 - **`EquipmentManager`** — Facade (mirrors `AttributeManager`). Static `init()` creates defaults. `getRegistry()`, `getHandler()`, `setHandler()` for sub-module replacement.
 
 #### Glue Code
@@ -156,20 +166,38 @@ Client-side `@EventBusSubscriber(Dist.CLIENT)`:
 
 ### Death & Respawn (`RPGCraftCore`)
 
-Attribute preservation across player death uses the registry's snapshot API, stored in a `ConcurrentHashMap<UUID, AttributeSnapshot>`:
+Attribute preservation across player death uses a dual-mode system controlled by `DeathAttributeMode` enum (`SNAPSHOT` or `RESCAN`), toggled via `/rpg deathmode <snapshot|rescan>`. Death data is stored in a `ConcurrentHashMap<UUID, DeathData>`, where `DeathData` is an inner record wrapping both `AttributeSnapshot` and `Map<String, EquipmentBonus>` (the equipment bonuses active at death time).
 
-1. **`LivingDeathEvent`** — Primary snapshot trigger. Captures all attribute values via `IAttributeRegistry.createSnapshot(player)`, cached by player UUID using `putIfAbsent`. Handles all death types (combat, /kill, void, etc.).
-2. **`PlayerEvent.Clone`** (only when `isWasDeath()`) — Server-side only. Calls `IAttributeRegistry.applySnapshot(newPlayer, snapshot)` to restore:
+#### Snapshot Capture (same for both modes)
+
+1. **`checkAndSnapshotIfDying()`** — Called from `CombatEventHandler.onLivingDamagePost()` when custom life ≤ 0. Captures `AttributeSnapshot` + equipment bonuses from `EquipmentData.EQUIPMENT_BONUS` attachment. Uses `putIfAbsent` so the first snapshot wins.
+2. **`LivingDeathEvent`** — Fallback for non-life-zero deaths (void, /kill). Same capture logic with `putIfAbsent`.
+
+#### SNAPSHOT Mode (default)
+
+3. **`PlayerEvent.Clone`** — Calls `IAttributeRegistry.applySnapshot(newPlayer, snapshot)` to restore:
    - All attributes: restore `maxValue` from snapshot
    - Resource attributes (`shouldResetOnRespawn=true`): `fillMax()` to set currentValue to maxValue
    - Ability attributes: restore snapshot's `currentValue`
    - Then calls `EquipmentManager.getHandler().restoreBonusTracking()` to recompute equipment bonus tracking from current equipment.
-   - Does NOT sync to client here — the client hasn't created the new player entity yet at this point.
-3. **`PlayerEvent.PlayerRespawnEvent`** — Syncs all attributes to client. This event fires AFTER the client has created the new player entity, so packets are received correctly.
-4. **`PlayerEvent.PlayerLoggedInEvent`** — Full sync of all attributes to client on join. Also calls `restoreBonusTracking()` to initialize equipment bonus tracking.
-5. **`PlayerEvent.PlayerLoggedOutEvent`** — Cleans up any residual death snapshot for the disconnecting player (prevents memory leak when players die then disconnect without respawning).
+   - Does NOT sync to client here — the client hasn't created the new player entity yet.
 
-`checkAndSnapshotIfDying()` in `CombatEventHandler.onLivingDamagePost()` serves as an early backup for combat deaths (fires before `LivingDeathEvent` due to NeoForge event ordering). Uses `putIfAbsent` so the first snapshot wins.
+#### RESCAN Mode (new)
+
+3. **`PlayerEvent.Clone`** — Calls `EquipmentManager.getHandler().rescanAndApplyAttributes(newPlayer, snapshot, deathEquipmentBonuses)`:
+   - Computes base values: `base = snapshotValue - deathBonus` for each attribute
+   - Scans current equipment via `calculateTotalBonus(player)` (handles armor-in-hotbar, future custom slots)
+   - Applies: `newValue = base + currentBonus` (respects `equipmentAffectsMax` flag)
+   - Min-1-HP guard for life attribute
+   - Resource attributes: `fillMax()` to set currentValue to maxValue
+   - Updates `EquipmentData.EQUIPMENT_BONUS` tracking attachment
+   - Syncs all attributes to client (note: clone sync is safe here because rescan writes to the new entity's attachments directly)
+
+#### Common Post-Death Flow (both modes)
+
+4. **`PlayerEvent.PlayerRespawnEvent`** — Syncs all attributes to client. This event fires AFTER the client has created the new player entity, so packets are received correctly.
+5. **`PlayerEvent.PlayerLoggedInEvent`** — Full sync of all attributes to client on join. Also calls `restoreBonusTracking()` to initialize equipment bonus tracking and `syncVanillaHealth()` to sync vanilla health bar.
+6. **`PlayerEvent.PlayerLoggedOutEvent`** — Cleans up any residual death snapshot for the disconnecting player (prevents memory leak when players die then disconnect without respawning).
 
 **Known issue:** NeoForge 26.1.2.68-beta's `copyOnDeath()` on `AttachmentType.builder` does not reliably preserve attachment data across death (old entity's attachment map is cleared before Clone fires). The manual snapshot approach in `RPGCraftCore` is the working solution.
 
@@ -181,15 +209,19 @@ Placeholder interfaces for the planned RPG system: `INpc`, `IProfession`. Each d
 
 ```
 Init: EquipmentManager.init() → AttributeManager.init() → DefaultAttributeRegistry registers 11 attributes → DeferredRegisters on modEventBus
-Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking()
+Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking() → syncVanillaHealth()
 Runtime: IAttribute change → sendToClient() → network → client handle() → setMaxValue() + setValue()
-Equip: LivingEquipmentChangeEvent → EquipmentManager.getHandler().onEquipmentChange() → calculateTotalBonus diff → applyBonusDiff (equipmentAffectsMax flag) → sendToClient()
-Combat: LivingDamageEvent.Pre → IDamageCalculator.calculateOutgoingDamage → calculateIncomingDamage → setNewDamage
-Death: LivingDeathEvent → createSnapshot (UUID → {id: AttributeData(current, max, displayName)})
-Clone: PlayerEvent.Clone → applySnapshot → restore maxValue, fillMax for resources, restore currentValue for abilities → restoreBonusTracking() (server-side only, no sync)
-Respawn: PlayerRespawnEvent → sendToClient() per entry (client has new entity now)
+Equip: LivingEquipmentChangeEvent → EquipmentManager.getHandler().onEquipmentChange() → calculateTotalBonus (armor-in-hotbar check) → applyBonusDiff (equipmentAffectsMax flag) → sendToClient() (no syncVanillaHealth to avoid hurt animation)
+Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→RPG formula, environmental→vanilla value → apply to custom life → set proportional vanilla damage
+CombatPost: LivingDamageEvent.Post → re-sync vanilla health to custom life ratio → checkAndSnapshotIfDying → sendToClient()
+Heal: LivingHealEvent → proportional convert vanilla heal → add to custom life → sendToClient()
+Death: LivingDeathEvent → createSnapshot + capture equipment bonuses → DeathData(UUID → {snapshot, equipmentBonuses})
+Clone-SNAPSHOT: PlayerEvent.Clone → applySnapshot → restore maxValue, fillMax for resources, restore currentValue for abilities → restoreBonusTracking()
+Clone-RESCAN: PlayerEvent.Clone → rescanAndApplyAttributes → compute base (snapshot - death bonuses) → scan current equipment → apply current bonuses → fillMax resources → update tracking → sync to client
+Respawn: PlayerRespawnEvent → sendToClient() per entry (client has new entity now) → syncVanillaHealth()
 Logout: PlayerLoggedOutEvent → deathSnapshot.remove(uuid) (cleanup)
-Render: GuiLayer.render() every frame → IAttributeRegistry.getAllEntries() → IAttribute from client attachment → text()
+Render-HealthBar: GuiLayer (replaces VanillaGuiLayers.PLAYER_HEALTH) → rounded gradient progress bar with current/max text
+Render-Attributes: GuiLayer (above all) → IAttributeRegistry.getAllEntries() → IAttribute from client attachment → text()
 Tooltip: ItemTooltipEvent → EquipmentManager.getRegistry().getBonuses() + getRarity() → color item name + [稀有度] label + bonus lines
 ```
 
@@ -251,6 +283,14 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - Client-side code lives under `client/` and uses `@EventBusSubscriber(value = Dist.CLIENT)`.
 - Data-generated resources go to `src/generated/resources/` (already on the resource classpath). Hand-written resources go to `src/main/resources/`.
 - Generic type casts between `AttachmentType<EntityAttribute>` and `AttachmentType<IAttribute>` are unavoidable due to Java generics limitations with NeoForge's type system. Always annotate with `@SuppressWarnings("unchecked")`.
+- Death/respawn has two modes controlled by `DeathAttributeMode` enum: `SNAPSHOT` (default, restore from death snapshot verbatim) and `RESCAN` (strip death equipment bonuses, recalculate from current equipment). Toggled via `/rpg deathmode <snapshot|rescan>`.
+- Death data is stored as `DeathData(AttributeSnapshot, Map<String, EquipmentBonus>)` — captures both attribute values and active equipment bonuses at death time. Equipment bonuses are needed by RESCAN mode to compute base values.
+- In RESCAN mode, base value = snapshot value − death equipment bonus. This is correct because snapshot values include equipment bonuses at the time of death.
+- `calculateTotalBonus()` skips armor items in hand slots: checks `DataComponents.EQUIPPABLE` for `HUMANOID_ARMOR` type. Only weapons apply bonuses from hand slots. This is compatible with future custom equipment slots — the method iterates `EquipmentSlot.values()`.
+- `applyBonusDiff()` does NOT call `syncVanillaHealth()` — this prevents hurt animation when equipping/unequipping armor that changes max life. The custom health bar reads from the custom life attribute (synced via packet), not vanilla health.
+- Damage is flat (not proportional): environmental damage uses vanilla value directly, combat damage uses RPG formula output. Proportional conversion only happens when syncing to vanilla health (to keep vanilla healing working).
+- The custom health bar replaces `VanillaGuiLayers.PLAYER_HEALTH` via `RegisterGuiLayersEvent.replaceLayer()`. Life attribute is included in the text HUD overlay (not filtered out).
+- `AttributeHudOverlay` uses manual `fillRounded()`/`fillRoundedGradient()` methods (multiple `fill()` calls) — NeoForge 26.1 has no native rounded rectangle API.
 - Death/respawn attribute preservation uses the `AttributeSnapshot` API (`createSnapshot` on death → `applySnapshot` on clone → sync on respawn), not `copyOnDeath()`, because NeoForge 26.1.2.68-beta clears old entity attachments before the Clone event fires.
 - `shouldResetOnRespawn` is orthogonal to `isCapped`: resource attributes (life, skill_point, magic_point) reset to max via `fillMax()`; ability attributes (strength, defense, etc.) preserve pre-death values.
 - `/rpg set` only modifies currentValue (clamped by existing maxValue). `/rpg setmax` modifies maxValue (may clamp currentValue down). These are separate concerns.

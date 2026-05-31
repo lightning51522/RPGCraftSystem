@@ -147,6 +147,7 @@ public class AttributeManager {
      */
     public static void syncVanillaHealth(ServerPlayer player) {
         EntityAttribute lifeAttr = player.getData(LIFE);
+        if (lifeAttr.getMaxValue() <= 0) return; // 避免除零
         // 按比例映射：custom_value / custom_max = vanilla_health / vanilla_max
         float scaledHealth = (float) lifeAttr.getValue() / lifeAttr.getMaxValue() * player.getMaxHealth();
         player.setHealth(Math.min(scaledHealth, player.getMaxHealth()));
