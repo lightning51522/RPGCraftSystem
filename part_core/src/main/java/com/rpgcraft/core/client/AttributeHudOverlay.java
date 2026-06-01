@@ -4,10 +4,13 @@ import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
+import com.rpgcraft.core.network.QueryMobInfoPacket;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -15,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
  * 客户端 HUD 属性面板渲染器
@@ -62,6 +66,75 @@ public class AttributeHudOverlay {
     private static final int COLOR_HEALTH_BOTTOM = 0xFF8B0000; // 红色渐变下方（暗红）
     private static final int COLOR_LOST = 0xFF373737;         // 深灰色（已损失生命）
     private static final int COLOR_TEXT = 0xFFFFFFFF;         // 白色文字
+
+    // === 怪物信息准星提示（调试功能） ===
+
+    /** 缓存的怪物实体 ID（-1 表示无缓存） */
+    private static int cachedMobEntityId = -1;
+    /** 缓存的怪物等级 */
+    private static int cachedMobLevel = 0;
+    /** 缓存的击杀经验值 */
+    private static int cachedMobExp = 0;
+    /** 上一次查询的实体 ID（用于检测准星目标变化） */
+    private static int lastQueriedEntityId = -1;
+    /** 查询冷却计时器（tick） */
+    private static int queryCooldown = 0;
+    /** 重新查询间隔（tick），每 2 秒刷新一次经验值以反映玩家等级变化 */
+    private static final int QUERY_INTERVAL = 40;
+
+    /**
+     * 缓存怪物信息（供 {@link com.rpgcraft.core.network.SyncMobInfoPacket} 客户端处理器调用）
+     *
+     * @param entityId 实体 ID
+     * @param level    怪物等级
+     * @param exp      击杀经验值
+     */
+    public static void cacheMobInfo(int entityId, int level, int exp) {
+        cachedMobEntityId = entityId;
+        cachedMobLevel = level;
+        cachedMobExp = exp;
+    }
+
+    /**
+     * 客户端 Tick 事件处理 —— 检测准星指向的敌对实体并发送信息查询
+     * <p>
+     * 每个客户端 tick 执行一次（20 tps）：
+     * <ol>
+     *   <li>获取准星指向的实体（{@code mc.crosshairPickEntity}）</li>
+     *   <li>仅对实现 {@link Monster} 接口的敌对实体发送查询</li>
+     *   <li>当目标实体变化时立即发送查询；相同目标每 {@value #QUERY_INTERVAL} tick 重新查询一次</li>
+     * </ol>
+     */
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) {
+            cachedMobEntityId = -1;
+            lastQueriedEntityId = -1;
+            return;
+        }
+
+        Entity target = mc.crosshairPickEntity;
+
+        // 非敌对实体：清除缓存，不发送查询
+        if (!(target instanceof Monster)) {
+            cachedMobEntityId = -1;
+            lastQueriedEntityId = -1;
+            return;
+        }
+
+        int targetId = target.getId();
+
+        // 目标变化时立即查询，或冷却结束时重新查询（反映玩家等级变化）
+        if (targetId != lastQueriedEntityId || queryCooldown <= 0) {
+            QueryMobInfoPacket packet = new QueryMobInfoPacket(targetId);
+            mc.getConnection().send(packet);
+            lastQueriedEntityId = targetId;
+            queryCooldown = QUERY_INTERVAL;
+        }
+
+        queryCooldown--;
+    }
 
     /**
      * HUD 图层注册回调（Mod 事件总线）
@@ -252,6 +325,26 @@ public class AttributeHudOverlay {
             // 0xFFFFFFFF = ARGB 不透明白色，true = 启用阴影以增强可读性
             guiGraphics.text(mc.font, HUD_BUILDER.toString(), x, y, 0xFFFFFFFF, true);
             y += lineHeight;
+        }
+
+        // === 怪物信息准星提示 ===
+        // 仅在缓存数据与当前准星实体匹配时渲染
+        Entity crosshairTarget = mc.crosshairPickEntity;
+        if (crosshairTarget != null && crosshairTarget.getId() == cachedMobEntityId) {
+            int screenW = mc.getWindow().getGuiScaledWidth();
+            int screenH = mc.getWindow().getGuiScaledHeight();
+
+            HUD_BUILDER.setLength(0);
+            HUD_BUILDER.append("等级: ").append(cachedMobLevel)
+                    .append("  经验: ").append(cachedMobExp);
+
+            String mobInfoText = HUD_BUILDER.toString();
+            int textW = mc.font.width(mobInfoText);
+            int tooltipX = (screenW - textW) / 2;
+            int tooltipY = screenH / 2 - 25; // 准星上方
+
+            // 0xFFFFFF00 = ARGB 不透明黄色
+            guiGraphics.text(mc.font, mobInfoText, tooltipX, tooltipY, 0xFFFFFF00, true);
         }
     }
 }

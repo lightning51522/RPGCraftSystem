@@ -43,5 +43,19 @@ public class PacketHandler {
                 SyncPlayerLevelPacket.STREAM_CODEC,
                 SyncPlayerLevelPacket::handle
         );
+
+        // 注册怪物信息查询包（客户端 → 服务端）
+        registrar.playToServer(
+                QueryMobInfoPacket.TYPE,
+                QueryMobInfoPacket.STREAM_CODEC,
+                QueryMobInfoPacket::handle
+        );
+
+        // 注册怪物信息回复包（服务端 → 客户端）
+        registrar.playToClient(
+                SyncMobInfoPacket.TYPE,
+                SyncMobInfoPacket.STREAM_CODEC,
+                SyncMobInfoPacket::handle
+        );
     }
 }
