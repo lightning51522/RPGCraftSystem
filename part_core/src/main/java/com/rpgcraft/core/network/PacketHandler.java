@@ -57,5 +57,12 @@ public class PacketHandler {
                 SyncMobInfoPacket.STREAM_CODEC,
                 SyncMobInfoPacket::handle
         );
+
+        // 注册 HUD 开关同步包（服务端 → 客户端）
+        registrar.playToClient(
+                ToggleCrosshairPacket.TYPE,
+                ToggleCrosshairPacket.STREAM_CODEC,
+                ToggleCrosshairPacket::handle
+        );
     }
 }

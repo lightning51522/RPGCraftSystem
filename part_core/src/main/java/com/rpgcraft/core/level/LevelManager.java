@@ -33,7 +33,7 @@ public class LevelManager {
     /** PlayerLevelData 附件 Supplier */
     public static Supplier<AttachmentType<PlayerLevelData>> PLAYER_LEVEL;
 
-    /** MobLevelData 附件 Supplier（非序列化） */
+    /** MobLevelData 附件 Supplier（序列化到实体 NBT，确保自定义怪物数据跨 chunk 重载持久化） */
     public static Supplier<AttachmentType<MobLevelData>> MOB_LEVEL;
 
     /**
@@ -58,6 +58,7 @@ public class LevelManager {
 
         MOB_LEVEL = deferredRegister.register("mob_level",
                 () -> AttachmentType.builder(MobLevelData::new)
+                        .serialize(MobLevelData.CODEC)
                         .build()
         );
 

@@ -2,6 +2,7 @@ package com.rpgcraft.core.level;
 
 import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
+import com.rpgcraft.core.combat.MobLevelData;
 import com.rpgcraft.core.level.api.ILevelCalculator;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -44,10 +45,24 @@ public class LevelEventHandler {
         int mobLevel = 1;
         int baseExp = 100;
 
+        // 优先使用 MobLevelData 中的等级覆盖（指令召唤等场景）
+        MobLevelData mobLevelData = target.getData(LevelManager.MOB_LEVEL);
+        if (mobLevelData.isSet()) {
+            mobLevel = mobLevelData.getLevel();
+        }
+
         Optional<MobAttributeConfig.MobAttributes> config = MobAttributeConfig.getConfig(typeId);
         if (config.isPresent()) {
-            mobLevel = config.get().level();
-            baseExp = config.get().baseExp();
+            // 等级：MobLevelData 优先（上面已处理），其次使用配置值
+            if (!mobLevelData.isSet()) {
+                mobLevel = config.get().level();
+            }
+            // 基础经验：MobLevelData 覆盖 > 配置值
+            if (mobLevelData.hasBaseExpOverride()) {
+                baseExp = mobLevelData.getBaseExpOverride();
+            } else {
+                baseExp = config.get().baseExp();
+            }
         }
 
         // 委托给可替换的经验计算器

@@ -1,7 +1,10 @@
 package com.rpgcraft.core.network;
 
+import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.combat.MobLevelData;
+import com.rpgcraft.core.command.RPGCommands;
 import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.level.api.ILevelCalculator;
@@ -51,6 +54,9 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
 
+            // 检查玩家 HUD 是否启用，禁用时不回复
+            if (!RPGCommands.isHudEnabled(player.getUUID())) return;
+
             // 通过实体 ID 查找实体
             Entity entity = player.level().getEntity(data.entityId());
             if (entity == null) return;
@@ -71,18 +77,28 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
                         .orElse(1);
             }
 
-            // 获取基础经验值
+            // 获取基础经验值：MobLevelData 覆盖 > 配置值
             Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(livingEntity.getType());
-            int baseExp = MobAttributeConfig.getConfig(typeId)
-                    .map(MobAttributeConfig.MobAttributes::baseExp)
-                    .orElse(100);
+            int baseExp;
+            if (levelData.hasBaseExpOverride()) {
+                baseExp = levelData.getBaseExpOverride();
+            } else {
+                baseExp = MobAttributeConfig.getConfig(typeId)
+                        .map(MobAttributeConfig.MobAttributes::baseExp)
+                        .orElse(100);
+            }
 
             // 计算实际可获得经验（委托给可替换的计算器）
             ILevelCalculator calculator = LevelManager.getLevelCalculator();
             int expGain = calculator.calculateExperienceGain(player, livingEntity, mobLevel, baseExp);
 
-            // 回复给客户端
-            player.connection.send(new SyncMobInfoPacket(data.entityId(), mobLevel, Math.max(0, expGain)));
+            // 回复给客户端（包含评级名称和生命值）
+            String ratingName = levelData.getRating().name();
+            EntityAttribute lifeAttr = livingEntity.getData(AttributeManager.LIFE);
+            int currentHealth = lifeAttr.getValue();
+            int maxHealth = lifeAttr.getMaxValue();
+            player.connection.send(new SyncMobInfoPacket(data.entityId(), ratingName, mobLevel,
+                    currentHealth, maxHealth, Math.max(0, expGain)));
         });
     }
 }

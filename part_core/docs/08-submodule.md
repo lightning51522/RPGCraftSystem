@@ -79,11 +79,86 @@
 | 自定义装备加成逻辑 | `part_core`（属性系统） | `IEquipmentHandler` |
 | 自定义 XP 公式 | `part_core`（等级数据） | `ILevelCalculator` |
 | 添加更高等级 | `part_core` | — (SPI: `ILevelProvider`) |
+| 闪避/无敌/吸血等战斗机制 | `part_core`（属性+战斗） | `RPGEventBus` 监听器 |
 
-## 子模块开发者指南
+## RPG 事件总线
+
+核心模组提供自定义 RPG 事件总线（`RPGEventBus`），在关键计算点发射事件，允许子模块拦截和修改游戏行为。与 NeoForge 游戏事件总线分离 — RPG 事件是内部通信通道。
+
+### 架构
+
+```
+策略接口（单实现，替换公式）
+  ↕ 互补
+RPG 事件总线（多监听共存，附加效果/拦截）
+```
+
+- **策略接口**：替换核心公式 — 伤害公式、经验公式等 — 一个接口只有一个活跃实现
+- **RPG 事件**：附加效果和拦截 — 闪避、吸血、反伤等 — 多个监听器共存
+
+### 事件类型
+
+#### 战斗事件
+
+| 事件类 | 触发时机 | 可取消 | 可修改 | 用途 |
+|--------|----------|--------|--------|------|
+| `RPGDamageEvent.Pre` | 伤害计算前 | ✅ | attackType, damage | 闪避、无敌、伤害类型修改 |
+| `RPGDamageEvent.Post` | 伤害应用后 | — | — (只读) | 吸血、反伤、连击触发 |
+
+#### 伤害流程中的事件位置
+
+```
+CombatEventHandler.onLivingDamagePre():
+  1. 不可减免伤害检查（虚空/kill，不触发事件）
+  2. RPGDamageEvent.Pre → 子模块可取消/修改
+  3. IDamageCalculator → 公式计算（策略模式）
+  4. 应用伤害到 LIFE
+  5. RPGDamageEvent.Post → 子模块追加效果
+  6. 同步原版生命条
+```
+
+### 注册监听器
+
+```java
+// 在子模块初始化时（如 FMLCommonSetupEvent）
+RPGEventBus.register(RPGDamageEvent.Pre.class, event -> {
+    // 闪避逻辑
+    if (shouldDodge(event.getTarget())) {
+        event.cancel();  // 完全取消伤害
+    }
+}, RPGEvent.PRIORITY_EARLY);
+
+RPGEventBus.register(RPGDamageEvent.Post.class, event -> {
+    // 吸血逻辑
+    LivingEntity attacker = event.getAttacker();
+    if (attacker != null && hasLifesteal(attacker)) {
+        int heal = event.getDamageDealt() * getLifestealRate(attacker) / 100;
+        healEntity(attacker, heal);
+    }
+}, RPGEvent.PRIORITY_NORMAL);
+```
+
+### 优先级
+
+| 常量 | 值 | 用途 |
+|------|----|------|
+| `PRIORITY_FIRST` | 0 | 无敌判定、免疫检查 |
+| `PRIORITY_EARLY` | 100 | 闪避、护盾吸收 |
+| `PRIORITY_NORMAL` | 200 | 默认 |
+| `PRIORITY_LATE` | 300 | 伤害日志 |
+| `PRIORITY_LAST` | 400 | 统计、结算 |
+
+优先级数值越小越先执行。相同优先级按注册顺序执行。
+
+### 设计原则
+
+1. **事件不中断监听链**：即使事件被 `cancel()`，后续监听器仍被通知（以便日志/清理）
+2. **核心模组检查取消**：`RPGEventBus.post()` 后检查 `isCancelled()` 决定是否跳过默认行为
+3. **异常隔离**：单个监听器异常不影响其他监听器，错误记录到日志
 
 1. 始终依赖 `part_core` — 它提供所有基础设施（attachment、序列化、网络同步、HUD、命令）。
 2. 通过 SPI 注册数据（`IAttributeProvider`、`IEquipmentProvider`、`ILevelProvider`）。
 3. 通过 Manager 门面注入自定义策略（`setDamageCalculator()`、`setHandler()`、`setLevelCalculator()`）。
-4. 仅引用 `api/` 包接口 — 绝不引用 `DefaultXxx` 具体类。
-5. 纯数据扩展（新属性、新装备、新等级）可以完全通过 JSON + SPI 驱动，零算法代码。
+4. 通过 `RPGEventBus` 注册事件监听器实现附加效果（闪避、吸血、反伤等）。
+5. 仅引用 `api/` 包接口 — 绝不引用 `DefaultXxx` 具体类。
+6. 纯数据扩展（新属性、新装备、新等级）可以完全通过 JSON + SPI 驱动，零算法代码。

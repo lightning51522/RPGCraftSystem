@@ -41,6 +41,7 @@ This is the core module of the RPGCraftSystem multi-project workspace. It provid
   ↑ 装备系统 (equipment)    — 装备加成修改属性值
   ↑ 战斗系统 (combat)       — 伤害公式读取属性值；查询武器攻击类型（依赖装备）
   ↑ 等级系统 (level)        — 经验事件读取怪物配置中的 level/baseExp（依赖属性）
+  ↑ 事件总线 (event)        — RPGEventBus 子模块事件扩展通道（依赖属性+战斗）
 ```
 
 ## Initialization Flow
@@ -81,6 +82,7 @@ This is the core module of the RPGCraftSystem multi-project workspace. It provid
 4. 如该模块引入新的全局性约定（影响多个模块的规则），将简明条目添加到本文件的 Key Conventions 中，详细内容留在子文档。
 
 **不要**将新模块的完整描述直接追加到本文件 — 这会导致主文件膨胀，违背文档拆分原则。
+在完成某项任务时**不要**加载无关的子模块的详细说明文档。
 
 ## Documentation Index
 

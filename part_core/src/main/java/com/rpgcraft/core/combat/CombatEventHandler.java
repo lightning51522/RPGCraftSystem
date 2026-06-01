@@ -5,7 +5,10 @@ import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.command.RPGCommands;
 import com.rpgcraft.core.equipment.EquipmentManager;
+import com.rpgcraft.core.event.RPGEventBus;
+import com.rpgcraft.core.event.combat.RPGDamageEvent;
 import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.api.IMobAttributeScaler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
@@ -14,6 +17,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -25,7 +29,9 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 自定义战斗系统事件处理器
@@ -56,7 +62,12 @@ public class CombatEventHandler {
      * 生物生成/加入世界时初始化自定义属性
      * <p>
      * 检查 {@link MobLevelData} 附件确定怪物等级：
-     * 若已设置（指令召唤），使用指定等级；否则使用配置默认等级。
+     * <ol>
+     *   <li>若 {@code initialized=true}（从存档加载），跳过初始化，保留已有属性值</li>
+     *   <li>若等级已设置（指令召唤），使用指定等级</li>
+     *   <li>若随机刷新开启且有权重配置，从权重表随机选择等级和评级</li>
+     *   <li>否则使用配置默认等级</li>
+     * </ol>
      * 然后通过 {@link IMobAttributeScaler} 根据等级缩放属性。
      */
     @SubscribeEvent
@@ -69,16 +80,35 @@ public class CombatEventHandler {
         Optional<MobAttributeConfig.MobAttributes> config = MobAttributeConfig.getConfig(typeId);
         if (config.isEmpty()) return;
 
-        // 确定等级：指令预设 > 配置默认
         MobLevelData levelData = entity.getData(LevelManager.MOB_LEVEL);
+
+        // 已初始化的实体（从存档加载）：跳过重新初始化，保留所有自定义属性
+        if (levelData.isInitialized()) {
+            return;
+        }
+
         int level;
+        MobRating rating = MobRating.NORMAL;
+
         if (levelData.isSet()) {
+            // 指令预设等级（通常不会命中此分支，指令在 addFreshEntity 之后才设置）
             level = levelData.getLevel();
+            rating = levelData.getRating();
+        } else if (RPGCommands.isRandomSpawnEnabled()) {
+            // 随机刷新开启：从权重表中随机选择等级和评级
+            MobAttributeConfig.SpawnDistribution dist = MobAttributeConfig.getSpawnDistribution(typeId);
+            if (dist != null) {
+                level = weightedRandomLevel(dist.levelWeights(), entity.getRandom());
+                rating = weightedRandomRating(dist.ratingWeights(), entity.getRandom());
+            } else {
+                level = config.get().level();
+            }
         } else {
+            // 默认：使用配置静态等级
             level = config.get().level();
         }
 
-        initializeMobAttributes(entity, level);
+        initializeMobAttributesCustom(entity, level, Map.of(), null, rating);
     }
 
     /**
@@ -96,6 +126,31 @@ public class CombatEventHandler {
      * @param targetLevel 目标等级（≥ 1）
      */
     public static void initializeMobAttributes(LivingEntity entity, int targetLevel) {
+        initializeMobAttributesCustom(entity, targetLevel, Map.of(), null, MobRating.NORMAL);
+    }
+
+    /**
+     * 初始化怪物自定义属性，支持 JSON 属性覆盖和评级倍率
+     * <p>
+     * 供 {@code /rpg spawn <entity> <level> {json}} 指令调用。
+     * <ul>
+     *   <li>{@code overrides} 中的属性值跳过等级缩放直接使用</li>
+     *   <li>不在 overrides 中的属性使用配置默认值 + 等级缩放</li>
+     *   <li>{@code attackTypeOverride} 非空时覆盖配置的攻击类型</li>
+     *   <li>所有属性值最后乘以 {@code rating.getMultiplier()}</li>
+     * </ul>
+     * 计算流程：配置基础值 → 等级缩放 → JSON 覆盖 → 评级倍率 → 最终值
+     *
+     * @param entity              目标生物实体
+     * @param targetLevel         目标等级（≥ 1）
+     * @param overrides           属性覆盖映射（key 为属性名如 "life"，value 为覆盖值）
+     * @param attackTypeOverride  攻击类型覆盖，null 表示使用配置值
+     * @param rating              怪物评级，决定最终属性倍率
+     */
+    public static void initializeMobAttributesCustom(LivingEntity entity, int targetLevel,
+                                                      Map<String, Integer> overrides,
+                                                      AttackType attackTypeOverride,
+                                                      MobRating rating) {
         Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
         Optional<MobAttributeConfig.MobAttributes> config = MobAttributeConfig.getConfig(typeId);
         if (config.isEmpty()) return;
@@ -106,16 +161,43 @@ public class CombatEventHandler {
         MobLevelData levelData = entity.getData(LevelManager.MOB_LEVEL);
         levelData.setLevel(targetLevel);
 
+        // 写入评级到附件
+        levelData.setRating(rating);
+
+        // 写入攻击类型覆盖
+        if (attackTypeOverride != null) {
+            levelData.setAttackTypeOverride(attackTypeOverride);
+        }
+
+        // 写入 base_exp 覆盖（从 overrides 中提取，不在属性缩放中处理）
+        if (overrides.containsKey("base_exp")) {
+            levelData.setBaseExpOverride(overrides.get("base_exp"));
+        }
+
         // 获取缩放器
         IMobAttributeScaler scaler = LevelManager.getMobScaler();
+        double ratingMult = rating.getMultiplier();
 
-        // 缩放属性
-        int scaledLife = scaler.scaleAttribute(base.life(), targetLevel, "life");
-        int scaledStrength = scaler.scaleAttribute(base.strength(), targetLevel, "strength");
-        int scaledDefense = scaler.scaleAttribute(base.defense(), targetLevel, "defense");
-        int scaledResistance = scaler.scaleAttribute(base.resistance(), targetLevel, "resistance");
-        int scaledCritRate = scaler.scaleAttribute(base.criticalRate(), targetLevel, "critical_rate");
-        int scaledCritRatio = scaler.scaleAttribute(base.criticalRatio(), targetLevel, "critical_ratio");
+        // 计算每个属性：override 中的值跳过等级缩放，否则从配置缩放
+        // 最后统一乘以评级倍率
+        int scaledLife = applyRating(overrides.containsKey("life")
+                ? overrides.get("life")
+                : scaler.scaleAttribute(base.life(), targetLevel, "life"), ratingMult);
+        int scaledStrength = applyRating(overrides.containsKey("strength")
+                ? overrides.get("strength")
+                : scaler.scaleAttribute(base.strength(), targetLevel, "strength"), ratingMult);
+        int scaledDefense = applyRating(overrides.containsKey("defense")
+                ? overrides.get("defense")
+                : scaler.scaleAttribute(base.defense(), targetLevel, "defense"), ratingMult);
+        int scaledResistance = applyRating(overrides.containsKey("resistance")
+                ? overrides.get("resistance")
+                : scaler.scaleAttribute(base.resistance(), targetLevel, "resistance"), ratingMult);
+        int scaledCritRate = applyRating(overrides.containsKey("critical_rate")
+                ? overrides.get("critical_rate")
+                : scaler.scaleAttribute(base.criticalRate(), targetLevel, "critical_rate"), ratingMult);
+        int scaledCritRatio = applyRating(overrides.containsKey("critical_ratio")
+                ? overrides.get("critical_ratio")
+                : scaler.scaleAttribute(base.criticalRatio(), targetLevel, "critical_ratio"), ratingMult);
 
         // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
@@ -131,6 +213,16 @@ public class CombatEventHandler {
         setAttribute(entity, AttributeManager.RESISTANCE, scaledResistance);
         setAttribute(entity, AttributeManager.CRITICAL_RATE, scaledCritRate);
         setAttribute(entity, AttributeManager.CRITICAL_RATIO, scaledCritRatio);
+
+        // 标记属性已初始化（chunk 重载时跳过重新初始化，保留自定义数据）
+        levelData.setInitialized(true);
+    }
+
+    /**
+     * 应用评级倍率，确保结果 ≥ 1
+     */
+    private static int applyRating(int value, double multiplier) {
+        return Math.max(1, (int) (value * multiplier));
     }
 
     /**
@@ -145,6 +237,14 @@ public class CombatEventHandler {
      * <p>
      * 自定义生命变更后，将原版伤害设为对应比例值，使原版生命值同步变化。
      * 这样原版回血系统（饱食度、药水等）仍能正常触发 {@code LivingHealEvent}。
+     * <p>
+     * <h3>RPG 事件集成</h3>
+     * <ol>
+     *   <li>{@link RPGDamageEvent.Pre} — 伤害计算前，子模块可取消/修改</li>
+     *   <li>{@link IDamageCalculator} — 公式计算（策略模式）</li>
+     *   <li>应用伤害到 LIFE</li>
+     *   <li>{@link RPGDamageEvent.Post} — 伤害应用后，子模块追加效果</li>
+     * </ol>
      */
     @SubscribeEvent
     public static void onLivingDamagePre(LivingDamageEvent.Pre event) {
@@ -162,31 +262,59 @@ public class CombatEventHandler {
         IDamageCalculator calculator = AttributeManager.getDamageCalculator();
         EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
 
-        int flatDamage;
+        // 确定攻击类型
+        AttackType attackType = AttackType.PHYSICAL;
         if (attackerEntity instanceof LivingEntity attacker) {
-            // 2. 战斗伤害：RPG 公式计算绝对伤害值
-            AttackType attackType;
             if (attacker instanceof Player player) {
-                // 玩家：从手持武器获取攻击类型
                 Identifier weaponId = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem());
                 attackType = EquipmentManager.getRegistry().getAttackType(weaponId);
             } else {
-                // 怪物：从 mob config 获取攻击类型
-                Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
-                attackType = MobAttributeConfig.getConfig(attackerTypeId)
-                        .map(MobAttributeConfig.MobAttributes::attackType)
-                        .orElse(AttackType.PHYSICAL);
+                MobLevelData attackerLevelData = attacker.getData(LevelManager.MOB_LEVEL);
+                if (attackerLevelData.hasAttackTypeOverride()) {
+                    attackType = attackerLevelData.getAttackTypeOverride();
+                } else {
+                    Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
+                    attackType = MobAttributeConfig.getConfig(attackerTypeId)
+                            .map(MobAttributeConfig.MobAttributes::attackType)
+                            .orElse(AttackType.PHYSICAL);
+                }
             }
-            int damage = calculator.calculateOutgoingDamage(attacker, attackType);
+        }
+
+        // === RPGDamageEvent.Pre：伤害计算前，子模块可取消/修改 ===
+        LivingEntity attackerLiving = (attackerEntity instanceof LivingEntity al) ? al : null;
+        RPGDamageEvent.Pre preEvent = new RPGDamageEvent.Pre(
+                attackerLiving, target, attackType, Math.round(event.getNewDamage()));
+        RPGEventBus.post(preEvent);
+
+        if (preEvent.isCancelled()) {
+            // 子模块取消了伤害（闪避/无敌等）：将原版伤害设为 0
+            event.setNewDamage(0);
+            return;
+        }
+
+        // 使用子模块可能修改后的攻击类型
+        attackType = preEvent.getAttackType();
+
+        int flatDamage;
+        if (attackerLiving != null) {
+            // 2. 战斗伤害：RPG 公式计算绝对伤害值
+            int damage = calculator.calculateOutgoingDamage(attackerLiving, attackType);
             flatDamage = calculator.calculateIncomingDamage(target, damage, attackType);
         } else {
-            // 3. 环境伤害：原版伤害值直接作为自定义生命扣减量（不按比例缩放）
-            flatDamage = Math.round(event.getNewDamage());
+            // 3. 环境伤害：使用 Pre 事件中可能被修改的伤害值
+            flatDamage = preEvent.getDamage();
         }
 
         // 直接扣除自定义生命值
         int newLife = Math.max(0, lifeAttr.getValue() - flatDamage);
         lifeAttr.setValue(newLife);
+
+        // === RPGDamageEvent.Post：伤害应用后，子模块追加效果 ===
+        boolean lethal = newLife <= 0;
+        RPGDamageEvent.Post postEvent = new RPGDamageEvent.Post(
+                attackerLiving, target, flatDamage, attackType, lethal);
+        RPGEventBus.post(postEvent);
 
         // 将原版伤害设为对应比例值，使原版生命条同步变化
         if (newLife <= 0) {
@@ -266,5 +394,58 @@ public class CombatEventHandler {
             attr.setMaxValue(value);
         }
         attr.setValue(value);
+    }
+
+    // === 权重随机选择 ===
+
+    /**
+     * 从权重表中按权重随机选择一个等级
+     *
+     * @param weights 等级 → 权重映射
+     * @param random  随机源
+     * @return 选中的等级，空表时返回 1
+     */
+    private static int weightedRandomLevel(Map<Integer, Double> weights, RandomSource random) {
+        if (weights.isEmpty()) return 1;
+        double total = 0;
+        for (double w : weights.values()) {
+            total += w;
+        }
+        double roll = random.nextDouble() * total;
+        double cumulative = 0;
+        for (Map.Entry<Integer, Double> entry : weights.entrySet()) {
+            cumulative += entry.getValue();
+            if (roll < cumulative) return entry.getKey();
+        }
+        // 兜底：返回第一个键
+        return weights.keySet().iterator().next();
+    }
+
+    /**
+     * 从权重表中按权重随机选择一个评级
+     *
+     * @param weights 评级枚举名 → 权重映射
+     * @param random  随机源
+     * @return 选中的评级，空表时返回 NORMAL
+     */
+    private static MobRating weightedRandomRating(Map<String, Double> weights, RandomSource random) {
+        if (weights.isEmpty()) return MobRating.NORMAL;
+        double total = 0;
+        for (double w : weights.values()) {
+            total += w;
+        }
+        double roll = random.nextDouble() * total;
+        double cumulative = 0;
+        for (Map.Entry<String, Double> entry : weights.entrySet()) {
+            cumulative += entry.getValue();
+            if (roll < cumulative) {
+                try {
+                    return MobRating.valueOf(entry.getKey());
+                } catch (IllegalArgumentException e) {
+                    return MobRating.NORMAL;
+                }
+            }
+        }
+        return MobRating.NORMAL;
     }
 }

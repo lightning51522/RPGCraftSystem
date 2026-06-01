@@ -14,14 +14,18 @@ import org.jspecify.annotations.NonNull;
 /**
  * 怪物信息同步包 —— 服务端到客户端
  * <p>
- * 服务端在收到 {@link QueryMobInfoPacket} 后，将怪物的等级和击杀经验
+ * 服务端在收到 {@link QueryMobInfoPacket} 后，将怪物的评级、等级、生命值和击杀经验
  * 通过此包回复给客户端，供 HUD 显示准星提示。
  *
- * @param entityId 实体 ID（与查询包对应）
- * @param level    怪物等级
- * @param exp      击败该怪物可获得的经验值
+ * @param entityId       实体 ID（与查询包对应）
+ * @param ratingName     评级枚举名称（如 "NORMAL"、"ELITE"）
+ * @param level          怪物等级
+ * @param currentHealth  怪物当前生命值
+ * @param maxHealth      怪物最大生命值
+ * @param exp            击败该怪物可获得的经验值
  */
-public record SyncMobInfoPacket(int entityId, int level, int exp) implements CustomPacketPayload {
+public record SyncMobInfoPacket(int entityId, String ratingName, int level,
+                                int currentHealth, int maxHealth, int exp) implements CustomPacketPayload {
 
     public static final Type<SyncMobInfoPacket> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath("rpgcraftcore", "sync_mob_info")
@@ -29,7 +33,10 @@ public record SyncMobInfoPacket(int entityId, int level, int exp) implements Cus
 
     public static final StreamCodec<RegistryFriendlyByteBuf, SyncMobInfoPacket> STREAM_CODEC = StreamCodec.composite(
             net.minecraft.network.codec.ByteBufCodecs.INT, SyncMobInfoPacket::entityId,
+            net.minecraft.network.codec.ByteBufCodecs.STRING_UTF8, SyncMobInfoPacket::ratingName,
             net.minecraft.network.codec.ByteBufCodecs.INT, SyncMobInfoPacket::level,
+            net.minecraft.network.codec.ByteBufCodecs.INT, SyncMobInfoPacket::currentHealth,
+            net.minecraft.network.codec.ByteBufCodecs.INT, SyncMobInfoPacket::maxHealth,
             net.minecraft.network.codec.ByteBufCodecs.INT, SyncMobInfoPacket::exp,
             SyncMobInfoPacket::new
     );
@@ -51,7 +58,8 @@ public record SyncMobInfoPacket(int entityId, int level, int exp) implements Cus
             // 防止过期的回复覆盖有效数据
             Entity target = Minecraft.getInstance().crosshairPickEntity;
             if (target != null && target.getId() == data.entityId()) {
-                AttributeHudOverlay.cacheMobInfo(data.entityId(), data.level(), data.exp());
+                AttributeHudOverlay.cacheMobInfo(data.entityId(), data.ratingName(), data.level(),
+                        data.currentHealth(), data.maxHealth(), data.exp());
             }
         });
     }

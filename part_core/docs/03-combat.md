@@ -10,6 +10,15 @@
 
 仅服务端（含 `isClientSide()` 守卫）。从 `MobAttributeConfig` JSON 设置怪物属性。
 
+**持久化守卫**：检查 `MobLevelData.isInitialized()`。如果为 `true`（实体从存档加载），跳过重新初始化，保留已有属性值（包括受伤后的当前生命值）。
+
+**初始化流程**（`initialized=false` 的新实体）：
+1. 若 `MobLevelData.isSet()`（指令预设等级）→ 使用指定等级和评级
+2. 若随机刷新开启（`/rpg randspawn on`）且实体有权重配置 → 从权重表随机选择等级和评级
+3. 否则 → 使用配置静态等级 + NORMAL 评级
+
+初始化完成后设置 `initialized=true`。
+
 ### `onLivingDamagePre()` — 扁平伤害系统（非比例）
 
 三条伤害路径：
@@ -31,6 +40,27 @@
 
 将 vanilla 治疗量按比例转换为自定义 life。有守卫：当 vanilla `getMaxHealth() ≤ 0` 时跳过。使用 `setHealth()`（非 `heal()`）避免与 `syncVanillaHealth()` 形成循环。
 
+## MobLevelData — 怪物数据持久化
+
+`MobLevelData` 附件通过 `MapCodec` 序列化到实体 NBT，确保指令召唤的自定义怪物跨 chunk 重载持久化。
+
+**序列化字段**：`level`, `base_exp`, `attack_type`(nullable), `rating`, `initialized`
+
+**initialized 标志**：`true` 表示属性已完成初始化。`EntityJoinLevelEvent` 中，`initialized=true` 的实体跳过重新初始化，从而保留：
+- 自定义等级、评级、攻击类型覆盖、经验覆盖
+- 受伤后的当前生命值（不会被重置为满血）
+
+## 随机刷新系统
+
+自然刷新的怪物可从权重表中随机选择等级和评级。默认关闭，通过 `/rpg randspawn on` 开启。
+
+**权重表配置**：在 `mob_attributes.json` 中可选的 `spawn` 段（详见 `docs/04-level.md`）。
+
+**查找顺序**：
+1. 随机刷新开启 → 查找实体类型的 `spawn` 分布配置
+2. 有配置 → `weightedRandomLevel()` + `weightedRandomRating()` 随机选择
+3. 无配置 → 使用静态 `level` 字段 + NORMAL 评级
+
 ## 关键约定（战斗相关）
 
 - 伤害是扁平的（非比例）：环境伤害直接使用 vanilla 值，战斗伤害使用 RPG 公式输出。比例转换仅在同步到 vanilla health 时发生（以保持 vanilla 治疗工作）。
@@ -38,3 +68,4 @@
 - 玩家武器攻击类型在 `equipment_attributes.json` 中通过相同 `"attack_type"` 字段按物品配置，通过 `IEquipmentRegistry.getAttackType()` 查询。
 - `CombatEventHandler` 分支处理：玩家使用手持武器的攻击类型，怪物使用配置的攻击类型。这决定使用哪种伤害公式（物理：力量基础，防御减免；魔法：法力基础，抗性百分比减免）。
 - 所有比例计算在除法前检查 `maxValue > 0` 以防止除零。
+- `MobLevelData` 序列化到实体 NBT。`initialized=true` 的实体在 `EntityJoinLevelEvent` 中跳过重新初始化，保留自定义属性值。

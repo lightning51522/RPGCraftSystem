@@ -36,7 +36,49 @@
 
 ## 怪物等级与基础 XP
 
-`mob_attributes.json` 条目包含 `"level"`（int，默认 1）和 `"base_exp"`（int，默认 100）。`LevelEventHandler` 在击杀时使用这些值计算 XP。怪物等级是静态的（来自配置），不存储在实体上 — 在击杀时按实体类型查找。
+`mob_attributes.json` 条目包含 `"level"`（int，默认 1）和 `"base_exp"`（int，默认 100）。`LevelEventHandler` 在击杀时使用这些值计算 XP。
+
+### 怪物数据持久化
+
+`MobLevelData` 附件序列化到实体 NBT（通过 `MapCodec`），包含等级、评级、攻击类型覆盖、经验覆盖和 `initialized` 标志。
+
+- **指令召唤的怪物**：自定义等级、评级、属性覆盖跨 chunk 重载持久化
+- **自然刷新的怪物**：初始化后的属性值（包括随机等级/评级）同样持久化
+- **initialized 标志**：`true` 时跳过 `EntityJoinLevelEvent` 中的重新初始化，保留受伤后的生命值
+
+### 随机刷新系统
+
+自然刷新的怪物可从权重表中随机选择等级和评级。通过 `/rpg randspawn [on|off]` 全局控制，默认关闭。
+
+**权重表配置**（`mob_attributes.json` 中可选的 `spawn` 段）：
+
+```json
+{
+  "minecraft:zombie": {
+    "level": 1,
+    "base_exp": 100,
+    "life": 20,
+    "strength": 5,
+    "defense": 2,
+    "resistance": 0,
+    "critical_rate": 5,
+    "critical_ratio": 150,
+    "spawn": {
+      "level_weights": {
+        "1": 60, "2": 20, "3": 10, "5": 7, "8": 2, "10": 1
+      },
+      "rating_weights": {
+        "NORMAL": 85, "STRONG": 10, "ELITE": 4, "NOTORIOUS_ELITE": 0.8, "BOSS": 0.2
+      }
+    }
+  }
+}
+```
+
+- `level_weights`：等级 → 权重（按比例随机选择）。未配置则使用静态 `level` 字段。
+- `rating_weights`：评级枚举名 → 权重。未配置则默认 NORMAL。
+- `spawn` 段整体可选。无 `spawn` → 行为与未开启随机刷新一致。
+- JSON 中以下划线开头的键（如 `_global_spawn`）会被跳过，可用于注释。
 
 ## 死亡保存
 
@@ -49,7 +91,7 @@
 - 等级 XP 表通过 `LevelManager.getRegistry()` 访问（返回 `ILevelRegistry` 接口）。默认实现：`LevelConfig`。
 - 自定义等级 XP 阈值来自子模块，使用 `ILevelProvider` SPI（Java `ServiceLoader`），声明在 `META-INF/services/com.rpgcraft.core.level.api.ILevelProvider`。
 - 等级配置（`level_config.json`）使用增量 XP 格式：键 = 当前等级，值 = 升到下一级所需 XP。最大等级 = 最高键 + 1。等级必须从 1 开始连续。
-- 怪物等级和基础 XP 来自 `mob_attributes.json`（`"level"` 和 `"base_exp"` 字段，默认 1 和 100）。怪物等级是静态的，不存储在实体上 — 击杀时按实体类型查找。
+- 怪物等级和基础 XP 来自 `mob_attributes.json`（`"level"` 和 `"base_exp"` 字段，默认 1 和 100）。怪物等级通过 `MobLevelData` 附件序列化到实体 NBT，支持持久化和随机刷新。`MobLevelData.initialized` 标志防止 chunk 重载时覆盖已有属性值。
 - 击杀 XP 公式：`(int)(sqrt(mobLevel / playerLevel) * baseExp)`。`playerLevel` 保障 ≥ 1 以防止除零。
 - `PlayerLevelData.addExperience()` 内部通过循环处理自动升级：`while (level < maxLevel && experience >= expForLevel(level)) { experience -= exp; level++; }`。返回是否发生了升级。
 - 等级数据通过 `DeathData` 快照在死亡时保存，在 SNAPSHOT 和 RESCAN 模式的 clone 时恢复。
