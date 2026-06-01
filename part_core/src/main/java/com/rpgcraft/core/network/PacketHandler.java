@@ -36,5 +36,12 @@ public class PacketHandler {
                 SyncPlayerAttributePacket.STREAM_CODEC,
                 SyncPlayerAttributePacket::handle
         );
+
+        // 注册等级同步包
+        registrar.playToClient(
+                SyncPlayerLevelPacket.TYPE,
+                SyncPlayerLevelPacket.STREAM_CODEC,
+                SyncPlayerLevelPacket::handle
+        );
     }
 }

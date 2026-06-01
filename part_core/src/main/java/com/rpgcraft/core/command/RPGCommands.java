@@ -10,6 +10,8 @@ import com.rpgcraft.core.attribute.DeathAttributeMode;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
+import com.rpgcraft.core.level.LevelManager;
+import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -142,6 +144,46 @@ public class RPGCommands {
                                         StringArgumentType.getString(context, "mode")))
                         )
                 )
+
+                // === 等级系统命令 ===
+
+                .then(Commands.literal("level")
+                        .executes(context -> executeLevel(context,
+                                context.getSource().getPlayerOrException()))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .executes(context -> executeLevel(context,
+                                        EntityArgument.getPlayer(context, "player")))
+                        )
+                )
+
+                .then(Commands.literal("setlevel")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                                .executes(context -> executeSetLevel(context,
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "level")))
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(context -> executeSetLevel(context,
+                                                EntityArgument.getPlayer(context, "player"),
+                                                IntegerArgumentType.getInteger(context, "level")))
+                                )
+                        )
+                )
+
+                .then(Commands.literal("addexp")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                                .executes(context -> executeAddExp(context,
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "amount")))
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(context -> executeAddExp(context,
+                                                EntityArgument.getPlayer(context, "player"),
+                                                IntegerArgumentType.getInteger(context, "amount")))
+                                )
+                        )
+                )
         );
     }
 
@@ -256,6 +298,52 @@ public class RPGCommands {
                 true
         );
         return 1;
+    }
+
+    private static int executeLevel(CommandContext<CommandSourceStack> context, ServerPlayer target) {
+        PlayerLevelData data = target.getData(LevelManager.PLAYER_LEVEL);
+        int expForNext = data.getExpForNextLevel();
+
+        String text;
+        if (expForNext < 0) {
+            text = String.format("%s 的等级: %d (MAX)", target.getName().getString(), data.getLevel());
+        } else {
+            text = String.format("%s 的等级: %d  经验: %d / %d",
+                    target.getName().getString(), data.getLevel(), data.getExperience(), expForNext);
+        }
+
+        context.getSource().sendSuccess(() -> Component.literal(text), false);
+        return data.getLevel();
+    }
+
+    private static int executeSetLevel(CommandContext<CommandSourceStack> context, ServerPlayer target, int level) {
+        PlayerLevelData data = target.getData(LevelManager.PLAYER_LEVEL);
+        data.setLevel(level);
+        data.setExperience(0);
+        LevelManager.syncToClient(target);
+
+        String text = String.format("已将 %s 的等级设置为 %d", target.getName().getString(), level);
+        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        return level;
+    }
+
+    private static int executeAddExp(CommandContext<CommandSourceStack> context, ServerPlayer target, int amount) {
+        PlayerLevelData data = target.getData(LevelManager.PLAYER_LEVEL);
+        int oldLevel = data.getLevel();
+        data.addExperience(amount);
+        LevelManager.syncToClient(target);
+
+        String text;
+        if (data.getLevel() > oldLevel) {
+            text = String.format("已为 %s 增加 %d 经验（%d → %d 级）",
+                    target.getName().getString(), amount, oldLevel, data.getLevel());
+        } else {
+            text = String.format("已为 %s 增加 %d 经验（当前 %d / %d）",
+                    target.getName().getString(), amount, data.getExperience(), data.getExpForNextLevel());
+        }
+
+        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        return amount;
     }
 
     private static Optional<IAttributeEntry> resolveAttribute(String name) {

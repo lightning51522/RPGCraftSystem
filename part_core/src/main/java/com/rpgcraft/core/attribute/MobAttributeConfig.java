@@ -36,6 +36,8 @@ public class MobAttributeConfig {
      * 单个生物类型的属性配置
      *
      * @param attackType    攻击伤害类型（physical/magic 等）
+     * @param level         怪物等级（用于经验计算，默认 1）
+     * @param baseExp       击杀基础经验（默认 100）
      * @param life          生命值
      * @param strength      力量（物理攻击力基准）
      * @param defense       防御力
@@ -45,6 +47,7 @@ public class MobAttributeConfig {
      */
     public record MobAttributes(
             AttackType attackType,
+            int level, int baseExp,
             int life, int strength, int defense,
             int resistance, int criticalRate, int criticalRatio
     ) {}
@@ -98,8 +101,14 @@ public class MobAttributeConfig {
                             }
                         }
 
+                        // 解析等级和基础经验，缺失时使用默认值
+                        int level = attrs.has("level") ? attrs.getAsJsonPrimitive("level").getAsInt() : 1;
+                        int baseExp = attrs.has("base_exp") ? attrs.getAsJsonPrimitive("base_exp").getAsInt() : 100;
+
                         newMap.put(entityId, new MobAttributes(
                                 attackType,
+                                Math.max(1, level),
+                                Math.max(0, baseExp),
                                 attrs.getAsJsonPrimitive("life").getAsInt(),
                                 attrs.getAsJsonPrimitive("strength").getAsInt(),
                                 attrs.getAsJsonPrimitive("defense").getAsInt(),

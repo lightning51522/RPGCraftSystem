@@ -59,7 +59,7 @@ Public interfaces that other mods depend on. Each functional module has its own 
   - Magic outgoing: base = mana, crit check, crit bonus
 - **`AttackType`** — Enum implementing `IDamageType`: `PHYSICAL`, `MAGIC`, `PHYSICAL_WITH_MAGIC`, `MAGIC_WITH_PHYSICAL`, `MIX_TYPE`. Only `PHYSICAL` and `MAGIC` are implemented in damage calculations.
 - **`AttributeManager`** — Attribute module facade (consistent naming with `EquipmentManager`). Holds `Identifier` constants and `Supplier<AttachmentType<EntityAttribute>>` accessors, delegates to `DefaultAttributeRegistry` and `DefaultDamageCalculator`. Must call `init()` before registering its `DeferredRegister` on the mod event bus. `getRegistry()` returns `IAttributeRegistry` interface; `getDeferredRegister()` is a convenience static method.
-- **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload. `MobAttributes` record includes `attackType` (AttackType enum, defaults to `PHYSICAL` if absent in JSON) alongside numeric stats.
+- **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload. `MobAttributes` record includes `attackType` (AttackType enum, defaults to `PHYSICAL`), `level` (int, defaults to 1), `baseExp` (int, defaults to 100), alongside numeric stats.
 - **`DeathAttributeMode`** — Enum controlling death/respawn attribute recovery: `SNAPSHOT` (restore death values verbatim) or `RESCAN` (recompute from base + current equipment). Static `currentMode` field with getter/setter. Default: `SNAPSHOT`. Toggled via `/rpg deathmode` command.
 
 #### Attribute Classification
@@ -75,9 +75,11 @@ Public interfaces that other mods depend on. Each functional module has its own 
 `RPGCraftCore` constructor:
 1. `EquipmentManager.init()` — creates `DefaultEquipmentRegistry`, `DefaultEquipmentHandler`
 2. `AttributeManager.init()` — creates `DefaultAttributeRegistry`, `DefaultDamageCalculator`, registers all 11 attributes
-3. `AttributeManager.getDeferredRegister().register(modEventBus)` — submits AttachmentTypes to NeoForge
-4. `EquipmentData.getAttachmentRegister().register(modEventBus)` — submits equipment bonus tracking attachment
-5. Other registrations (blocks, items, packets, config)
+3. `LevelManager.init()` — creates level DeferredRegister, registers `PlayerLevelData` attachment
+4. `AttributeManager.getDeferredRegister().register(modEventBus)` — submits AttachmentTypes to NeoForge
+5. `LevelManager.getDeferredRegister().register(modEventBus)` — submits level AttachmentType to NeoForge
+6. `EquipmentData.getAttachmentRegister().register(modEventBus)` — submits equipment bonus tracking attachment
+7. Other registrations (blocks, items, packets, config)
 
 ### Network Sync (`network/`)
 
@@ -85,12 +87,13 @@ Client-server attribute synchronization using NeoForge's payload system:
 
 - **`PacketHandler`** — Registers payloads on the mod event bus with protocol version `"1"`.
 - **`SyncPlayerAttributePacket`** — A `record` implementing `CustomPacketPayload`. Uses `StreamCodec` (network) — distinct from `MapCodec` (save). Server calls `sendToClient()`, client handles via `handle()` which looks up the AttachmentType through `IAttributeRegistry.getTypeById()`, sets both `setMaxValue()` and `setValue()` on the client attachment, enqueued on the main thread.
+- **`SyncPlayerLevelPacket`** — A `record(int level, int experience, int expForNextLevel)` for level/XP sync. `sendToClient()` computes `expForNextLevel` from `PlayerLevelData.getExpForNextLevel()` (-1 when at max level). Client `handle()` sets level and experience on the client attachment.
 
 ### Client HUD (`client/`)
 
 - **`AttributeHudOverlay`** — `@EventBusSubscriber(Dist.CLIENT)` that renders via NeoForge 26.1's `GuiLayer` system:
   - **Custom health bar** — Replaces `VanillaGuiLayers.PLAYER_HEALTH` via `RegisterGuiLayersEvent.replaceLayer()`. Renders a rounded-rectangle progress bar with gradient red fill (top: `0xFFE03030`, bottom: `0xFF8B0000`), dark gray lost-health area (`0xFF373737`), dark border (`0xFF222222`), and centered "current/max" text. Position matches vanilla hearts (`screenWidth/2 - 91`, `screenHeight - 39`). Bar: 90×9px, border 1px, corner radius 2px. Uses manual `fillRounded()`/`fillRoundedGradient()` helper methods.
-  - **Attribute text panel** — Registered via `registerAboveAll`, iterates `IAttributeRegistry.getAllEntries()` and displays all attributes (including life) as text in the top-left corner. Shows "name: value / maxValue" for capped attributes, "name: value" for uncapped.
+  - **Attribute text panel** — Registered via `registerAboveAll`, displays level info (yellow text: "等级: X  经验: XXX / YYYY", or "等级: X (MAX)" at max level) then iterates `IAttributeRegistry.getAllEntries()` showing all attributes (including life) as text in the top-left corner. Shows "name: value / maxValue" for capped attributes, "name: value" for uncapped.
 - **`RPGCraftCoreClient`** — Client-side entry point (`@Mod(dist = Dist.CLIENT)`).
 - **`EquipmentTooltipHandler`** — Client-side tooltip rendering for equipment bonuses. See Tooltip Display section below.
 
@@ -108,7 +111,7 @@ Client-server attribute synchronization using NeoForge's payload system:
 
 ### Commands (`command/`)
 
-- **`RPGCommands`** — `/rpg list [player]`, `/rpg get <attr> [player]`, `/rpg set <attr> <value> [player]`, `/rpg setmax <attr> <value> [player]`, `/rpg reset [player]`, `/rpg deathmode <snapshot|rescan>`. Uses `IAttributeRegistry.getAllEntries()` for suggestions and `IAttributeEntry` for attribute lookup. `/rpg set` only modifies currentValue (clamped by maxValue); `/rpg setmax` modifies maxValue. Both require gamemaster permission. `/rpg list` also displays the current death recovery mode. `/rpg deathmode` toggles between SNAPSHOT and RESCAN modes (gamemaster permission).
+- **`RPGCommands`** — `/rpg list [player]`, `/rpg get <attr> [player]`, `/rpg set <attr> <value> [player]`, `/rpg setmax <attr> <value> [player]`, `/rpg reset [player]`, `/rpg deathmode <snapshot|rescan>`, `/rpg level [player]`, `/rpg setlevel <level> [player]`, `/rpg addexp <amount> [player]`. Uses `IAttributeRegistry.getAllEntries()` for suggestions and `IAttributeEntry` for attribute lookup. `/rpg set` only modifies currentValue (clamped by maxValue); `/rpg setmax` modifies maxValue. Both require gamemaster permission. `/rpg list` also displays the current death recovery mode. `/rpg deathmode` toggles between SNAPSHOT and RESCAN modes. `/rpg level` shows level and XP. `/rpg setlevel` sets level directly (resets XP to 0). `/rpg addexp` adds XP (triggers auto level-up via `addExperience()`). Level commands require gamemaster permission.
 
 ### Equipment System (`equipment/`)
 
@@ -167,11 +170,11 @@ Client-side `@EventBusSubscriber(Dist.CLIENT)`:
 
 ### Death & Respawn (`RPGCraftCore`)
 
-Attribute preservation across player death uses a dual-mode system controlled by `DeathAttributeMode` enum (`SNAPSHOT` or `RESCAN`), toggled via `/rpg deathmode <snapshot|rescan>`. Death data is stored in a `ConcurrentHashMap<UUID, DeathData>`, where `DeathData` is an inner record wrapping both `AttributeSnapshot` and `Map<String, EquipmentBonus>` (the equipment bonuses active at death time).
+Attribute preservation across player death uses a dual-mode system controlled by `DeathAttributeMode` enum (`SNAPSHOT` or `RESCAN`), toggled via `/rpg deathmode <snapshot|rescan>`. Death data is stored in a `ConcurrentHashMap<UUID, DeathData>`, where `DeathData` is an inner record wrapping `AttributeSnapshot`, `Map<String, EquipmentBonus>` (equipment bonuses at death), `int level`, and `int experience` (level data at death).
 
 #### Snapshot Capture (same for both modes)
 
-1. **`checkAndSnapshotIfDying()`** — Called from `CombatEventHandler.onLivingDamagePost()` when custom life ≤ 0. Captures `AttributeSnapshot` + equipment bonuses from `EquipmentData.EQUIPMENT_BONUS` attachment. Uses `putIfAbsent` so the first snapshot wins.
+1. **`checkAndSnapshotIfDying()`** — Called from `CombatEventHandler.onLivingDamagePost()` when custom life ≤ 0. Captures `AttributeSnapshot` + equipment bonuses + level/experience data. Uses `putIfAbsent` so the first snapshot wins.
 2. **`LivingDeathEvent`** — Fallback for non-life-zero deaths (void, /kill). Same capture logic with `putIfAbsent`.
 
 #### SNAPSHOT Mode (default)
@@ -181,6 +184,7 @@ Attribute preservation across player death uses a dual-mode system controlled by
    - Resource attributes (`shouldResetOnRespawn=true`): `fillMax()` to set currentValue to maxValue
    - Ability attributes: restore snapshot's `currentValue`
    - Then calls `EquipmentManager.getHandler().restoreBonusTracking()` to recompute equipment bonus tracking from current equipment.
+   - Restores level/experience from `DeathData`.
    - Does NOT sync to client here — the client hasn't created the new player entity yet.
 
 #### RESCAN Mode (new)
@@ -192,15 +196,51 @@ Attribute preservation across player death uses a dual-mode system controlled by
    - Min-1-HP guard for life attribute
    - Resource attributes: `fillMax()` to set currentValue to maxValue
    - Updates `EquipmentData.EQUIPMENT_BONUS` tracking attachment
+   - Restores level/experience from `DeathData`.
    - Syncs all attributes to client (note: clone sync is safe here because rescan writes to the new entity's attachments directly)
 
 #### Common Post-Death Flow (both modes)
 
-4. **`PlayerEvent.PlayerRespawnEvent`** — Syncs all attributes to client. This event fires AFTER the client has created the new player entity, so packets are received correctly.
-5. **`PlayerEvent.PlayerLoggedInEvent`** — Full sync of all attributes to client on join. Also calls `restoreBonusTracking()` to initialize equipment bonus tracking and `syncVanillaHealth()` to sync vanilla health bar.
+4. **`PlayerEvent.PlayerRespawnEvent`** — Syncs all attributes + level data to client. This event fires AFTER the client has created the new player entity, so packets are received correctly.
+5. **`PlayerEvent.PlayerLoggedInEvent`** — Full sync of all attributes + level data to client on join. Also calls `restoreBonusTracking()` to initialize equipment bonus tracking and `syncVanillaHealth()` to sync vanilla health bar.
 6. **`PlayerEvent.PlayerLoggedOutEvent`** — Cleans up any residual death snapshot for the disconnecting player (prevents memory leak when players die then disconnect without respawning).
 
 **Known issue:** NeoForge 26.1.2.68-beta's `copyOnDeath()` on `AttachmentType.builder` does not reliably preserve attachment data across death (old entity's attachment map is cleared before Clone fires). The manual snapshot approach in `RPGCraftCore` is the working solution.
+
+### Level System (`level/`)
+
+Independent level/experience system, separate from vanilla XP. Affects both players and mobs.
+
+#### Core Components
+
+- **`PlayerLevelData`** — Attachment class storing `level` (int, default 1, minimum 1) and `experience` (int, default 0). Has `MapCodec` for save serialization. `addExperience(int)` handles auto level-up: loops `while (level < maxLevel && experience >= expForLevel(level)) { experience -= exp; level++; }`. Returns whether a level-up occurred.
+- **`LevelConfig`** — Loads `data/rpgcraftcore/rpg/level_config.json` for XP thresholds. Format: incremental — key = current level, value = XP to reach next level. Max level = max key + 1. Cached as `int[] expTable` (`expTable[0]` = XP for level 1→2). Supports `/reload` via `AddServerReloadListenersEvent`. Methods: `getMaxLevel()`, `getExpForLevel(int)` (returns -1 when at max level).
+- **`LevelManager`** — Facade following `AttributeManager`/`EquipmentManager` pattern. `init()` creates `DeferredRegister<AttachmentType<?>>`, registers `PlayerLevelData` attachment with `MapCodec` serialization. Exposes `PLAYER_LEVEL` Supplier, `getDeferredRegister()`, `syncToClient(ServerPlayer)`.
+- **`LevelEventHandler`** — `@EventBusSubscriber` on game bus. `LivingDeathEvent`: when a `ServerPlayer` kills a non-player `LivingEntity`, looks up mob's `level` and `baseExp` from `MobAttributeConfig` (defaults: 1 and 100), calculates XP as `(int)(sqrt(mobLevel / playerLevel) * baseExp)`, calls `addExperience()` then `syncToClient()`.
+
+#### Level Config JSON Format
+
+`data/rpgcraftcore/rpg/level_config.json`:
+```json
+{
+  "1": 100,
+  "2": 250,
+  "3": 500,
+  "4": 1000,
+  "5": 2000
+}
+```
+- Key = current level, value = incremental XP needed to level up. Max level = highest key + 1 (6 in this example).
+- Missing levels in config are treated as 0 XP required (logs a warning).
+- Supports `/reload` hot-reload.
+
+#### Mob Level & Base XP
+
+`mob_attributes.json` entries include `"level"` (int, default 1) and `"base_exp"` (int, default 100). These are used by `LevelEventHandler` to calculate XP on kill. Mob level is static (from config), not stored on the entity — looked up by entity type at kill time.
+
+#### Death Preservation
+
+Level and XP are preserved through death via the existing `DeathData` snapshot system. `DeathData` record includes `level` and `experience` fields alongside `AttributeSnapshot` and equipment bonuses. Both SNAPSHOT and RESCAN modes restore level data on clone. Synced to client on login and respawn.
 
 ### Cross-Module API Stubs (`api/`)
 
@@ -209,20 +249,23 @@ Placeholder interfaces for the planned RPG system: `INpc`, `IProfession`. Each d
 ### Data Flow
 
 ```
-Init: EquipmentManager.init() → AttributeManager.init() → DefaultAttributeRegistry registers 11 attributes → DeferredRegisters on modEventBus
-Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking() → syncVanillaHealth()
+Init: EquipmentManager.init() → AttributeManager.init() → LevelManager.init() → DefaultAttributeRegistry registers 11 attributes → DeferredRegisters on modEventBus
+Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking() → syncVanillaHealth() → LevelManager.syncToClient()
 Runtime: IAttribute change → sendToClient() → network → client handle() → setMaxValue() + setValue()
+Level-Runtime: LevelManager.syncToClient() → SyncPlayerLevelPacket(level, experience, expForNextLevel) → client handle() → PlayerLevelData.setLevel() + setExperience()
 Equip: LivingEquipmentChangeEvent → EquipmentManager.getHandler().onEquipmentChange() → calculateTotalBonus (armor-in-hotbar check) → applyBonusDiff (equipmentAffectsMax flag) → sendToClient() (no syncVanillaHealth to avoid hurt animation)
 Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→player: weapon attackType from IEquipmentRegistry / mob: attackType from MobAttributeConfig→RPG formula with attackType, environmental→vanilla value → apply to custom life → set proportional vanilla damage
 CombatPost: LivingDamageEvent.Post → re-sync vanilla health to custom life ratio → checkAndSnapshotIfDying → sendToClient()
 Heal: LivingHealEvent → proportional convert vanilla heal → add to custom life → sendToClient()
-Death: LivingDeathEvent → createSnapshot + capture equipment bonuses → DeathData(UUID → {snapshot, equipmentBonuses})
-Clone-SNAPSHOT: PlayerEvent.Clone → applySnapshot → restore maxValue, fillMax for resources, restore currentValue for abilities → restoreBonusTracking()
-Clone-RESCAN: PlayerEvent.Clone → rescanAndApplyAttributes → compute base (snapshot - death bonuses) → scan current equipment → apply current bonuses → fillMax resources → update tracking → sync to client
-Respawn: PlayerRespawnEvent → sendToClient() per entry (client has new entity now) → syncVanillaHealth()
+KillXP: LivingDeathEvent → player kills mob → lookup mob level+baseExp from MobAttributeConfig → sqrt(mobLevel/playerLevel)*baseExp → PlayerLevelData.addExperience() → LevelManager.syncToClient()
+Death: LivingDeathEvent → createSnapshot + capture equipment bonuses + capture level/experience → DeathData(UUID → {snapshot, equipmentBonuses, level, experience})
+Clone-SNAPSHOT: PlayerEvent.Clone → applySnapshot → restore maxValue, fillMax for resources, restore currentValue for abilities → restoreBonusTracking() → restore level/experience
+Clone-RESCAN: PlayerEvent.Clone → rescanAndApplyAttributes → compute base (snapshot - death bonuses) → scan current equipment → apply current bonuses → fillMax resources → update tracking → restore level/experience
+Respawn: PlayerRespawnEvent → sendToClient() per entry (client has new entity now) → syncVanillaHealth() → LevelManager.syncToClient()
 Logout: PlayerLoggedOutEvent → deathSnapshot.remove(uuid) (cleanup)
 Render-HealthBar: GuiLayer (replaces VanillaGuiLayers.PLAYER_HEALTH) → rounded gradient progress bar with current/max text
-Render-Attributes: GuiLayer (above all) → IAttributeRegistry.getAllEntries() → IAttribute from client attachment → text()
+Render-Level: GuiLayer (above all, before attributes) → PlayerLevelData from client attachment → "等级: X  经验: XXX / YYYY" (yellow) or "等级: X (MAX)"
+Render-Attributes: GuiLayer (above all, after level) → IAttributeRegistry.getAllEntries() → IAttribute from client attachment → text()
 Tooltip: ItemTooltipEvent → EquipmentManager.getRegistry().getBonuses() + getRarity() → color item name + [稀有度] label + bonus lines
 ```
 
@@ -273,8 +316,8 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 
 ## Key Conventions
 
-- `EquipmentManager.init()` must be called before `AttributeManager.init()` in the `RPGCraftCore` constructor. Both must complete before their respective DeferredRegisters are submitted to the mod event bus.
-- `AttributeManager.init()` must be called before `getDeferredRegister().register(modEventBus)`. The init order in `RPGCraftCore` constructor matters.
+- `EquipmentManager.init()` must be called before `AttributeManager.init()` in the `RPGCraftCore` constructor. `LevelManager.init()` is called after `AttributeManager.init()`. All must complete before their respective DeferredRegisters are submitted to the mod event bus.
+- `AttributeManager.init()` must be called before `getDeferredRegister().register(modEventBus)`. `LevelManager.init()` must be called before `LevelManager.getDeferredRegister().register(modEventBus)`. The init order in `RPGCraftCore` constructor matters.
 - New attributes should be registered through `IAttributeRegistry.register()` in `AttributeManager.init()`. The `Identifier` path must match the DeferredRegister entry name.
 - Damage formulas can be replaced at runtime via `AttributeManager.setDamageCalculator(IDamageCalculator)`.
 - Equipment bonus application logic can be replaced at runtime via `EquipmentManager.setHandler(IEquipmentHandler)`.
@@ -287,7 +330,7 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - Data-generated resources go to `src/generated/resources/` (already on the resource classpath). Hand-written resources go to `src/main/resources/`.
 - Generic type casts between `AttachmentType<EntityAttribute>` and `AttachmentType<IAttribute>` are unavoidable due to Java generics limitations with NeoForge's type system. Always annotate with `@SuppressWarnings("unchecked")`.
 - Death/respawn has two modes controlled by `DeathAttributeMode` enum: `SNAPSHOT` (default, restore from death snapshot verbatim) and `RESCAN` (strip death equipment bonuses, recalculate from current equipment). Toggled via `/rpg deathmode <snapshot|rescan>`.
-- Death data is stored as `DeathData(AttributeSnapshot, Map<String, EquipmentBonus>)` — captures both attribute values and active equipment bonuses at death time. Equipment bonuses are needed by RESCAN mode to compute base values.
+- Death data is stored as `DeathData(AttributeSnapshot, Map<String, EquipmentBonus>, int level, int experience)` — captures attribute values, active equipment bonuses, and level/experience at death time. Equipment bonuses are needed by RESCAN mode to compute base values. Level/experience are restored in both modes.
 - In RESCAN mode, base value = snapshot value − death equipment bonus. This is correct because snapshot values include equipment bonuses at the time of death.
 - `calculateTotalBonus()` skips armor items in hand slots: checks `DataComponents.EQUIPPABLE` for `HUMANOID_ARMOR` type. Only weapons apply bonuses from hand slots. This is compatible with future custom equipment slots — the method iterates `EquipmentSlot.values()`.
 - `applyBonusDiff()` does NOT call `syncVanillaHealth()` — this prevents hurt animation when equipping/unequipping armor that changes max life. The custom health bar reads from the custom life attribute (synced via packet), not vanilla health.
@@ -303,3 +346,11 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - `EquipmentBonus.add()` uses overflow-safe saturating addition — clamps to `Integer.MAX_VALUE`/`Integer.MIN_VALUE` instead of wrapping. Prevents negative bonuses from stacking many high-value equipment items.
 - RESCAN base value computation clamps to `≥ 0` (`Math.max(0, snapshotValue - deathBonus)`) — prevents attribute corruption when death snapshot and equipment bonuses are inconsistent (e.g., `/reload` changed equipment config between death and respawn).
 - Mob attack type is configurable per entity in `mob_attributes.json` via `"attack_type"` field (maps to `AttackType` enum). Missing field defaults to `PHYSICAL` for backward compatibility. Player weapon attack type is configurable per item in `equipment_attributes.json` via the same `"attack_type"` field, queried via `IEquipmentRegistry.getAttackType()`. In combat, `CombatEventHandler` branches: players use their held weapon's attack type, mobs use their config attack type. This determines which damage formula is used (physical: strength base, defense reduction; magic: mana base, resistance % reduction).
+- Level system is independent from vanilla XP. Player level and experience use a custom `PlayerLevelData` attachment with `MapCodec` serialization. Minimum level is 1.
+- Level config (`level_config.json`) uses incremental XP format: key = current level, value = XP to reach next level. Max level = highest key + 1. Levels must be consecutive starting from 1.
+- Mob level and base XP come from `mob_attributes.json` (`"level"` and `"base_exp"` fields, defaults 1 and 100). Mob level is static, not stored on entities — looked up by entity type at kill time.
+- XP formula on kill: `(int)(sqrt(mobLevel / playerLevel) * baseExp)`. `playerLevel` is guarded ≥ 1 to prevent division by zero.
+- `PlayerLevelData.addExperience()` handles auto level-up internally with a loop: `while (level < maxLevel && experience >= expForLevel(level)) { experience -= exp; level++; }`. Returns whether level-up occurred.
+- Level data is preserved on death via `DeathData` snapshot, restored on clone in both SNAPSHOT and RESCAN modes.
+- `SyncPlayerLevelPacket` sends `expForNextLevel` (-1 at max level) so client HUD can display progress without config lookup.
+- Mob attributes JSON now includes `"level"` and `"base_exp"` alongside `"attack_type"`. All three are optional with sensible defaults (level=1, base_exp=100, attack_type=PHYSICAL).

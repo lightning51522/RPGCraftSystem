@@ -224,6 +224,21 @@ public class AttributeHudOverlay {
         int y = 10;
         int lineHeight = 12;
 
+        // 显示等级信息（在属性列表之前）
+        com.rpgcraft.core.level.PlayerLevelData levelData = player.getData(com.rpgcraft.core.level.LevelManager.PLAYER_LEVEL);
+        HUD_BUILDER.setLength(0);
+        int expForNext = levelData.getExpForNextLevel();
+        if (expForNext < 0) {
+            // 已达最大等级
+            HUD_BUILDER.append("等级: ").append(levelData.getLevel()).append(" (MAX)");
+        } else {
+            HUD_BUILDER.append("等级: ").append(levelData.getLevel())
+                    .append("  经验: ").append(levelData.getExperience())
+                    .append(" / ").append(expForNext);
+        }
+        guiGraphics.text(mc.font, HUD_BUILDER.toString(), x, y, 0xFFFFFF00, true);
+        y += lineHeight;
+
         for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             IAttribute attr = player.getData(entry.getSupplier());
 

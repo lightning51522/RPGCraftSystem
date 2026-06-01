@@ -6,6 +6,8 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.equipment.EquipmentBonus;
+import com.rpgcraft.core.level.LevelManager;
+import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 
@@ -70,12 +72,15 @@ public class RPGCraftCore {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     /**
-     * 死亡时的完整数据快照，包含属性值和当时生效的装备加成
+     * 死亡时的完整数据快照，包含属性值、装备加成和等级数据
      *
      * @param snapshot         死亡时的属性快照（包含装备加成后的值）
      * @param equipmentBonuses 死亡时生效的装备加成映射（字符串键，来自追踪附件）
+     * @param level            死亡时的等级
+     * @param experience       死亡时的经验
      */
-    record DeathData(AttributeSnapshot snapshot, java.util.Map<String, EquipmentBonus> equipmentBonuses) {}
+    record DeathData(AttributeSnapshot snapshot, java.util.Map<String, EquipmentBonus> equipmentBonuses,
+                     int level, int experience) {}
 
     /** 死亡时数据快照缓存：UUID → DeathData */
     private static final java.util.Map<java.util.UUID, DeathData> deathSnapshot = new java.util.concurrent.ConcurrentHashMap<>();
@@ -93,7 +98,9 @@ public class RPGCraftCore {
         if (player.getData(AttributeManager.LIFE).getValue() <= 0) {
             AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(player);
             java.util.Map<String, EquipmentBonus> bonuses = player.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
-            deathSnapshot.putIfAbsent(player.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses)));
+            PlayerLevelData levelData = player.getData(LevelManager.PLAYER_LEVEL);
+            deathSnapshot.putIfAbsent(player.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses),
+                    levelData.getLevel(), levelData.getExperience()));
         }
     }
 
@@ -141,6 +148,9 @@ public class RPGCraftCore {
         // 初始化属性注册中心和战斗计算器
         AttributeManager.init();
 
+        // 初始化等级模块
+        LevelManager.init();
+
         // 注册通用初始化回调
         modEventBus.addListener(this::commonSetup);
 
@@ -151,6 +161,9 @@ public class RPGCraftCore {
 
         // 注册属性 AttachmentType（通过门面的便捷方法）
         AttributeManager.getDeferredRegister().register(modEventBus);
+
+        // 注册等级模块 AttachmentType
+        LevelManager.getDeferredRegister().register(modEventBus);
 
         // 注册装备模块附件
         com.rpgcraft.core.equipment.EquipmentData.getAttachmentRegister().register(modEventBus);
@@ -234,6 +247,8 @@ public class RPGCraftCore {
             com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
             // 同步自定义 life 到原版生命条，确保原版血条上限和当前值与自定义属性一致
             AttributeManager.syncVanillaHealth(serverPlayer);
+            // 同步等级数据到客户端
+            LevelManager.syncToClient(serverPlayer);
         }
     }
 
@@ -259,7 +274,9 @@ public class RPGCraftCore {
         if (!(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) return;
         AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(serverPlayer);
         java.util.Map<String, EquipmentBonus> bonuses = serverPlayer.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
-        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses)));
+        PlayerLevelData levelData = serverPlayer.getData(LevelManager.PLAYER_LEVEL);
+        deathSnapshot.putIfAbsent(serverPlayer.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses),
+                levelData.getLevel(), levelData.getExperience()));
     }
 
     /**
@@ -292,6 +309,11 @@ public class RPGCraftCore {
             // 重生后恢复装备加成追踪数据（属性值已由 applySnapshot 恢复，含加成）
             com.rpgcraft.core.equipment.EquipmentManager.getHandler().restoreBonusTracking(serverPlayer);
         }
+
+        // 恢复等级数据（两种模式都恢复）
+        PlayerLevelData newLevelData = serverPlayer.getData(LevelManager.PLAYER_LEVEL);
+        newLevelData.setLevel(data.level());
+        newLevelData.setExperience(data.experience());
     }
 
     /**
@@ -312,5 +334,8 @@ public class RPGCraftCore {
 
         // 重生后同步自定义 life 到原版生命条
         AttributeManager.syncVanillaHealth(serverPlayer);
+
+        // 重生后同步等级数据到客户端
+        LevelManager.syncToClient(serverPlayer);
     }
 }
