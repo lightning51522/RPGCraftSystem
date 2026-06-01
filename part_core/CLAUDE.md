@@ -100,7 +100,7 @@ Client-server attribute synchronization using NeoForge's payload system:
   - `onEntityJoinLevel()` — Server-side only (has `isClientSide()` guard). Sets mob attributes from `MobAttributeConfig` JSON.
   - `onLivingDamagePre()` — Flat damage system (not proportional). Three damage paths:
     - **Bypass** (`BYPASSES_INVULNERABILITY`): sets custom life to 0, passes vanilla damage through to trigger death.
-    - **Combat** (attacker is `LivingEntity`): Looks up attacker's `attackType` from `MobAttributeConfig` (defaults to `PHYSICAL`). RPG formula via `IDamageCalculator` produces absolute damage value, applied directly to custom life using the configured attack type.
+    - **Combat** (attacker is `LivingEntity`): Determines `AttackType` based on attacker kind — players use their held weapon's `attack_type` from `IEquipmentRegistry.getAttackType()`, mobs use `MobAttributeConfig`. Defaults to `PHYSICAL`. RPG formula via `IDamageCalculator` produces absolute damage value, applied directly to custom life using the configured attack type.
     - **Environmental** (no attacker): vanilla damage value applied directly to custom life (no scaling by max life).
     - After custom life change, vanilla damage is set to a proportional value so vanilla health syncs (keeps vanilla healing working via `LivingHealEvent`). Guarded: skips proportional calculation when `maxValue ≤ 0` to prevent division by zero.
   - `onLivingDamagePost()` — Re-syncs vanilla health to match custom life ratio (handles absorption edge cases). Guarded: skips when `maxValue ≤ 0`. Calls `checkAndSnapshotIfDying()` for early death snapshot creation.
@@ -116,7 +116,7 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 
 #### Equipment API Layer (`equipment/api/`)
 
-- **`IEquipmentRegistry`** — Equipment bonus registration and lookup: `register(itemId, bonuses)`, `register(itemId, bonuses, rarity)`, `getBonuses(itemId)`, `getRarity(itemId)`. Default impl: `DefaultEquipmentRegistry`.
+- **`IEquipmentRegistry`** — Equipment bonus registration and lookup: `register(itemId, bonuses)`, `register(itemId, bonuses, rarity)`, `getBonuses(itemId)`, `getRarity(itemId)`, `getAttackType(itemId)`. Default impl: `DefaultEquipmentRegistry`.
 - **`IEquipmentHandler`** — Replaceable equipment bonus application logic: `calculateTotalBonus(player)`, `onEquipmentChange(player)`, `restoreBonusTracking(player)`, `rescanAndApplyAttributes(player, deathSnapshot, deathEquipmentBonuses)`. Default impl: `DefaultEquipmentHandler`. Replaceable via `EquipmentManager.setHandler()`.
 - **`IEquipmentProvider`** — SPI for sub-mods to register custom equipment bonuses: `registerEquipment(IEquipmentRegistry)`.
 
@@ -127,7 +127,7 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 
 #### Default Implementations
 
-- **`DefaultEquipmentRegistry`** — Implements `IEquipmentRegistry`. Loads from JSON via `loadFromJson(JsonObject)`, also supports programmatic `register()`. Stores separate maps for bonuses (`configMap`) and rarities (`rarityMap`). JSON uses `"rarity": "rare"` key (skipped during attribute parsing) alongside attribute bonus entries.
+- **`DefaultEquipmentRegistry`** — Implements `IEquipmentRegistry`. Loads from JSON via `loadFromJson(JsonObject)`, also supports programmatic `register()`. Stores separate maps for bonuses (`configMap`), rarities (`rarityMap`), and attack types (`attackTypeMap`). JSON uses `"rarity"` and `"attack_type"` keys (both skipped during attribute parsing) alongside attribute bonus entries.
 - **`DefaultEquipmentHandler`** — Implements `IEquipmentHandler`. Takes `IEquipmentRegistry` in constructor. Core logic:
   - `calculateTotalBonus()`: iterates all equipment slots, queries registry, sums bonuses per attribute via `EquipmentBonus.add()`. **Skips armor items in hand slots** — checks `DataComponents.EQUIPPABLE` component: if item has `Equippable` data targeting `HUMANOID_ARMOR` type and is in a `HAND` type slot, it is skipped. This ensures armor only applies bonuses when in armor slots, while weapons work from hand slots.
   - `onEquipmentChange()`: computes diff between old and new totals, applies via `applyBonusDiff()`. Uses `equipmentAffectsMax` flag: when `true`, only maxValue changes (equipping raises cap, unequipping lowers cap and clamps currentValue if it exceeds new max); when `false`, only currentValue changes. Min-1-HP guard prevents death from unequipping life-boosting gear. Does NOT call `syncVanillaHealth()` — prevents hurt animation on armor equip/unequip.
@@ -148,12 +148,13 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 {
   "minecraft:diamond_sword": {
     "rarity": "rare",
+    "attack_type": "physical",
     "rpgcraftcore:strength": 10,
     "rpgcraftcore:critical_rate": 5
   }
 }
 ```
-- Top-level keys: item identifiers. Inner keys: `"rarity"` (optional, maps to `EquipmentRarity` enum name) + attribute identifiers with integer bonus values.
+- Top-level keys: item identifiers. Inner keys: `"rarity"` (optional, maps to `EquipmentRarity` enum name), `"attack_type"` (optional, maps to `AttackType` enum name, defaults to `PHYSICAL`) + attribute identifiers with integer bonus values.
 - Supports `/reload` hot-reload on server; client-side reload via `AddClientReloadListenersEvent` for tooltip display.
 
 #### Tooltip Display (`client/EquipmentTooltipHandler`)
@@ -212,7 +213,7 @@ Init: EquipmentManager.init() → AttributeManager.init() → DefaultAttributeRe
 Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking() → syncVanillaHealth()
 Runtime: IAttribute change → sendToClient() → network → client handle() → setMaxValue() + setValue()
 Equip: LivingEquipmentChangeEvent → EquipmentManager.getHandler().onEquipmentChange() → calculateTotalBonus (armor-in-hotbar check) → applyBonusDiff (equipmentAffectsMax flag) → sendToClient() (no syncVanillaHealth to avoid hurt animation)
-Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→lookup attacker attackType from MobAttributeConfig→RPG formula with attackType, environmental→vanilla value → apply to custom life → set proportional vanilla damage
+Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→player: weapon attackType from IEquipmentRegistry / mob: attackType from MobAttributeConfig→RPG formula with attackType, environmental→vanilla value → apply to custom life → set proportional vanilla damage
 CombatPost: LivingDamageEvent.Post → re-sync vanilla health to custom life ratio → checkAndSnapshotIfDying → sendToClient()
 Heal: LivingHealEvent → proportional convert vanilla heal → add to custom life → sendToClient()
 Death: LivingDeathEvent → createSnapshot + capture equipment bonuses → DeathData(UUID → {snapshot, equipmentBonuses})
@@ -301,4 +302,4 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - Division by zero guards: all proportional calculations (`customValue / customMax * vanillaMax`) check `maxValue > 0` before division. Applies to `CombatEventHandler`, `AttributeManager.syncVanillaHealth()`, and `AttributeHudOverlay`.
 - `EquipmentBonus.add()` uses overflow-safe saturating addition — clamps to `Integer.MAX_VALUE`/`Integer.MIN_VALUE` instead of wrapping. Prevents negative bonuses from stacking many high-value equipment items.
 - RESCAN base value computation clamps to `≥ 0` (`Math.max(0, snapshotValue - deathBonus)`) — prevents attribute corruption when death snapshot and equipment bonuses are inconsistent (e.g., `/reload` changed equipment config between death and respawn).
-- Mob attack type is configurable per entity in `mob_attributes.json` via `"attack_type"` field (maps to `AttackType` enum). Missing field defaults to `PHYSICAL` for backward compatibility. In combat, `CombatEventHandler` looks up the attacker's `attackType` from config and passes it to both `calculateOutgoingDamage()` and `calculateIncomingDamage()`. This determines which damage formula is used (physical: strength base, defense reduction; magic: mana base, resistance % reduction).
+- Mob attack type is configurable per entity in `mob_attributes.json` via `"attack_type"` field (maps to `AttackType` enum). Missing field defaults to `PHYSICAL` for backward compatibility. Player weapon attack type is configurable per item in `equipment_attributes.json` via the same `"attack_type"` field, queried via `IEquipmentRegistry.getAttackType()`. In combat, `CombatEventHandler` branches: players use their held weapon's attack type, mobs use their config attack type. This determines which damage formula is used (physical: strength base, defense reduction; magic: mana base, resistance % reduction).

@@ -1,6 +1,7 @@
 package com.rpgcraft.core.equipment.api;
 
 import com.google.gson.JsonObject;
+import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.equipment.EquipmentBonus;
 import com.rpgcraft.core.equipment.EquipmentRarity;
 import net.minecraft.resources.Identifier;
@@ -51,6 +52,14 @@ public interface IEquipmentRegistry {
      * @return 稀有度，未找到返回 {@link EquipmentRarity#COMMON}
      */
     EquipmentRarity getRarity(Identifier itemId);
+
+    /**
+     * 查询物品的攻击伤害类型
+     *
+     * @param itemId 物品标识符
+     * @return 攻击类型，未找到返回 {@link AttackType#PHYSICAL}
+     */
+    AttackType getAttackType(Identifier itemId);
 
     /**
      * 从 JSON 配置加载装备加成数据和稀有度

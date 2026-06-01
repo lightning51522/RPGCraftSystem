@@ -3,6 +3,7 @@ package com.rpgcraft.core.equipment;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.rpgcraft.core.RPGCraftCore;
+import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import net.minecraft.resources.Identifier;
 
@@ -22,9 +23,11 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
     public static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "rpg/equipment_attributes.json");
 
     private static final String RARITY_KEY = "rarity";
+    private static final String ATTACK_TYPE_KEY = "attack_type";
 
     private volatile Map<Identifier, Map<Identifier, EquipmentBonus>> configMap = Collections.emptyMap();
     private volatile Map<Identifier, EquipmentRarity> rarityMap = Collections.emptyMap();
+    private volatile Map<Identifier, AttackType> attackTypeMap = Collections.emptyMap();
 
     /**
      * 从 JSON 配置加载装备加成数据和稀有度
@@ -37,6 +40,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
     public void loadFromJson(JsonObject json) {
         Map<Identifier, Map<Identifier, EquipmentBonus>> newBonusMap = new HashMap<>();
         Map<Identifier, EquipmentRarity> newRarityMap = new HashMap<>();
+        Map<Identifier, AttackType> newAttackTypeMap = new HashMap<>();
 
         for (Map.Entry<String, JsonElement> itemEntry : json.entrySet()) {
             try {
@@ -49,10 +53,23 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
                     newRarityMap.put(itemId, rarity);
                 }
 
-                // 解析属性加成（跳过 "rarity" 键）
+                // 解析攻击类型，缺失时默认为 PHYSICAL
+                if (attrObj.has(ATTACK_TYPE_KEY)) {
+                    try {
+                        AttackType at = AttackType.valueOf(
+                                attrObj.getAsJsonPrimitive(ATTACK_TYPE_KEY).getAsString().toUpperCase());
+                        newAttackTypeMap.put(itemId, at);
+                    } catch (IllegalArgumentException e) {
+                        RPGCraftCore.LOGGER.warn("未知的攻击类型: {}，使用默认 PHYSICAL",
+                                attrObj.getAsJsonPrimitive(ATTACK_TYPE_KEY).getAsString());
+                    }
+                }
+
+                // 解析属性加成（跳过 "rarity" 和 "attack_type" 键）
                 Map<Identifier, EquipmentBonus> bonuses = new HashMap<>();
                 for (Map.Entry<String, JsonElement> attrEntry : attrObj.entrySet()) {
                     if (attrEntry.getKey().equals(RARITY_KEY)) continue;
+                    if (attrEntry.getKey().equals(ATTACK_TYPE_KEY)) continue;
                     try {
                         Identifier attrId = Identifier.parse(attrEntry.getKey());
                         bonuses.put(attrId, new EquipmentBonus(attrEntry.getValue().getAsInt()));
@@ -67,6 +84,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
         }
         configMap = Collections.unmodifiableMap(newBonusMap);
         rarityMap = Collections.unmodifiableMap(newRarityMap);
+        attackTypeMap = Collections.unmodifiableMap(newAttackTypeMap);
         RPGCraftCore.LOGGER.info("已加载 {} 种装备的属性加成配置", newBonusMap.size());
     }
 
@@ -96,5 +114,10 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
     @Override
     public EquipmentRarity getRarity(Identifier itemId) {
         return rarityMap.getOrDefault(itemId, EquipmentRarity.COMMON);
+    }
+
+    @Override
+    public AttackType getAttackType(Identifier itemId) {
+        return attackTypeMap.getOrDefault(itemId, AttackType.PHYSICAL);
     }
 }

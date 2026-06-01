@@ -5,6 +5,7 @@ import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.equipment.EquipmentManager;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.RPGCraftCore;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -110,11 +111,18 @@ public class CombatEventHandler {
         int flatDamage;
         if (attackerEntity instanceof LivingEntity attacker) {
             // 2. 战斗伤害：RPG 公式计算绝对伤害值
-            // 从配置获取攻击者的攻击类型，未配置时默认为 PHYSICAL
-            Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
-            AttackType attackType = MobAttributeConfig.getConfig(attackerTypeId)
-                    .map(MobAttributeConfig.MobAttributes::attackType)
-                    .orElse(AttackType.PHYSICAL);
+            AttackType attackType;
+            if (attacker instanceof Player player) {
+                // 玩家：从手持武器获取攻击类型
+                Identifier weaponId = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem());
+                attackType = EquipmentManager.getRegistry().getAttackType(weaponId);
+            } else {
+                // 怪物：从 mob config 获取攻击类型
+                Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
+                attackType = MobAttributeConfig.getConfig(attackerTypeId)
+                        .map(MobAttributeConfig.MobAttributes::attackType)
+                        .orElse(AttackType.PHYSICAL);
+            }
             int damage = calculator.calculateOutgoingDamage(attacker, attackType);
             flatDamage = calculator.calculateIncomingDamage(target, damage, attackType);
         } else {
