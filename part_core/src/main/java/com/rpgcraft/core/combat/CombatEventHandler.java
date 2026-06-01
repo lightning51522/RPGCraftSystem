@@ -110,8 +110,13 @@ public class CombatEventHandler {
         int flatDamage;
         if (attackerEntity instanceof LivingEntity attacker) {
             // 2. 战斗伤害：RPG 公式计算绝对伤害值
-            int damage = calculator.calculateOutgoingDamage(attacker, AttackType.PHYSICAL);
-            flatDamage = calculator.calculateIncomingDamage(target, damage, AttackType.PHYSICAL);
+            // 从配置获取攻击者的攻击类型，未配置时默认为 PHYSICAL
+            Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
+            AttackType attackType = MobAttributeConfig.getConfig(attackerTypeId)
+                    .map(MobAttributeConfig.MobAttributes::attackType)
+                    .orElse(AttackType.PHYSICAL);
+            int damage = calculator.calculateOutgoingDamage(attacker, attackType);
+            flatDamage = calculator.calculateIncomingDamage(target, damage, attackType);
         } else {
             // 3. 环境伤害：原版伤害值直接作为自定义生命扣减量（不按比例缩放）
             flatDamage = Math.round(event.getNewDamage());

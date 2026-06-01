@@ -59,7 +59,7 @@ Public interfaces that other mods depend on. Each functional module has its own 
   - Magic outgoing: base = mana, crit check, crit bonus
 - **`AttackType`** — Enum implementing `IDamageType`: `PHYSICAL`, `MAGIC`, `PHYSICAL_WITH_MAGIC`, `MAGIC_WITH_PHYSICAL`, `MIX_TYPE`. Only `PHYSICAL` and `MAGIC` are implemented in damage calculations.
 - **`AttributeManager`** — Attribute module facade (consistent naming with `EquipmentManager`). Holds `Identifier` constants and `Supplier<AttachmentType<EntityAttribute>>` accessors, delegates to `DefaultAttributeRegistry` and `DefaultDamageCalculator`. Must call `init()` before registering its `DeferredRegister` on the mod event bus. `getRegistry()` returns `IAttributeRegistry` interface; `getDeferredRegister()` is a convenience static method.
-- **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload.
+- **`MobAttributeConfig`** — Loads `data/rpgcraftcore/rpg/mob_attributes.json` for mob attribute presets. Supports `/reload` hot-reload. `MobAttributes` record includes `attackType` (AttackType enum, defaults to `PHYSICAL` if absent in JSON) alongside numeric stats.
 - **`DeathAttributeMode`** — Enum controlling death/respawn attribute recovery: `SNAPSHOT` (restore death values verbatim) or `RESCAN` (recompute from base + current equipment). Static `currentMode` field with getter/setter. Default: `SNAPSHOT`. Toggled via `/rpg deathmode` command.
 
 #### Attribute Classification
@@ -100,11 +100,11 @@ Client-server attribute synchronization using NeoForge's payload system:
   - `onEntityJoinLevel()` — Server-side only (has `isClientSide()` guard). Sets mob attributes from `MobAttributeConfig` JSON.
   - `onLivingDamagePre()` — Flat damage system (not proportional). Three damage paths:
     - **Bypass** (`BYPASSES_INVULNERABILITY`): sets custom life to 0, passes vanilla damage through to trigger death.
-    - **Combat** (attacker is `LivingEntity`): RPG formula via `IDamageCalculator` produces absolute damage value, applied directly to custom life.
+    - **Combat** (attacker is `LivingEntity`): Looks up attacker's `attackType` from `MobAttributeConfig` (defaults to `PHYSICAL`). RPG formula via `IDamageCalculator` produces absolute damage value, applied directly to custom life using the configured attack type.
     - **Environmental** (no attacker): vanilla damage value applied directly to custom life (no scaling by max life).
-    - After custom life change, vanilla damage is set to a proportional value so vanilla health syncs (keeps vanilla healing working via `LivingHealEvent`).
-  - `onLivingDamagePost()` — Re-syncs vanilla health to match custom life ratio (handles absorption edge cases). Calls `checkAndSnapshotIfDying()` for early death snapshot creation.
-  - `onLivingHeal()` — Converts vanilla heal amounts to custom life proportionally. Uses `setHealth()` (not `heal()`) so no loop with `syncVanillaHealth()`.
+    - After custom life change, vanilla damage is set to a proportional value so vanilla health syncs (keeps vanilla healing working via `LivingHealEvent`). Guarded: skips proportional calculation when `maxValue ≤ 0` to prevent division by zero.
+  - `onLivingDamagePost()` — Re-syncs vanilla health to match custom life ratio (handles absorption edge cases). Guarded: skips when `maxValue ≤ 0`. Calls `checkAndSnapshotIfDying()` for early death snapshot creation.
+  - `onLivingHeal()` — Converts vanilla heal amounts to custom life proportionally. Guarded: skips when vanilla `getMaxHealth() ≤ 0`. Uses `setHealth()` (not `heal()`) so no loop with `syncVanillaHealth()`.
 
 ### Commands (`command/`)
 
@@ -122,7 +122,7 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
 
 #### Equipment Data Types
 
-- **`EquipmentBonus`** — `record EquipmentBonus(int value)`. Pure integer bonus with `add()` for stacking and `ZERO` constant.
+- **`EquipmentBonus`** — `record EquipmentBonus(int value)`. Pure integer bonus with overflow-safe `add()` for stacking (saturating addition clamps to `Integer.MAX_VALUE`/`Integer.MIN_VALUE` on overflow) and `ZERO` constant.
 - **`EquipmentRarity`** — Enum with six tiers: `COMMON`(白色), `UNCOMMON`(绿色), `RARE`(蓝色), `EPIC`(紫色), `LEGENDARY`(金色), `MYTHIC`(红色). Each has `displayName` (Chinese) and `colorCode` (MC formatting). Static `fromName(String)` for JSON parsing.
 
 #### Default Implementations
@@ -132,7 +132,7 @@ Equipment bonuses are JSON-driven, with an API layer following the same `api/` p
   - `calculateTotalBonus()`: iterates all equipment slots, queries registry, sums bonuses per attribute via `EquipmentBonus.add()`. **Skips armor items in hand slots** — checks `DataComponents.EQUIPPABLE` component: if item has `Equippable` data targeting `HUMANOID_ARMOR` type and is in a `HAND` type slot, it is skipped. This ensures armor only applies bonuses when in armor slots, while weapons work from hand slots.
   - `onEquipmentChange()`: computes diff between old and new totals, applies via `applyBonusDiff()`. Uses `equipmentAffectsMax` flag: when `true`, only maxValue changes (equipping raises cap, unequipping lowers cap and clamps currentValue if it exceeds new max); when `false`, only currentValue changes. Min-1-HP guard prevents death from unequipping life-boosting gear. Does NOT call `syncVanillaHealth()` — prevents hurt animation on armor equip/unequip.
   - `restoreBonusTracking()`: recalculates and stores tracking data in `EquipmentData.EQUIPMENT_BONUS` attachment.
-  - `rescanAndApplyAttributes()`: for RESCAN death mode. Computes base values (death snapshot minus death equipment bonuses), scans current equipment via `calculateTotalBonus()`, applies current bonuses to base values. Fills resource attributes to max, updates tracking attachment, syncs all attributes to client. Compatible with future custom equipment slots because it delegates slot iteration to `calculateTotalBonus()`.
+  - `rescanAndApplyAttributes()`: for RESCAN death mode. Computes base values (death snapshot minus death equipment bonuses, clamped to `≥ 0` to prevent corruption from inconsistent state), scans current equipment via `calculateTotalBonus()`, applies current bonuses to base values. Fills resource attributes to max, updates tracking attachment, syncs all attributes to client. Compatible with future custom equipment slots because it delegates slot iteration to `calculateTotalBonus()`.
 - **`EquipmentManager`** — Facade (mirrors `AttributeManager`). Static `init()` creates defaults. `getRegistry()`, `getHandler()`, `setHandler()` for sub-module replacement.
 
 #### Glue Code
@@ -212,7 +212,7 @@ Init: EquipmentManager.init() → AttributeManager.init() → DefaultAttributeRe
 Login: PlayerLoggedInEvent → IAttributeRegistry.getAllEntries() → sendToClient() per entry → restoreBonusTracking() → syncVanillaHealth()
 Runtime: IAttribute change → sendToClient() → network → client handle() → setMaxValue() + setValue()
 Equip: LivingEquipmentChangeEvent → EquipmentManager.getHandler().onEquipmentChange() → calculateTotalBonus (armor-in-hotbar check) → applyBonusDiff (equipmentAffectsMax flag) → sendToClient() (no syncVanillaHealth to avoid hurt animation)
-Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→RPG formula, environmental→vanilla value → apply to custom life → set proportional vanilla damage
+Combat: LivingDamageEvent.Pre → flat damage: bypass→life=0, combat→lookup attacker attackType from MobAttributeConfig→RPG formula with attackType, environmental→vanilla value → apply to custom life → set proportional vanilla damage
 CombatPost: LivingDamageEvent.Post → re-sync vanilla health to custom life ratio → checkAndSnapshotIfDying → sendToClient()
 Heal: LivingHealEvent → proportional convert vanilla heal → add to custom life → sendToClient()
 Death: LivingDeathEvent → createSnapshot + capture equipment bonuses → DeathData(UUID → {snapshot, equipmentBonuses})
@@ -251,6 +251,8 @@ Sub-modules can add new equipment items with RPG stats. The core mod uses Java `
 **Same pattern for custom attributes:** implement `IAttributeProvider`, declare in `META-INF/services/com.rpgcraft.core.attribute.api.IAttributeProvider`.
 
 **SPI invocation timing:** `EquipmentManager.init()` and `AttributeManager.init()` both call `ServiceLoader.load()` at the end of initialization, after registering their own default data. Provider calls happen before `DeferredRegister.register(modEventBus)` in the `RPGCraftCore` constructor.
+
+**Visual compatibility (BlockBench, custom models/textures):** The equipment API is a pure data layer — it only maps `Identifier` → attribute bonuses + rarity. It has zero involvement with item registration, model JSON, texture PNGs, or rendering. Sub-modules handle all visual concerns (BlockBench exports, resource packs, `Equippable` data components) independently through standard NeoForge mechanisms. The core's `EquipmentTooltipHandler` automatically queries the registry for tooltip display regardless of item source. This separation means BlockBench models/textures are fully compatible — the equipment system neither knows nor cares about visual representation.
 
 ## NeoForge 26.1 API Notes
 
@@ -296,3 +298,7 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - `/rpg set` only modifies currentValue (clamped by existing maxValue). `/rpg setmax` modifies maxValue (may clamp currentValue down). These are separate concerns.
 - `SyncPlayerAttributePacket.handle()` sets both `setMaxValue` and `setValue` on the client attachment. Both must be applied — omitting `setMaxValue` causes client-side max display to desync.
 - Code comments and language keys are in Chinese (zh_CN).
+- Division by zero guards: all proportional calculations (`customValue / customMax * vanillaMax`) check `maxValue > 0` before division. Applies to `CombatEventHandler`, `AttributeManager.syncVanillaHealth()`, and `AttributeHudOverlay`.
+- `EquipmentBonus.add()` uses overflow-safe saturating addition — clamps to `Integer.MAX_VALUE`/`Integer.MIN_VALUE` instead of wrapping. Prevents negative bonuses from stacking many high-value equipment items.
+- RESCAN base value computation clamps to `≥ 0` (`Math.max(0, snapshotValue - deathBonus)`) — prevents attribute corruption when death snapshot and equipment bonuses are inconsistent (e.g., `/reload` changed equipment config between death and respawn).
+- Mob attack type is configurable per entity in `mob_attributes.json` via `"attack_type"` field (maps to `AttackType` enum). Missing field defaults to `PHYSICAL` for backward compatibility. In combat, `CombatEventHandler` looks up the attacker's `attackType` from config and passes it to both `calculateOutgoingDamage()` and `calculateIncomingDamage()`. This determines which damage formula is used (physical: strength base, defense reduction; magic: mana base, resistance % reduction).

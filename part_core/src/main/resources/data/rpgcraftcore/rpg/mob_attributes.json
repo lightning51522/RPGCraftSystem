@@ -1,5 +1,6 @@
 {
   "minecraft:zombie": {
+    "attack_type": "physical",
     "life": 100,
     "strength": 15,
     "defense": 5,
@@ -8,6 +9,7 @@
     "critical_ratio": 50
   },
   "minecraft:husk": {
+    "attack_type": "physical",
     "life": 110,
     "strength": 16,
     "defense": 6,
@@ -16,6 +18,7 @@
     "critical_ratio": 50
   },
   "minecraft:drowned": {
+    "attack_type": "physical",
     "life": 100,
     "strength": 14,
     "defense": 5,
@@ -24,6 +27,7 @@
     "critical_ratio": 50
   },
   "minecraft:skeleton": {
+    "attack_type": "physical",
     "life": 80,
     "strength": 10,
     "defense": 3,
@@ -32,6 +36,7 @@
     "critical_ratio": 50
   },
   "minecraft:stray": {
+    "attack_type": "physical",
     "life": 90,
     "strength": 11,
     "defense": 3,
@@ -40,6 +45,7 @@
     "critical_ratio": 50
   },
   "minecraft:wither_skeleton": {
+    "attack_type": "physical",
     "life": 120,
     "strength": 20,
     "defense": 8,
@@ -48,6 +54,7 @@
     "critical_ratio": 60
   },
   "minecraft:creeper": {
+    "attack_type": "physical",
     "life": 60,
     "strength": 30,
     "defense": 0,
@@ -56,6 +63,7 @@
     "critical_ratio": 0
   },
   "minecraft:spider": {
+    "attack_type": "physical",
     "life": 70,
     "strength": 8,
     "defense": 2,
@@ -64,6 +72,7 @@
     "critical_ratio": 40
   },
   "minecraft:cave_spider": {
+    "attack_type": "physical",
     "life": 50,
     "strength": 6,
     "defense": 1,
@@ -72,6 +81,7 @@
     "critical_ratio": 40
   },
   "minecraft:enderman": {
+    "attack_type": "physical",
     "life": 150,
     "strength": 25,
     "defense": 5,
@@ -80,6 +90,7 @@
     "critical_ratio": 80
   },
   "minecraft:blaze": {
+    "attack_type": "physical",
     "life": 80,
     "strength": 18,
     "defense": 0,
@@ -88,6 +99,7 @@
     "critical_ratio": 60
   },
   "minecraft:pig": {
+    "attack_type": "physical",
     "life": 50,
     "strength": 2,
     "defense": 0,
@@ -96,6 +108,7 @@
     "critical_ratio": 0
   },
   "minecraft:cow": {
+    "attack_type": "physical",
     "life": 60,
     "strength": 2,
     "defense": 0,
@@ -104,6 +117,7 @@
     "critical_ratio": 0
   },
   "minecraft:sheep": {
+    "attack_type": "physical",
     "life": 40,
     "strength": 1,
     "defense": 1,
@@ -112,6 +126,7 @@
     "critical_ratio": 0
   },
   "minecraft:chicken": {
+    "attack_type": "physical",
     "life": 20,
     "strength": 1,
     "defense": 0,

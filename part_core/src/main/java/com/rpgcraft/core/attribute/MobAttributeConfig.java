@@ -35,6 +35,7 @@ public class MobAttributeConfig {
     /**
      * 单个生物类型的属性配置
      *
+     * @param attackType    攻击伤害类型（physical/magic 等）
      * @param life          生命值
      * @param strength      力量（物理攻击力基准）
      * @param defense       防御力
@@ -43,6 +44,7 @@ public class MobAttributeConfig {
      * @param criticalRatio 暴击伤害加成（百分比）
      */
     public record MobAttributes(
+            AttackType attackType,
             int life, int strength, int defense,
             int resistance, int criticalRate, int criticalRatio
     ) {}
@@ -83,7 +85,21 @@ public class MobAttributeConfig {
                     try {
                         Identifier entityId = Identifier.parse(entry.getKey());
                         JsonObject attrs = entry.getValue().getAsJsonObject();
+                        // 解析攻击类型，缺失时默认为 PHYSICAL（向后兼容）
+                        AttackType attackType = AttackType.PHYSICAL;
+                        if (attrs.has("attack_type")) {
+                            try {
+                                attackType = AttackType.valueOf(
+                                        attrs.getAsJsonPrimitive("attack_type").getAsString().toUpperCase()
+                                );
+                            } catch (IllegalArgumentException e) {
+                                RPGCraftCore.LOGGER.warn("未知的攻击类型: {}，使用默认 PHYSICAL",
+                                        attrs.getAsJsonPrimitive("attack_type").getAsString());
+                            }
+                        }
+
                         newMap.put(entityId, new MobAttributes(
+                                attackType,
                                 attrs.getAsJsonPrimitive("life").getAsInt(),
                                 attrs.getAsJsonPrimitive("strength").getAsInt(),
                                 attrs.getAsJsonPrimitive("defense").getAsInt(),
