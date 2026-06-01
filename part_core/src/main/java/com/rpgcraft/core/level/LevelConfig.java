@@ -93,6 +93,12 @@ public class LevelConfig {
                     }
                 }
 
+                if (sorted.isEmpty()) {
+                    expTable = DEFAULT_EXP_TABLE.clone();
+                    RPGCraftCore.LOGGER.warn("等级经验表无有效条目，使用默认配置（最大等级 {}）", DEFAULT_EXP_TABLE.length + 1);
+                    return;
+                }
+
                 // 转换为连续数组
                 int maxKey = sorted.lastKey();
                 int[] newTable = new int[maxKey];

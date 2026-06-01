@@ -22,6 +22,13 @@ public class PlayerLevelData {
     private int experience;
 
     /**
+     * 客户端缓存的升级所需经验（由同步包写入，避免客户端依赖 LevelConfig 服务端配置）
+     * <p>
+     * 服务端值为 -1 表示已达最大等级。默认值 0 在首次同步前使用。
+     */
+    private int cachedExpForNextLevel;
+
+    /**
      * 默认构造（等级 1，经验 0）
      */
     public PlayerLevelData() {
@@ -54,7 +61,7 @@ public class PlayerLevelData {
     }
 
     public void setLevel(int level) {
-        this.level = Math.max(1, level);
+        this.level = Math.clamp(level, 1, LevelConfig.getMaxLevel());
     }
 
     public int getExperience() {
@@ -67,11 +74,25 @@ public class PlayerLevelData {
 
     /**
      * 查询升到下一级所需经验
+     * <p>
+     * 客户端优先使用同步包缓存的值（避免依赖客户端 LevelConfig 默认表不准确的问题），
+     * 服务端直接从 LevelConfig 查询。
      *
      * @return 升级所需经验，达到最大等级时返回 -1
      */
     public int getExpForNextLevel() {
+        // 客户端：使用同步包缓存的值（非零说明已同步过）
+        if (cachedExpForNextLevel != 0) {
+            return cachedExpForNextLevel;
+        }
         return LevelConfig.getExpForLevel(level);
+    }
+
+    /**
+     * 设置客户端缓存的升级所需经验（由 SyncPlayerLevelPacket 调用）
+     */
+    public void setCachedExpForNextLevel(int exp) {
+        this.cachedExpForNextLevel = exp;
     }
 
     /**
@@ -88,12 +109,16 @@ public class PlayerLevelData {
 
         int maxLevel = LevelConfig.getMaxLevel();
         int oldLevel = level;
-        experience += amount;
+        // 防止 int 溢出：先提升到 long 计算，再 clamp 回 int 范围
+        long newExp = (long) experience + (long) amount;
+        experience = newExp > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) newExp;
 
         // 连续升级循环
         while (level < maxLevel) {
             int required = LevelConfig.getExpForLevel(level);
-            if (required <= 0 || experience < required) break;
+            if (required < 0) break; // 已达最大等级（getExpForLevel 返回 -1）
+            if (required == 0) { level++; continue; } // 零经验直接升级
+            if (experience < required) break;
             experience -= required;
             level++;
         }

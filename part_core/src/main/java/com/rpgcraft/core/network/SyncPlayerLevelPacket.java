@@ -61,6 +61,7 @@ public record SyncPlayerLevelPacket(int level, int experience, int expForNextLev
                 PlayerLevelData levelData = clientPlayer.getData(LevelManager.PLAYER_LEVEL);
                 levelData.setLevel(data.level());
                 levelData.setExperience(data.experience());
+                levelData.setCachedExpForNextLevel(data.expForNextLevel());
             }
         });
     }
