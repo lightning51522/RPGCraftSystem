@@ -2,6 +2,7 @@ package com.rpgcraft.core.level;
 
 import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
+import com.rpgcraft.core.level.api.ILevelCalculator;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,12 +18,7 @@ import java.util.Optional;
  * 等级系统事件处理器
  * <p>
  * 处理玩家击杀怪物时的经验获取逻辑。
- * <p>
- * 经验公式：{@code 实际经验 = sqrt(怪物等级 / 玩家等级) * 基础经验}
- * <ul>
- *   <li>怪物等级和基础经验来自 {@link MobAttributeConfig}（未配置时默认等级 1、基础经验 100）</li>
- *   <li>玩家等级来自 {@link PlayerLevelData} 附件（最低为 1）</li>
- * </ul>
+ * 经验计算委托给 {@link ILevelCalculator}，可通过子模组替换。
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
 public class LevelEventHandler {
@@ -54,15 +50,13 @@ public class LevelEventHandler {
             baseExp = config.get().baseExp();
         }
 
-        // 获取玩家等级
-        PlayerLevelData levelData = player.getData(LevelManager.PLAYER_LEVEL);
-        int playerLevel = Math.max(1, levelData.getLevel());
-
-        // 计算实际经验：sqrt(怪物等级 / 玩家等级) * 基础经验
-        int expGain = (int) (Math.sqrt((double) mobLevel / playerLevel) * baseExp);
+        // 委托给可替换的经验计算器
+        ILevelCalculator calculator = LevelManager.getLevelCalculator();
+        int expGain = calculator.calculateExperienceGain(player, target, mobLevel, baseExp);
         if (expGain <= 0) return;
 
         // 增加经验（内部处理升级）
+        PlayerLevelData levelData = player.getData(LevelManager.PLAYER_LEVEL);
         levelData.addExperience(expGain);
 
         // 同步到客户端

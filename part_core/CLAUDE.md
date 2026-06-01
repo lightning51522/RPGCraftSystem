@@ -209,14 +209,21 @@ Attribute preservation across player death uses a dual-mode system controlled by
 
 ### Level System (`level/`)
 
-Independent level/experience system, separate from vanilla XP. Affects both players and mobs.
+Independent level/experience system, separate from vanilla XP. Affects both players and mobs. Follows the same API/impl/facade pattern as attribute and equipment modules.
 
-#### Core Components
+#### Level API Layer (`level/api/`)
 
-- **`PlayerLevelData`** — Attachment class storing `level` (int, default 1, minimum 1) and `experience` (int, default 0). Has `MapCodec` for save serialization. `addExperience(int)` handles auto level-up: loops `while (level < maxLevel && experience >= expForLevel(level)) { experience -= exp; level++; }`. Returns whether a level-up occurred.
-- **`LevelConfig`** — Loads `data/rpgcraftcore/rpg/level_config.json` for XP thresholds. Format: incremental — key = current level, value = XP to reach next level. Max level = max key + 1. Cached as `int[] expTable` (`expTable[0]` = XP for level 1→2). Supports `/reload` via `AddServerReloadListenersEvent`. Methods: `getMaxLevel()`, `getExpForLevel(int)` (returns -1 when at max level).
-- **`LevelManager`** — Facade following `AttributeManager`/`EquipmentManager` pattern. `init()` creates `DeferredRegister<AttachmentType<?>>`, registers `PlayerLevelData` attachment with `MapCodec` serialization. Exposes `PLAYER_LEVEL` Supplier, `getDeferredRegister()`, `syncToClient(ServerPlayer)`.
-- **`LevelEventHandler`** — `@EventBusSubscriber` on game bus. `LivingDeathEvent`: when a `ServerPlayer` kills a non-player `LivingEntity`, looks up mob's `level` and `baseExp` from `MobAttributeConfig` (defaults: 1 and 100), calculates XP as `(int)(sqrt(mobLevel / playerLevel) * baseExp)`, calls `addExperience()` then `syncToClient()`.
+- **`ILevelCalculator`** — Experience calculation strategy: `calculateExperienceGain(ServerPlayer killer, LivingEntity victim, int mobLevel, int baseExp)`. Replaceable via `LevelManager.setLevelCalculator()`. Default impl: `DefaultLevelCalculator`.
+- **`ILevelRegistry`** — Level XP threshold registration and lookup: `registerExpRequirement(int level, int expRequired)`, `getExpForLevel(int level)`, `getMaxLevel()`, `loadFromJson(JsonObject)`. Default impl: `LevelConfig`.
+- **`ILevelProvider`** — SPI for sub-mods to register custom level XP thresholds: `registerLevelData(ILevelRegistry)`. Discovered via `ServiceLoader` in `LevelManager.init()`.
+
+#### Default Implementations
+
+- **`DefaultLevelCalculator`** — Default experience formula: `(int)(sqrt(mobLevel / playerLevel) * baseExp)`. Rewards fighting higher-level mobs, reduces XP from lower-level ones.
+- **`LevelConfig`** — `ILevelRegistry` default impl. Loads from `data/rpgcraftcore/rpg/level_config.json`. Stores `volatile int[] expTable`. Supports `/reload` via `AddServerReloadListenersEvent`. Also supports programmatic `registerExpRequirement()` for SPI.
+- **`PlayerLevelData`** — Attachment class storing `level` (int, default 1, minimum 1) and `experience` (int, default 0). Has `MapCodec` for save serialization. `addExperience(int)` handles auto level-up via `ILevelRegistry` from `LevelManager.getRegistry()`.
+- **`LevelManager`** — Facade holding `ILevelRegistry` and `ILevelCalculator`. `init()` creates defaults, registers `PlayerLevelData` attachment, discovers `ILevelProvider` SPI. `setLevelCalculator()` for runtime replacement. `getRegistry()`, `getLevelCalculator()`, `syncToClient()`.
+- **`LevelEventHandler`** — Delegates XP calculation to `ILevelCalculator` from `LevelManager.getLevelCalculator()`. Looks up mob level/baseExp from `MobAttributeConfig`.
 
 #### Level Config JSON Format
 
@@ -244,7 +251,7 @@ Level and XP are preserved through death via the existing `DeathData` snapshot s
 
 ### Cross-Module API Stubs (`api/`)
 
-Placeholder interfaces for the planned RPG system: `INpc`, `IProfession`. Each domain will get its own `api/` sub-package as it develops (following the `attribute/api/` and `equipment/api/` patterns). Equipment module already has its API in `equipment/api/`.
+Placeholder interfaces for the planned RPG system: `INpc`, `IProfession`. Each domain will get its own `api/` sub-package as it develops (following the `attribute/api/`, `equipment/api/`, and `level/api/` patterns). Equipment and level modules already have their APIs.
 
 ### Data Flow
 
@@ -294,7 +301,11 @@ Sub-modules can add new equipment items with RPG stats. The core mod uses Java `
 
 **Same pattern for custom attributes:** implement `IAttributeProvider`, declare in `META-INF/services/com.rpgcraft.core.attribute.api.IAttributeProvider`.
 
-**SPI invocation timing:** `EquipmentManager.init()` and `AttributeManager.init()` both call `ServiceLoader.load()` at the end of initialization, after registering their own default data. Provider calls happen before `DeferredRegister.register(modEventBus)` in the `RPGCraftCore` constructor.
+**Same pattern for custom level data:** implement `ILevelProvider`, declare in `META-INF/services/com.rpgcraft.core.level.api.ILevelProvider`. Use to register additional level XP thresholds (e.g., extending max level beyond the core config).
+
+**Replaceable strategies:** `IDamageCalculator` (via `AttributeManager.setDamageCalculator()`), `IEquipmentHandler` (via `EquipmentManager.setHandler()`), `ILevelCalculator` (via `LevelManager.setLevelCalculator()`). All follow the same pattern: interface + default impl + runtime replacement via manager facade.
+
+**SPI invocation timing:** `EquipmentManager.init()`, `AttributeManager.init()`, and `LevelManager.init()` all call `ServiceLoader.load()` at the end of initialization, after registering their own default data. Provider calls happen before `DeferredRegister.register(modEventBus)` in the `RPGCraftCore` constructor.
 
 **Visual compatibility (BlockBench, custom models/textures):** The equipment API is a pure data layer — it only maps `Identifier` → attribute bonuses + rarity. It has zero involvement with item registration, model JSON, texture PNGs, or rendering. Sub-modules handle all visual concerns (BlockBench exports, resource packs, `Equippable` data components) independently through standard NeoForge mechanisms. The core's `EquipmentTooltipHandler` automatically queries the registry for tooltip display regardless of item source. This separation means BlockBench models/textures are fully compatible — the equipment system neither knows nor cares about visual representation.
 
@@ -347,6 +358,9 @@ These are version-specific changes that differ from older NeoForge/Forge tutoria
 - RESCAN base value computation clamps to `≥ 0` (`Math.max(0, snapshotValue - deathBonus)`) — prevents attribute corruption when death snapshot and equipment bonuses are inconsistent (e.g., `/reload` changed equipment config between death and respawn).
 - Mob attack type is configurable per entity in `mob_attributes.json` via `"attack_type"` field (maps to `AttackType` enum). Missing field defaults to `PHYSICAL` for backward compatibility. Player weapon attack type is configurable per item in `equipment_attributes.json` via the same `"attack_type"` field, queried via `IEquipmentRegistry.getAttackType()`. In combat, `CombatEventHandler` branches: players use their held weapon's attack type, mobs use their config attack type. This determines which damage formula is used (physical: strength base, defense reduction; magic: mana base, resistance % reduction).
 - Level system is independent from vanilla XP. Player level and experience use a custom `PlayerLevelData` attachment with `MapCodec` serialization. Minimum level is 1.
+- Experience calculation is replaceable at runtime via `LevelManager.setLevelCalculator(ILevelCalculator)`. Default: `DefaultLevelCalculator` with `sqrt(mobLevel/playerLevel)*baseExp` formula.
+- Level XP table is accessible via `LevelManager.getRegistry()` (returns `ILevelRegistry` interface). Default impl: `LevelConfig`.
+- Custom level XP thresholds from sub-modules use `ILevelProvider` SPI (Java `ServiceLoader`), declared in `META-INF/services/com.rpgcraft.core.level.api.ILevelProvider`.
 - Level config (`level_config.json`) uses incremental XP format: key = current level, value = XP to reach next level. Max level = highest key + 1. Levels must be consecutive starting from 1.
 - Mob level and base XP come from `mob_attributes.json` (`"level"` and `"base_exp"` fields, defaults 1 and 100). Mob level is static, not stored on entities — looked up by entity type at kill time.
 - XP formula on kill: `(int)(sqrt(mobLevel / playerLevel) * baseExp)`. `playerLevel` is guarded ≥ 1 to prevent division by zero.

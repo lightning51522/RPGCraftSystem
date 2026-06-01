@@ -61,7 +61,7 @@ public class PlayerLevelData {
     }
 
     public void setLevel(int level) {
-        this.level = Math.clamp(level, 1, LevelConfig.getMaxLevel());
+        this.level = Math.clamp(level, 1, LevelManager.getRegistry().getMaxLevel());
     }
 
     public int getExperience() {
@@ -85,7 +85,7 @@ public class PlayerLevelData {
         if (cachedExpForNextLevel != 0) {
             return cachedExpForNextLevel;
         }
-        return LevelConfig.getExpForLevel(level);
+        return LevelManager.getRegistry().getExpForLevel(level);
     }
 
     /**
@@ -107,7 +107,7 @@ public class PlayerLevelData {
     public boolean addExperience(int amount) {
         if (amount <= 0) return false;
 
-        int maxLevel = LevelConfig.getMaxLevel();
+        int maxLevel = LevelManager.getRegistry().getMaxLevel();
         int oldLevel = level;
         // 防止 int 溢出：先提升到 long 计算，再 clamp 回 int 范围
         long newExp = (long) experience + (long) amount;
@@ -115,7 +115,7 @@ public class PlayerLevelData {
 
         // 连续升级循环
         while (level < maxLevel) {
-            int required = LevelConfig.getExpForLevel(level);
+            int required = LevelManager.getRegistry().getExpForLevel(level);
             if (required < 0) break; // 已达最大等级（getExpForLevel 返回 -1）
             if (required == 0) { level++; continue; } // 零经验直接升级
             if (experience < required) break;
