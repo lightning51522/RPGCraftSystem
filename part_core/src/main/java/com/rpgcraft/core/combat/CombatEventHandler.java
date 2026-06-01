@@ -6,6 +6,8 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.equipment.EquipmentManager;
+import com.rpgcraft.core.level.LevelManager;
+import com.rpgcraft.core.level.api.IMobAttributeScaler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.RPGCraftCore;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -52,6 +54,10 @@ public class CombatEventHandler {
 
     /**
      * 生物生成/加入世界时初始化自定义属性
+     * <p>
+     * 检查 {@link MobLevelData} 附件确定怪物等级：
+     * 若已设置（指令召唤），使用指定等级；否则使用配置默认等级。
+     * 然后通过 {@link IMobAttributeScaler} 根据等级缩放属性。
      */
     @SubscribeEvent
     public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
@@ -63,20 +69,68 @@ public class CombatEventHandler {
         Optional<MobAttributeConfig.MobAttributes> config = MobAttributeConfig.getConfig(typeId);
         if (config.isEmpty()) return;
 
-        MobAttributeConfig.MobAttributes attrs = config.get();
+        // 确定等级：指令预设 > 配置默认
+        MobLevelData levelData = entity.getData(LevelManager.MOB_LEVEL);
+        int level;
+        if (levelData.isSet()) {
+            level = levelData.getLevel();
+        } else {
+            level = config.get().level();
+        }
 
+        initializeMobAttributes(entity, level);
+    }
+
+    /**
+     * 初始化怪物自定义属性，应用等级缩放
+     * <p>
+     * 此方法为公共 API，可供 {@code /rpg spawn} 指令等外部调用。
+     * <ol>
+     *   <li>查询 {@link MobAttributeConfig} 获取基础属性值</li>
+     *   <li>通过 {@link IMobAttributeScaler} 按等级缩放</li>
+     *   <li>设置 vanilla MAX_HEALTH 和自定义属性附件</li>
+     *   <li>将等级写入 {@link MobLevelData} 附件</li>
+     * </ol>
+     *
+     * @param entity      目标生物实体
+     * @param targetLevel 目标等级（≥ 1）
+     */
+    public static void initializeMobAttributes(LivingEntity entity, int targetLevel) {
+        Identifier typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        Optional<MobAttributeConfig.MobAttributes> config = MobAttributeConfig.getConfig(typeId);
+        if (config.isEmpty()) return;
+
+        MobAttributeConfig.MobAttributes base = config.get();
+
+        // 写入等级到附件
+        MobLevelData levelData = entity.getData(LevelManager.MOB_LEVEL);
+        levelData.setLevel(targetLevel);
+
+        // 获取缩放器
+        IMobAttributeScaler scaler = LevelManager.getMobScaler();
+
+        // 缩放属性
+        int scaledLife = scaler.scaleAttribute(base.life(), targetLevel, "life");
+        int scaledStrength = scaler.scaleAttribute(base.strength(), targetLevel, "strength");
+        int scaledDefense = scaler.scaleAttribute(base.defense(), targetLevel, "defense");
+        int scaledResistance = scaler.scaleAttribute(base.resistance(), targetLevel, "resistance");
+        int scaledCritRate = scaler.scaleAttribute(base.criticalRate(), targetLevel, "critical_rate");
+        int scaledCritRatio = scaler.scaleAttribute(base.criticalRatio(), targetLevel, "critical_ratio");
+
+        // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealthAttr != null) {
-            maxHealthAttr.setBaseValue(attrs.life());
+            maxHealthAttr.setBaseValue(scaledLife);
         }
-        entity.setHealth(attrs.life());
+        entity.setHealth(scaledLife);
 
-        setAttribute(entity, AttributeManager.LIFE, attrs.life());
-        setAttribute(entity, AttributeManager.STRENGTH, attrs.strength());
-        setAttribute(entity, AttributeManager.DEFENSE, attrs.defense());
-        setAttribute(entity, AttributeManager.RESISTANCE, attrs.resistance());
-        setAttribute(entity, AttributeManager.CRITICAL_RATE, attrs.criticalRate());
-        setAttribute(entity, AttributeManager.CRITICAL_RATIO, attrs.criticalRatio());
+        // 设置自定义属性
+        setAttribute(entity, AttributeManager.LIFE, scaledLife);
+        setAttribute(entity, AttributeManager.STRENGTH, scaledStrength);
+        setAttribute(entity, AttributeManager.DEFENSE, scaledDefense);
+        setAttribute(entity, AttributeManager.RESISTANCE, scaledResistance);
+        setAttribute(entity, AttributeManager.CRITICAL_RATE, scaledCritRate);
+        setAttribute(entity, AttributeManager.CRITICAL_RATIO, scaledCritRatio);
     }
 
     /**

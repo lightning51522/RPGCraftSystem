@@ -8,17 +8,28 @@ import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.DeathAttributeMode;
 import com.rpgcraft.core.attribute.EntityAttribute;
+import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
+import com.rpgcraft.core.combat.CombatEventHandler;
 import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -34,6 +45,7 @@ import java.util.Optional;
  * /rpg get &lt;attribute&gt; [player]
  * /rpg set &lt;attribute&gt; &lt;value&gt; [player]
  * /rpg setmax &lt;attribute&gt; &lt;value&gt; [player]
+ * /rpg spawn &lt;entity&gt; &lt;level&gt;
  * </pre>
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
@@ -181,6 +193,23 @@ public class RPGCommands {
                                         .executes(context -> executeAddExp(context,
                                                 EntityArgument.getPlayer(context, "player"),
                                                 IntegerArgumentType.getInteger(context, "amount")))
+                                )
+                        )
+                )
+
+                // === 召唤指令 ===
+
+                .then(Commands.literal("spawn")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("entity", IdentifierArgument.id())
+                                .suggests((context, builder) -> {
+                                    BuiltInRegistries.ENTITY_TYPE.keySet().forEach(id -> builder.suggest(id.toString()));
+                                    return builder.buildFuture();
+                                })
+                                .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeSpawn(context,
+                                                IdentifierArgument.getId(context, "entity"),
+                                                IntegerArgumentType.getInteger(context, "level")))
                                 )
                         )
                 )
@@ -344,6 +373,89 @@ public class RPGCommands {
 
         context.getSource().sendSuccess(() -> Component.literal(text), true);
         return amount;
+    }
+
+    /**
+     * 召唤指定等级的 RPG 生物
+     * <p>
+     * 生成流程：
+     * <ol>
+     *   <li>从注册表解析实体类型，失败则发送错误消息</li>
+     *   <li>在命令源位置创建实体</li>
+     *   <li>将实体加入世界（触发 {@link CombatEventHandler#onEntityJoinLevel} 初始化默认属性）</li>
+     *   <li>覆盖为命令指定的等级：调用 {@link CombatEventHandler#initializeMobAttributes} 重新初始化属性</li>
+     * </ol>
+     * 如果实体不是 LivingEntity 或不在 MobAttributeConfig 中，
+     * 仍会正常召唤但不会应用 RPG 属性缩放。
+     *
+     * @param context  命令上下文
+     * @param entityId 实体类型标识符（如 minecraft:zombie）
+     * @param level    目标等级（>= 1）
+     * @return 1 表示成功，0 表示失败
+     */
+    private static int executeSpawn(CommandContext<CommandSourceStack> context, Identifier entityId, int level) {
+        // 1. 从注册表解析实体类型
+        var entityTypeOptional = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId);
+        if (entityTypeOptional.isEmpty()) {
+            context.getSource().sendFailure(Component.literal("未知的实体类型: " + entityId));
+            return 0;
+        }
+
+        // 2. 获取服务端世界和命令源位置
+        ServerLevel serverLevel = context.getSource().getLevel();
+        Vec3 pos = context.getSource().getPosition();
+        Vec2 rotation = context.getSource().getRotation();
+
+        // 3. 创建实体
+        EntityType<?> entityType = entityTypeOptional.get();
+        Entity entity = entityType.create(serverLevel, EntitySpawnReason.COMMAND);
+        if (entity == null) {
+            context.getSource().sendFailure(Component.literal("无法创建实体: " + entityId));
+            return 0;
+        }
+
+        // 4. 设置位置和朝向
+        entity.snapTo(pos.x, pos.y, pos.z, rotation.y, rotation.x);
+
+        // 5. 加入世界（触发 EntityJoinLevelEvent -> CombatEventHandler.onEntityJoinLevel）
+        //    onEntityJoinLevel 会检查 MobLevelData（此时 level=0 即未设置），
+        //    使用配置默认等级进行初始化。
+        if (!serverLevel.tryAddFreshEntityWithPassengers(entity)) {
+            context.getSource().sendFailure(Component.literal("实体生成失败（可能达到生成上限）"));
+            return 0;
+        }
+
+        // 6. 如果是 LivingEntity，覆盖为命令指定的等级
+        if (entity instanceof LivingEntity livingEntity) {
+            var config = MobAttributeConfig.getConfig(entityId);
+            if (config.isPresent()) {
+                // 覆盖属性为命令指定的等级（initializeMobAttributes 会重写所有属性值）
+                CombatEventHandler.initializeMobAttributes(livingEntity, level);
+
+                String entityName = entityType.getDescription().getString();
+                context.getSource().sendSuccess(
+                        () -> Component.literal(String.format("已召唤 等级%d 的 %s", level, entityName)),
+                        true
+                );
+            } else {
+                // 实体没有 RPG 属性配置，仍然召唤但发出警告
+                String entityName = entityType.getDescription().getString();
+                context.getSource().sendSuccess(
+                        () -> Component.literal(String.format("已召唤 %s（未配置 RPG 属性，等级 %d 不生效）",
+                                entityName, level)),
+                        true
+                );
+            }
+        } else {
+            // 非 LivingEntity（如矿车、船等），正常召唤
+            String entityName = entityType.getDescription().getString();
+            context.getSource().sendSuccess(
+                    () -> Component.literal(String.format("已召唤 %s（非生物实体，不支持 RPG 等级）", entityName)),
+                    true
+            );
+        }
+
+        return 1;
     }
 
     private static Optional<IAttributeEntry> resolveAttribute(String name) {
