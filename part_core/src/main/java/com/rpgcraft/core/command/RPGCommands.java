@@ -242,6 +242,16 @@ public class RPGCommands {
                                 .executes(context -> executeHudToggle(context, false)))
                 )
 
+                // === 战斗日志开关指令 ===
+
+                .then(Commands.literal("combatlog")
+                        .executes(context -> executeCombatLogStatus(context))
+                        .then(Commands.literal("on")
+                                .executes(context -> executeCombatLogToggle(context, true)))
+                        .then(Commands.literal("off")
+                                .executes(context -> executeCombatLogToggle(context, false)))
+                )
+
                 // === 随机刷新开关指令 ===
 
                 .then(Commands.literal("randspawn")
@@ -710,6 +720,49 @@ public class RPGCommands {
         String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
                 () -> Component.literal("HUD 已" + status + "（属性面板 + 准星提示）"),
+                true
+        );
+        return enabled ? 1 : 0;
+    }
+
+    // === 战斗日志开关（每玩家，默认关闭） ===
+
+    /** 每个玩家的战斗日志开关状态，默认关闭（调试功能） */
+    private static final Map<UUID, Boolean> playerCombatLogEnabled = new ConcurrentHashMap<>();
+
+    /**
+     * 查询指定玩家的战斗日志是否启用
+     */
+    public static boolean isCombatLogEnabled(UUID playerId) {
+        return playerCombatLogEnabled.getOrDefault(playerId, false);
+    }
+
+    /**
+     * 显示当前战斗日志开关状态
+     */
+    private static int executeCombatLogStatus(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        boolean enabled = isCombatLogEnabled(player.getUUID());
+        String status = enabled ? "§a开启" : "§c关闭";
+        context.getSource().sendSuccess(
+                () -> Component.literal("战斗日志状态: " + status),
+                false
+        );
+        return enabled ? 1 : 0;
+    }
+
+    /**
+     * 切换战斗日志开关状态
+     */
+    private static int executeCombatLogToggle(CommandContext<CommandSourceStack> context, boolean enabled)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        playerCombatLogEnabled.put(player.getUUID(), enabled);
+
+        String status = enabled ? "§a开启" : "§c关闭";
+        context.getSource().sendSuccess(
+                () -> Component.literal("战斗日志已" + status),
                 true
         );
         return enabled ? 1 : 0;

@@ -17,6 +17,7 @@ import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.RPGCraftCore;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -331,6 +332,18 @@ public class CombatEventHandler {
         RPGDamageEvent.Post postEvent = new RPGDamageEvent.Post(
                 attackerLiving, target, flatDamage, attackType, lethal);
         RPGEventBus.post(postEvent);
+
+        // === 战斗日志：向攻击者玩家发送伤害信息 ===
+        if (attackerLiving instanceof ServerPlayer attackerPlayer
+                && RPGCommands.isCombatLogEnabled(attackerPlayer.getUUID())) {
+            String targetName = target.getName().getString();
+            String typeLabel = attackType == AttackType.PHYSICAL ? "物理"
+                    : attackType == AttackType.MAGIC ? "魔法" : "混合";
+            String lethalLabel = lethal ? "（致命）" : "";
+            attackerPlayer.sendSystemMessage(Component.literal(
+                    String.format("§7[战斗] 你对 %s 造成了 %d 点%s伤害%s",
+                            targetName, flatDamage, typeLabel, lethalLabel)));
+        }
 
         // 将原版伤害设为对应比例值，使原版生命条同步变化
         if (newLife <= 0) {
