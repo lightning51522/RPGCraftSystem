@@ -38,7 +38,91 @@
 
 ### `onLivingHeal()`
 
-将 vanilla 治疗量按比例转换为自定义 life。有守卫：当 vanilla `getMaxHealth() ≤ 0` 时跳过。使用 `setHealth()`（非 `heal()`）避免与 `syncVanillaHealth()` 形成循环。
+将 vanilla 治疗量按比例转换为自定义 life，通过 RPG 治疗事件系统拦截。有守卫：当 vanilla `getMaxHealth() ≤ 0` 时跳过。
+
+**事件流程：**
+1. 将原版治疗量按比例转换为自定义值
+2. 发射 `RPGHealEvent.Pre`（`healer=null`, `source=VANILLA`）— 子模块可取消/修改治疗量
+3. 若取消 → 取消原版事件，返回
+4. 应用治疗到自定义 LIFE
+5. 发射 `RPGHealEvent.Post`（`actualHealed`）— 子模块追加效果
+6. 取消原版事件（`event.setAmount(0)`）防止原版重复治疗
+7. `syncVanillaHealth()` + `sendToClient()` 同步
+
+使用 `setHealth()`（非 `heal()`）同步原版血条，避免与 `syncVanillaHealth()` 形成循环。
+
+### `healEntity()` — 自定义治疗公共 API
+
+```java
+public static int healEntity(LivingEntity target, int healAmount, @Nullable LivingEntity healer)
+```
+
+供子模块和内部系统触发的模组自定义治疗。固定使用 `HealSource.CUSTOM`。
+
+**事件流程与 `onLivingHeal()` 相同**（发射 Pre/Post 事件），但：
+- 不取消原版事件（不走原版路径）
+- 对非玩家实体也正常工作（但不同步网络包）
+- 返回实际治疗量（经事件修改和上限钳制后的值）
+
+## RPGHealEvent — 治疗事件
+
+> 对应源码：`com.rpgcraft.core.event.combat.RPGHealEvent`
+
+治疗事件在治疗流程的关键节点发射，允许子模块拦截和修改治疗效果。
+
+### HealSource 枚举
+
+| 值 | 含义 |
+|----|------|
+| `VANILLA` | 原版治疗（饱食度、药水等通过 `LivingHealEvent` 触发） |
+| `CUSTOM` | 模组自定义治疗（通过 `healEntity()` API 触发） |
+
+### Pre 事件（治疗应用前）
+
+| 字段 | 类型 | 可修改 | 说明 |
+|------|------|--------|------|
+| `healer` | `@Nullable LivingEntity` | — | 治疗者（null = 自然回复） |
+| `target` | `LivingEntity` | — | 被治疗目标 |
+| `healSource` | `HealSource` | ✅ | 治疗来源类型 |
+| `healAmount` | `int` | ✅ (≥ 0) | 治疗量（自定义生命值的扁平值） |
+
+可取消。使用场景：禁疗 debuff、治疗减免/加成。
+
+### Post 事件（治疗应用后）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `healer` | `@Nullable LivingEntity` | 治疗者 |
+| `target` | `LivingEntity` | 被治疗目标 |
+| `healSource` | `HealSource` | 治疗来源类型 |
+| `actualHealed` | `int` | 实际治疗量（经过 maxValue 钳制后的真实增量） |
+
+不可取消（治疗已生效）。使用场景：过量治疗转化护盾、治疗触发 buff、治疗统计。
+
+### 治疗流程图
+
+```
+原版治疗路径 (LivingHealEvent):
+  onLivingHeal()
+    → 比例转换 vanilla 治疗量
+    → RPGHealEvent.Pre (healer=null, source=VANILLA)
+      → 子模块可取消/修改治疗量
+    → 应用到自定义 LIFE
+    → RPGHealEvent.Post (actualHealed)
+      → 子模块追加效果
+    → event.setAmount(0) 阻止原版重复治疗
+    → syncVanillaHealth() + sendToClient()
+
+自定义治疗路径 (API):
+  CombatEventHandler.healEntity(target, amount, healer)
+    → RPGHealEvent.Pre (healer, source=CUSTOM)
+      → 子模块可取消/修改治疗量
+    → 应用到自定义 LIFE
+    → RPGHealEvent.Post (actualHealed)
+      → 子模块追加效果
+    → syncVanillaHealth() + sendToClient() [仅 ServerPlayer]
+    → return actualHealed
+```
 
 ## MobLevelData — 怪物数据持久化
 

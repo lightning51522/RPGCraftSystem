@@ -23,7 +23,9 @@
 
 战斗后: LivingDamageEvent.Post → 重新同步 vanilla health 匹配自定义 life 比例 → checkAndSnapshotIfDying → sendToClient()
 
-治疗: LivingHealEvent → 比例转换 vanilla 治疗 → 加到自定义 life → sendToClient()
+治疗: LivingHealEvent → RPGHealEvent.Pre (可取消/修改) → 应用到自定义 life → RPGHealEvent.Post → event.setAmount(0) + syncVanillaHealth() → sendToClient()
+
+自定义治疗: CombatEventHandler.healEntity() → RPGHealEvent.Pre (可取消/修改) → 应用到自定义 life → RPGHealEvent.Post → syncVanillaHealth() → sendToClient() [仅ServerPlayer]
 
 击杀XP: LivingDeathEvent → 玩家击杀怪物 → 从 MobAttributeConfig 查找 mob level+baseExp → sqrt(mobLevel/playerLevel)*baseExp → PlayerLevelData.addExperience() → LevelManager.syncToClient()
 

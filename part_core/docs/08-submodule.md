@@ -104,6 +104,8 @@ RPG 事件总线（多监听共存，附加效果/拦截）
 |--------|----------|--------|--------|------|
 | `RPGDamageEvent.Pre` | 伤害计算前 | ✅ | attackType, damage | 闪避、无敌、伤害类型修改 |
 | `RPGDamageEvent.Post` | 伤害应用后 | — | — (只读) | 吸血、反伤、连击触发 |
+| `RPGHealEvent.Pre` | 治疗应用前 | ✅ | healAmount, healSource | 禁疗、治疗减免/加成 |
+| `RPGHealEvent.Post` | 治疗应用后 | — | — (只读) | 过量治疗转化、治疗增益、统计 |
 
 #### 伤害流程中的事件位置
 
@@ -115,6 +117,17 @@ CombatEventHandler.onLivingDamagePre():
   4. 应用伤害到 LIFE
   5. RPGDamageEvent.Post → 子模块追加效果
   6. 同步原版生命条
+```
+
+#### 治疗流程中的事件位置
+
+```
+CombatEventHandler.onLivingHeal() / healEntity():
+  1. 比例转换原版治疗量（仅 VANILLA 路径）
+  2. RPGHealEvent.Pre → 子模块可取消/修改治疗量
+  3. 应用治疗到 LIFE
+  4. RPGHealEvent.Post → 子模块追加效果（过量转化、buff）
+  5. 同步原版生命条
 ```
 
 ### 注册监听器
@@ -133,7 +146,7 @@ RPGEventBus.register(RPGDamageEvent.Post.class, event -> {
     LivingEntity attacker = event.getAttacker();
     if (attacker != null && hasLifesteal(attacker)) {
         int heal = event.getDamageDealt() * getLifestealRate(attacker) / 100;
-        healEntity(attacker, heal);
+        CombatEventHandler.healEntity(attacker, heal, attacker);
     }
 }, RPGEvent.PRIORITY_NORMAL);
 ```

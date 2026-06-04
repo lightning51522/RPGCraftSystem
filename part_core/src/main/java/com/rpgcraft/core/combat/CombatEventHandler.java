@@ -8,7 +8,9 @@ import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.command.RPGCommands;
 import com.rpgcraft.core.equipment.EquipmentManager;
 import com.rpgcraft.core.event.RPGEventBus;
+import com.rpgcraft.core.event.combat.HealSource;
 import com.rpgcraft.core.event.combat.RPGDamageEvent;
+import com.rpgcraft.core.event.combat.RPGHealEvent;
 import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.api.IMobAttributeScaler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
@@ -17,12 +19,14 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import org.jspecify.annotations.Nullable;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
@@ -281,6 +285,18 @@ public class CombatEventHandler {
             }
         }
 
+        // 药水/魔法伤害强制使用 MAGIC 攻击类型
+        // 包括：瞬间伤害药水(INDIRECT_MAGIC)、中毒/唤魔者尖牙(MAGIC)、
+        //       凋零(WITHER)、龙息(DRAGON_BREATH)、监守者声波(SONIC_BOOM)
+        // 子模块仍可通过 RPGDamageEvent.Pre 修改或取消
+        if (source.is(DamageTypes.INDIRECT_MAGIC)
+                || source.is(DamageTypes.MAGIC)
+                || source.is(DamageTypes.WITHER)
+                || source.is(DamageTypes.DRAGON_BREATH)
+                || source.is(DamageTypes.SONIC_BOOM)) {
+            attackType = AttackType.MAGIC;
+        }
+
         // === RPGDamageEvent.Pre：伤害计算前，子模块可取消/修改 ===
         LivingEntity attackerLiving = (attackerEntity instanceof LivingEntity al) ? al : null;
         RPGDamageEvent.Pre preEvent = new RPGDamageEvent.Pre(
@@ -362,6 +378,15 @@ public class CombatEventHandler {
      * 原版回血来源包括：饱食度自然回复、再生药水、信标效果、金苹果、治疗药水等。
      * 所有通过 {@code LivingEntity.heal()} 触发的回血都会被此事件捕获。
      * <p>
+     * <h3>事件流程：</h3>
+     * <ol>
+     *   <li>将原版治疗量按比例转换为自定义值</li>
+     *   <li>发射 {@link RPGHealEvent.Pre} — 子模块可取消/修改治疗量</li>
+     *   <li>应用到自定义 LIFE 属性</li>
+     *   <li>发射 {@link RPGHealEvent.Post} — 子模块追加效果</li>
+     *   <li>取消原版事件并同步原版生命条</li>
+     * </ol>
+     * <p>
      * 不会与 {@link AttributeManager#syncVanillaHealth} 形成循环：
      * {@code syncVanillaHealth} 使用 {@code setHealth()} 而非 {@code heal()}，
      * 因此不触发此事件。
@@ -378,9 +403,79 @@ public class CombatEventHandler {
 
         // 将原版回血量按比例转换为自定义生命值
         int customHeal = Math.round(healAmount * lifeAttr.getMaxValue() / serverPlayer.getMaxHealth());
-        lifeAttr.setValue(lifeAttr.getValue() + customHeal);
 
+        // === RPGHealEvent.Pre：治疗应用前，子模块可取消/修改 ===
+        RPGHealEvent.Pre preEvent = new RPGHealEvent.Pre(
+                null, serverPlayer, HealSource.VANILLA, customHeal);
+        RPGEventBus.post(preEvent);
+
+        if (preEvent.isCancelled()) {
+            // 子模块取消了治疗（禁疗 debuff 等）：取消原版事件
+            event.setAmount(0);
+            return;
+        }
+
+        // 使用子模块可能修改后的治疗量
+        int lifeBefore = lifeAttr.getValue();
+        lifeAttr.setValue(lifeBefore + preEvent.getHealAmount());
+        int actualHealed = lifeAttr.getValue() - lifeBefore;
+
+        // === RPGHealEvent.Post：治疗应用后，子模块追加效果 ===
+        RPGHealEvent.Post postEvent = new RPGHealEvent.Post(
+                null, serverPlayer, HealSource.VANILLA, actualHealed);
+        RPGEventBus.post(postEvent);
+
+        // 取消原版事件（防止原版重复治疗），由自定义系统接管
+        event.setAmount(0);
+
+        // 同步原版生命条以匹配自定义生命比例
+        AttributeManager.syncVanillaHealth(serverPlayer);
         SyncPlayerAttributePacket.sendToClient(serverPlayer, AttributeManager.LIFE_ID, lifeAttr);
+    }
+
+    /**
+     * 自定义治疗公共 API
+     * <p>
+     * 供子模块和内部系统触发的模组自定义治疗。
+     * 发射 {@link RPGHealEvent.Pre} 和 {@link RPGHealEvent.Post}，
+     * 子模块可拦截、修改或追加治疗效果。
+     * <p>
+     * 使用 {@link HealSource#CUSTOM} 标识治疗来源。
+     * 若目标为 {@link ServerPlayer}，自动同步原版生命条和网络包。
+     *
+     * @param target     接受治疗的实体
+     * @param healAmount 治疗量（自定义生命值，扁平值）
+     * @param healer     治疗者（null 表示无来源，如技能自身回复）
+     * @return 实际治疗量（经过事件修改和上限钳制后的值）
+     */
+    public static int healEntity(LivingEntity target, int healAmount,
+                                  @Nullable LivingEntity healer) {
+        EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
+        if (lifeAttr.getMaxValue() <= 0) return 0;
+
+        // === RPGHealEvent.Pre：治疗应用前，子模块可取消/修改 ===
+        RPGHealEvent.Pre preEvent = new RPGHealEvent.Pre(
+                healer, target, HealSource.CUSTOM, healAmount);
+        RPGEventBus.post(preEvent);
+
+        if (preEvent.isCancelled()) return 0;
+
+        int lifeBefore = lifeAttr.getValue();
+        lifeAttr.setValue(lifeBefore + preEvent.getHealAmount());
+        int actualHealed = lifeAttr.getValue() - lifeBefore;
+
+        // === RPGHealEvent.Post：治疗应用后，子模块追加效果 ===
+        RPGHealEvent.Post postEvent = new RPGHealEvent.Post(
+                healer, target, HealSource.CUSTOM, actualHealed);
+        RPGEventBus.post(postEvent);
+
+        // 同步原版生命条和网络包（仅玩家）
+        if (target instanceof ServerPlayer serverPlayer) {
+            AttributeManager.syncVanillaHealth(serverPlayer);
+            SyncPlayerAttributePacket.sendToClient(serverPlayer, AttributeManager.LIFE_ID, lifeAttr);
+        }
+
+        return actualHealed;
     }
 
     @SuppressWarnings("unchecked")
