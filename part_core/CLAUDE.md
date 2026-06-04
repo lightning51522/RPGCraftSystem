@@ -100,3 +100,7 @@ This is the core module of the RPGCraftSystem multi-project workspace. It provid
 | [docs/08-submodule.md](docs/08-submodule.md) | 子模块集成 — SPI、依赖架构、开发者指南 |
 | [docs/09-neoforge-notes.md](docs/09-neoforge-notes.md) | NeoForge 26.1 API 注意事项 |
 | [docs/10-data-flow.md](docs/10-data-flow.md) | 数据流与跨模块API |
+
+## Other
+
+在给出回答、描述计划或提出问题和可选项时采用**中文**交互，其余情况不做特别要求

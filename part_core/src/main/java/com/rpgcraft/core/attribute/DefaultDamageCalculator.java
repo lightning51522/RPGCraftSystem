@@ -42,6 +42,15 @@ public class DefaultDamageCalculator implements IDamageCalculator {
                 int resistance = entity.getData(AttributeManager.RESISTANCE).getValue();
                 yield (int) Math.max(0, originalDamage * (1.0 - resistance / 100.0));
             }
+            case MIX_TYPE -> {
+                // 混合减免：伤害一分为二，物理部分减防，魔法部分减抗，相加为最终伤害
+                int half = originalDamage / 2;
+                int defense = entity.getData(AttributeManager.DEFENSE).getValue();
+                int resistance = entity.getData(AttributeManager.RESISTANCE).getValue();
+                int physicalPart = Math.max(0, half - defense);
+                int magicPart = (int) Math.max(0, half * (1.0 - resistance / 100.0));
+                yield physicalPart + magicPart;
+            }
             default -> originalDamage;
         };
     }
@@ -52,10 +61,29 @@ public class DefaultDamageCalculator implements IDamageCalculator {
         int baseDamage = switch (type) {
             case PHYSICAL -> entity.getData(AttributeManager.STRENGTH).getValue();
             case MAGIC -> entity.getData(AttributeManager.MANA).getValue();
+            case MIX_TYPE -> {
+                // 混合伤害：分别取力量和魔力的一半
+                int strHalf = entity.getData(AttributeManager.STRENGTH).getValue() / 2;
+                int manaHalf = entity.getData(AttributeManager.MANA).getValue() / 2;
+                // 暴击判定对两部分分别生效
+                int critRate = entity.getData(AttributeManager.CRITICAL_RATE).getValue();
+                boolean isCrit = ThreadLocalRandom.current().nextInt(100) < critRate;
+                if (isCrit) {
+                    int critRatio = entity.getData(AttributeManager.CRITICAL_RATIO).getValue();
+                    double mult = 1.0 + critRatio / 100.0;
+                    strHalf = (int) (strHalf * mult);
+                    manaHalf = (int) (manaHalf * mult);
+                }
+                yield strHalf + manaHalf;
+            }
             default -> 0;
         };
 
-        // 暴击判定：ThreadLocalRandom 避免多线程竞争，适合服务端并发场景
+        // 暴击判定：MIX_TYPE 已在上方 case 内处理暴击，此处仅对物理/法术生效
+        if (type == AttackType.MIX_TYPE) {
+            return baseDamage;
+        }
+
         int critRate = entity.getData(AttributeManager.CRITICAL_RATE).getValue();
         boolean isCrit = ThreadLocalRandom.current().nextInt(100) < critRate;
 

@@ -27,6 +27,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
 import org.jspecify.annotations.Nullable;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -270,7 +272,15 @@ public class CombatEventHandler {
         // 确定攻击类型
         AttackType attackType = AttackType.PHYSICAL;
         if (attackerEntity instanceof LivingEntity attacker) {
-            if (attacker instanceof Player player) {
+            // 箭矢伤害类型检测：优先判断投射物类型
+            if (source.getDirectEntity() instanceof AbstractArrow) {
+                // Arrow 为药箭/普通箭，通过颜色判断是否有药水效果（-1 = 无效果）
+                if (source.getDirectEntity() instanceof Arrow arrow && arrow.getColor() != -1) {
+                    attackType = AttackType.MIX_TYPE; // 有药水效果的箭 → 混合伤害
+                } else {
+                    attackType = AttackType.PHYSICAL; // 普通箭/光灵箭 → 物理伤害
+                }
+            } else if (attacker instanceof Player player) {
                 Identifier weaponId = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem());
                 attackType = EquipmentManager.getRegistry().getAttackType(weaponId);
             } else {

@@ -12,13 +12,13 @@ import com.rpgcraft.core.attribute.api.IDamageType;
  * <ul>
  *   <li>{@link #PHYSICAL} —— 纯物理伤害，受防御力减免</li>
  *   <li>{@link #MAGIC} —— 纯法术伤害，受法术抗性百分比减免</li>
+ *   <li>{@link #MIX_TYPE} —— 混合伤害，力量和魔力各取一半分别计算后相加</li>
  * </ul>
  * <p>
  * <b>暂未实现的混合类型：</b>
  * <ul>
  *   <li>{@link #PHYSICAL_WITH_MAGIC} —— 物理为主附带法术</li>
  *   <li>{@link #MAGIC_WITH_PHYSICAL} —— 法术为主附带物理</li>
- *   <li>{@link #MIX_TYPE} —— 混合伤害</li>
  * </ul>
  */
 public enum AttackType implements IDamageType {
@@ -30,7 +30,7 @@ public enum AttackType implements IDamageType {
     PHYSICAL_WITH_MAGIC,
     /** 法术为主附带物理（暂未实现） */
     MAGIC_WITH_PHYSICAL,
-    /** 混合伤害（暂未实现） */
+    /** 混合伤害：力量和魔力各取一半，分别按物理/魔法公式计算后相加 */
     MIX_TYPE;
 
     @Override
