@@ -38,3 +38,10 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+
+### Claude Code ###
+CLAUDE.md
+.claude/
+
+### Documentation ###
+docs/
