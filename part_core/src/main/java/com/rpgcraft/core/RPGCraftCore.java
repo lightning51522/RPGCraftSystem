@@ -10,6 +10,8 @@ import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
+import com.rpgcraft.core.profession.ProfessionData;
+import com.rpgcraft.core.profession.ProfessionManager;
 
 import org.slf4j.Logger;
 
@@ -72,15 +74,16 @@ public class RPGCraftCore {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     /**
-     * 死亡时的完整数据快照，包含属性值、装备加成和等级数据
+     * 死亡时的完整数据快照，包含属性值、装备加成、等级数据和职业数据
      *
      * @param snapshot         死亡时的属性快照（包含装备加成后的值）
      * @param equipmentBonuses 死亡时生效的装备加成映射（字符串键，来自追踪附件）
      * @param level            死亡时的等级
      * @param experience       死亡时的经验
+     * @param professionId     死亡时的主职业标识符
      */
     record DeathData(AttributeSnapshot snapshot, java.util.Map<String, EquipmentBonus> equipmentBonuses,
-                     int level, int experience) {}
+                     int level, int experience, net.minecraft.resources.Identifier professionId) {}
 
     /** 死亡时数据快照缓存：UUID → DeathData */
     private static final java.util.Map<java.util.UUID, DeathData> deathSnapshot = new java.util.concurrent.ConcurrentHashMap<>();
@@ -99,8 +102,9 @@ public class RPGCraftCore {
             AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(player);
             java.util.Map<String, EquipmentBonus> bonuses = player.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
             PlayerLevelData levelData = player.getData(LevelManager.PLAYER_LEVEL);
+            ProfessionData profData = player.getData(ProfessionManager.PLAYER_PROFESSION);
             deathSnapshot.putIfAbsent(player.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses),
-                    levelData.getLevel(), levelData.getExperience()));
+                    levelData.getLevel(), levelData.getExperience(), profData.getProfessionId()));
         }
     }
 
@@ -151,6 +155,9 @@ public class RPGCraftCore {
         // 初始化等级模块
         LevelManager.init();
 
+        // 初始化职业模块
+        ProfessionManager.init();
+
         // 注册通用初始化回调
         modEventBus.addListener(this::commonSetup);
 
@@ -164,6 +171,9 @@ public class RPGCraftCore {
 
         // 注册等级模块 AttachmentType
         LevelManager.getDeferredRegister().register(modEventBus);
+
+        // 注册职业模块 AttachmentType
+        ProfessionManager.getDeferredRegister().register(modEventBus);
 
         // 注册装备模块附件
         com.rpgcraft.core.equipment.EquipmentData.getAttachmentRegister().register(modEventBus);
@@ -249,6 +259,8 @@ public class RPGCraftCore {
             AttributeManager.syncVanillaHealth(serverPlayer);
             // 同步等级数据到客户端
             LevelManager.syncToClient(serverPlayer);
+            // 同步职业数据到客户端
+            ProfessionManager.syncToClient(serverPlayer);
         }
     }
 
@@ -275,8 +287,9 @@ public class RPGCraftCore {
         AttributeSnapshot snapshot = AttributeManager.getRegistry().createSnapshot(serverPlayer);
         java.util.Map<String, EquipmentBonus> bonuses = serverPlayer.getData(com.rpgcraft.core.equipment.EquipmentData.EQUIPMENT_BONUS.get());
         PlayerLevelData levelData = serverPlayer.getData(LevelManager.PLAYER_LEVEL);
+        ProfessionData profData = serverPlayer.getData(ProfessionManager.PLAYER_PROFESSION);
         deathSnapshot.putIfAbsent(serverPlayer.getUUID(), new DeathData(snapshot, new java.util.LinkedHashMap<>(bonuses),
-                levelData.getLevel(), levelData.getExperience()));
+                levelData.getLevel(), levelData.getExperience(), profData.getProfessionId()));
     }
 
     /**
@@ -314,6 +327,10 @@ public class RPGCraftCore {
         PlayerLevelData newLevelData = serverPlayer.getData(LevelManager.PLAYER_LEVEL);
         newLevelData.setLevel(data.level());
         newLevelData.setExperience(data.experience());
+
+        // 恢复职业数据
+        ProfessionData newProfData = serverPlayer.getData(ProfessionManager.PLAYER_PROFESSION);
+        newProfData.setProfessionId(data.professionId());
     }
 
     /**
@@ -337,5 +354,8 @@ public class RPGCraftCore {
 
         // 重生后同步等级数据到客户端
         LevelManager.syncToClient(serverPlayer);
+
+        // 重生后同步职业数据到客户端
+        ProfessionManager.syncToClient(serverPlayer);
     }
 }

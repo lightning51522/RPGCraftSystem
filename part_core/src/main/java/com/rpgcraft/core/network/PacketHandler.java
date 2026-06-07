@@ -64,5 +64,12 @@ public class PacketHandler {
                 ToggleCrosshairPacket.STREAM_CODEC,
                 ToggleCrosshairPacket::handle
         );
+
+        // 注册职业同步包（服务端 → 客户端）
+        registrar.playToClient(
+                SyncPlayerProfessionPacket.TYPE,
+                SyncPlayerProfessionPacket.STREAM_CODEC,
+                SyncPlayerProfessionPacket::handle
+        );
     }
 }

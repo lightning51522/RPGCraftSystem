@@ -22,6 +22,8 @@ import com.rpgcraft.core.level.LevelManager;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.network.ToggleCrosshairPacket;
+import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.core.profession.ProfessionManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -261,6 +263,35 @@ public class RPGCommands {
                                 .executes(context -> executeRandSpawnToggle(context, true)))
                         .then(Commands.literal("off")
                                 .executes(context -> executeRandSpawnToggle(context, false)))
+                )
+
+                // === 职业系统命令 ===
+
+                .then(Commands.literal("profession")
+                        .executes(context -> executeProfessionInfo(context,
+                                context.getSource().getPlayerOrException()))
+                        .then(Commands.literal("list")
+                                .executes(context -> executeProfessionList(context))
+                        )
+                        .then(Commands.literal("set")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("profession", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            for (IProfession prof : ProfessionManager.getRegistry().getAllProfessions()) {
+                                                builder.suggest(prof.getId().getPath());
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(context -> executeProfessionSet(context,
+                                                context.getSource().getPlayerOrException(),
+                                                StringArgumentType.getString(context, "profession")))
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(context -> executeProfessionSet(context,
+                                                        EntityArgument.getPlayer(context, "player"),
+                                                        StringArgumentType.getString(context, "profession")))
+                                        )
+                                )
+                        )
                 )
         );
     }
@@ -808,5 +839,109 @@ public class RPGCommands {
                 true
         );
         return enabled ? 1 : 0;
+    }
+
+    // === 职业系统命令执行器 ===
+
+    /**
+     * 显示玩家当前职业信息
+     */
+    private static int executeProfessionInfo(CommandContext<CommandSourceStack> context, ServerPlayer target) {
+        IProfession prof = ProfessionManager.getProfession(target);
+        context.getSource().sendSuccess(
+                () -> Component.literal("—— " + target.getName().getString() + " 的职业信息 ——"),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal("  职业: " + prof.getDisplayName()),
+                false
+        );
+        context.getSource().sendSuccess(
+                () -> Component.literal("  描述: " + prof.getDescription()),
+                false
+        );
+
+        if (!prof.getBonusMap().isEmpty()) {
+            context.getSource().sendSuccess(
+                    () -> Component.literal("  属性加成:"),
+                    false
+            );
+            for (Map.Entry<Identifier, Integer> entry : prof.getBonusMap().entrySet()) {
+                String attrName = entry.getKey().getPath();
+                int bonus = entry.getValue();
+                String sign = bonus >= 0 ? "+" : "";
+                context.getSource().sendSuccess(
+                        () -> Component.literal("    " + attrName + ": " + sign + bonus),
+                        false
+                );
+            }
+        } else {
+            context.getSource().sendSuccess(
+                    () -> Component.literal("  属性加成: 无"),
+                    false
+            );
+        }
+        return 1;
+    }
+
+    /**
+     * 列出所有可用职业
+     */
+    private static int executeProfessionList(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(
+                () -> Component.literal("—— 可用职业列表 ——"),
+                false
+        );
+        for (IProfession prof : ProfessionManager.getRegistry().getAllProfessions()) {
+            StringBuilder bonuses = new StringBuilder();
+            if (!prof.getBonusMap().isEmpty()) {
+                for (Map.Entry<Identifier, Integer> entry : prof.getBonusMap().entrySet()) {
+                    String attrName = entry.getKey().getPath();
+                    int bonus = entry.getValue();
+                    String sign = bonus >= 0 ? "+" : "";
+                    if (bonuses.length() > 0) bonuses.append(", ");
+                    bonuses.append(attrName).append(sign).append(bonus);
+                }
+            }
+            String bonusText = bonuses.length() > 0 ? " (" + bonuses + ")" : "";
+            context.getSource().sendSuccess(
+                    () -> Component.literal("  " + prof.getId().getPath() + " - " +
+                            prof.getDisplayName() + ": " + prof.getDescription() + bonusText),
+                    false
+            );
+        }
+        return ProfessionManager.getRegistry().getAllProfessions().size();
+    }
+
+    /**
+     * 设置玩家职业
+     */
+    private static int executeProfessionSet(CommandContext<CommandSourceStack> context,
+                                            ServerPlayer target, String professionName) {
+        // 通过路径查找职业
+        IProfession resolved = ProfessionManager.getRegistry().getProfession(
+                Identifier.fromNamespaceAndPath("rpgcraftcore", professionName));
+
+        if (resolved == null) {
+            context.getSource().sendFailure(Component.literal("未知职业: " + professionName));
+            return 0;
+        }
+
+        IProfession current = ProfessionManager.getProfession(target);
+        if (current.getId().equals(resolved.getId())) {
+            context.getSource().sendFailure(
+                    Component.literal(target.getName().getString() + " 已经是 " + resolved.getDisplayName()));
+            return 0;
+        }
+
+        final IProfession targetProf = resolved;
+        ProfessionManager.setProfession(target, targetProf.getId());
+
+        context.getSource().sendSuccess(
+                () -> Component.literal("已将 " + target.getName().getString() +
+                        " 的职业设置为 " + targetProf.getDisplayName()),
+                true
+        );
+        return 1;
     }
 }
