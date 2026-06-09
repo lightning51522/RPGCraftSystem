@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -215,6 +216,9 @@ public class AttributeHudOverlay {
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null) return;
+
+        // 创造模式不显示自定义血条（保持原版创造模式无血条体验）
+        if (mc.gameMode != null && mc.gameMode.getPlayerMode() == GameType.CREATIVE) return;
 
         EntityAttribute lifeAttr = player.getData(AttributeManager.LIFE);
         int current = lifeAttr.getValue();
