@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.rpgcraft.combat.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "minVersion": "0.8",
+  "client": [],
+  "server": [],
+  "mixins": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
