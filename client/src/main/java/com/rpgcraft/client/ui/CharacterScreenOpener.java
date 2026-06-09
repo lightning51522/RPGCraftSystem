@@ -88,6 +88,7 @@ public final class CharacterScreenOpener {
      * </ol>
      * <p>
      * 仅在玩家存在且没有其他界面打开时响应按键。
+     * 界面打开后按 R 键关闭由 {@link RPGCharacterScreen#keyPressed} 处理。
      *
      * @param event 客户端 tick 事件（Post 阶段）
      */

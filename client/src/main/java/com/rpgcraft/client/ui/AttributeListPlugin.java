@@ -18,8 +18,7 @@ import java.util.Map;
  * 从 {@link AttributeSnapshot} 读取所有属性数据，以两列布局渲染，
  * 支持翻页浏览（当属性数量超过单页容量时）。
  * <p>
- * 渲染逻辑从 {@link InventoryAttributePanel#renderAttributes} 迁移而来，
- * 但改为从快照读取数据（数据-渲染分离），而非直接访问实体 Attachment。
+ * 从快照读取数据（数据-渲染分离），而非直接访问实体 Attachment。
  * <p>
  * 布局（从上到下）：
  * <ol>
@@ -35,7 +34,6 @@ import java.util.Map;
  *
  * @see ICharacterScreenPlugin
  * @see AttributeSnapshot
- * @see InventoryAttributePanel
  */
 public class AttributeListPlugin implements ICharacterScreenPlugin {
 

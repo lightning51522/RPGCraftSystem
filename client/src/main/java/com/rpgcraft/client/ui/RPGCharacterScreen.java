@@ -6,8 +6,10 @@ import com.rpgcraft.core.ui.RPGUIPlugins;
 import com.rpgcraft.core.ui.UISnapshotCache;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -203,7 +205,33 @@ public class RPGCharacterScreen extends Screen {
     }
 
     // ====================================================================
-    // 交互
+    // 键盘交互
+    // ====================================================================
+
+    /**
+     * 键盘按键回调
+     * <p>
+     * 当 Screen 打开时，Minecraft 将键盘事件路由到 {@code Screen.keyPressed(KeyEvent)}
+     * 而非 {@code KeyMapping} 系统，因此关闭逻辑必须在此处直接检测 GLFW 按键。
+     * <ul>
+     *   <li>R 键 — 关闭界面（与打开界面的快捷键一致，实现 toggle 切换）</li>
+     *   <li>ESC — 由父类 {@link Screen} 处理，默认关闭界面</li>
+     * </ul>
+     *
+     * @param event 键盘事件（包含 key、scancode、modifiers）
+     * @return true 如果事件被消费
+     */
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_R) {
+            this.onClose();
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
+    // ====================================================================
+    // 鼠标交互
     // ====================================================================
 
     /**
@@ -315,7 +343,7 @@ public class RPGCharacterScreen extends Screen {
     /**
      * 绘制圆角矩形填充
      * <p>
-     * 与 {@link com.rpgcraft.client.InventoryAttributePanel} 使用相同算法：
+     * 使用圆角矩形填充算法：
      * 三条矩形（中间通栏 + 左右窄条）+ 四角方块补丁。
      *
      * @param g     图形上下文

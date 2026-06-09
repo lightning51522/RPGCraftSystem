@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
  * 玩家信息插件 —— 角色界面中的等级与职业展示区
  * <p>
  * 显示玩家等级、经验值和职业信息。此插件直接从客户端玩家实体的 Attachment
- * 读取等级和职业数据（与 {@link InventoryAttributePanel} 相同的访问模式），
+ * 读取等级和职业数据，
  * 而非从 {@link AttributeSnapshot} 中读取。
  * <p>
  * 布局（从上到下）：
@@ -26,7 +26,6 @@ import net.minecraft.world.entity.player.Player;
  * </ol>
  *
  * @see ICharacterScreenPlugin
- * @see InventoryAttributePanel
  */
 public class PlayerInfoPlugin implements ICharacterScreenPlugin {
 
