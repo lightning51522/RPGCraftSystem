@@ -28,7 +28,7 @@ public class DefaultAttributeModule implements IAttributeModule {
         // === 资源型属性（有上限，重生恢复） ===
         registry.register(DefaultAttributes.SKILL_POINT_ID, "技力", "施放物理类技能所消耗的资源，重生时恢复。",
                 100, 100, true, false);
-        registry.register(DefaultAttributes.MAGIC_POINT_ID, "法力", "施放法术所消耗的资源，重生时恢复。",
+        registry.register(DefaultAttributes.MAGIC_POINT_ID, "法力", "施放法术类技能所消耗的资源，重生时恢复。",
                 100, 100, true, false);
 
         // === 能力型属性（无上限或独立上限） ===
@@ -36,17 +36,17 @@ public class DefaultAttributeModule implements IAttributeModule {
                 10, Integer.MAX_VALUE, false, false);
         registry.register(DefaultAttributes.MANA_ID, "魔力", "提高法术攻击造成的伤害。",
                 10, Integer.MAX_VALUE, false, false);
-        registry.register(DefaultAttributes.AGILE_ID, "敏捷", "影响行动速度与闪避表现。",
+        registry.register(DefaultAttributes.AGILE_ID, "敏捷", "当前无实际效果。",
                 10, Integer.MAX_VALUE, false, false);
-        registry.register(DefaultAttributes.PRECISION_ID, "精准", "提高攻击的命中与稳定性。",
+        registry.register(DefaultAttributes.PRECISION_ID, "精准", "当前无实际效果。",
                 10, Integer.MAX_VALUE, false, false);
         registry.register(DefaultAttributes.DEFENSE_ID, "防御", "减免受到的物理伤害。",
                 10, Integer.MAX_VALUE, false, false);
         registry.register(DefaultAttributes.RESISTANCE_ID, "法抗", "减免受到的法术伤害。",
                 2, 100, false, false);
-        registry.register(DefaultAttributes.CRITICAL_RATE_ID, "暴击率", "攻击触发暴击的概率（数值为百分比）。",
+        registry.register(DefaultAttributes.CRITICAL_RATE_ID, "暴击率", "攻击触发暴击的百分比概率。",
                 5, 300, false, false);
-        registry.register(DefaultAttributes.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害倍率。",
+        registry.register(DefaultAttributes.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害百分比倍率。",
                 50, Integer.MAX_VALUE, false, false);
         registry.register(DefaultAttributes.FIXED_DAMAGE_ID, "固定伤害", "每次攻击额外附加的固定伤害。",
                 0, Integer.MAX_VALUE, false, false);
