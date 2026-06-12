@@ -3,8 +3,8 @@ package com.rpgcraft.equipment;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import com.rpgcraft.core.registry.IEquipmentSystem;
 import com.rpgcraft.core.registry.RPGSystems;
-import com.rpgcraft.equipment.api.IEquipmentHandler;
-import com.rpgcraft.equipment.api.IEquipmentProvider;
+import com.rpgcraft.core.equipment.api.IEquipmentHandler;
+import com.rpgcraft.core.equipment.api.IEquipmentProvider;
 
 import java.util.ServiceLoader;
 
@@ -15,6 +15,9 @@ import java.util.ServiceLoader;
  * 内部委托到 {@link DefaultEquipmentRegistry} 和 {@link DefaultEquipmentHandler}。
  * <p>
  * 新代码应通过 {@link IEquipmentRegistry} 和 {@link IEquipmentHandler} 接口访问。
+ *
+ * @apiNote 内部 API — 第三方模组应通过 {@link RPGSystems} 门面访问装备系统功能，
+ *          不应直接依赖此类。
  */
 public class EquipmentManager {
 

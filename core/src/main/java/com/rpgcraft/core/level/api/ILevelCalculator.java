@@ -1,4 +1,4 @@
-package com.rpgcraft.leveling.api;
+package com.rpgcraft.core.level.api;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -6,11 +6,11 @@ import net.minecraft.world.entity.LivingEntity;
 /**
  * 等级经验计算策略接口
  * <p>
- * 定义玩家击杀怪物时的经验获取计算公式。默认实现为
- * {@link com.rpgcraft.leveling.DefaultLevelCalculator}。
+ * 定义玩家击杀怪物时的经验获取计算公式。
  * <p>
  * 其他模组可以替换此实现来提供自定义的经验公式（如考虑距离、时间、队伍等因素），
- * 通过 {@link com.rpgcraft.leveling.LevelManager#setLevelCalculator(ILevelCalculator)} 注入。
+ * 通过 {@link com.rpgcraft.core.registry.RPGSystems} 注册的 {@link com.rpgcraft.core.registry.ILevelSystem}
+ * 注入自定义计算器。
  */
 public interface ILevelCalculator {
 

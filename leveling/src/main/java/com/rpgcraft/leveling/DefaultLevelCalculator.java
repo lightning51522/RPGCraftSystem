@@ -1,7 +1,7 @@
 package com.rpgcraft.leveling;
 
 import com.rpgcraft.core.level.PlayerLevelData;
-import com.rpgcraft.leveling.api.ILevelCalculator;
+import com.rpgcraft.core.level.api.ILevelCalculator;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 

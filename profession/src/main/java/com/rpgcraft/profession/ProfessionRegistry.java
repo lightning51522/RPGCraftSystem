@@ -1,6 +1,7 @@
 package com.rpgcraft.profession;
 
 import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.core.profession.api.IProfessionRegistry;
 import net.minecraft.resources.Identifier;
 
 import java.util.Collection;
@@ -13,8 +14,10 @@ import java.util.Map;
  * <p>
  * 内部使用 {@code LinkedHashMap} 保持注册顺序，
  * 通过 {@link ProfessionManager#init()} 完成内置职业的注册。
+ * <p>
+ * 实现 {@link IProfessionRegistry} 接口（定义在 core 中），供第三方通过 SPI 扩展。
  */
-public class ProfessionRegistry {
+public class ProfessionRegistry implements IProfessionRegistry {
 
     private final Map<Identifier, IProfession> professions = new LinkedHashMap<>();
 

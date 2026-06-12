@@ -4,7 +4,7 @@ import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.combat.MobLevelData;
 import com.rpgcraft.core.level.PlayerLevelData;
-import com.rpgcraft.leveling.api.ILevelCalculator;
+import com.rpgcraft.core.level.api.ILevelCalculator;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;

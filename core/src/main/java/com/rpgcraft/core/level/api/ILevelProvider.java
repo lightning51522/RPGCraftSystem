@@ -1,6 +1,4 @@
-package com.rpgcraft.leveling.api;
-
-import com.rpgcraft.core.level.api.ILevelRegistry;
+package com.rpgcraft.core.level.api;
 
 /**
  * 等级系统 SPI 接口

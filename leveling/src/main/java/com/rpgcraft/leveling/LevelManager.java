@@ -5,8 +5,8 @@ import com.rpgcraft.core.combat.MobLevelData;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.level.api.IMobAttributeScaler;
 import com.rpgcraft.core.level.api.ILevelRegistry;
-import com.rpgcraft.leveling.api.ILevelCalculator;
-import com.rpgcraft.leveling.api.ILevelProvider;
+import com.rpgcraft.core.level.api.ILevelCalculator;
+import com.rpgcraft.core.level.api.ILevelProvider;
 import com.rpgcraft.leveling.network.SyncPlayerLevelPacket;
 import com.rpgcraft.core.registry.ILevelSystem;
 import com.rpgcraft.core.registry.IMobDataProvider;
@@ -27,6 +27,9 @@ import java.util.function.Supplier;
  * <p>
  * 经验计算器和怪物属性缩放器均可通过 set 方法在运行时替换，
  * 允许子模组提供自定义实现。
+ *
+ * @apiNote 内部 API — 第三方模组应通过 {@link RPGSystems} 门面访问等级系统功能，
+ *          不应直接依赖此类。
  */
 public class LevelManager {
 

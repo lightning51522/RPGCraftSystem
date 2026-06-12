@@ -11,7 +11,7 @@ import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.registry.IProfessionSystem;
 import com.rpgcraft.core.registry.RPGSystems;
-import com.rpgcraft.profession.api.IProfessionProvider;
+import com.rpgcraft.core.profession.api.IProfessionProvider;
 import com.rpgcraft.profession.network.SyncPlayerProfessionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,6 +29,9 @@ import java.util.function.Supplier;
  * <p>
  * 保留对 {@link ProfessionRegistry} 和 {@link ProfessionData} 附件的静态引用。
  * 职业提供属性加成（有正有负），切换职业时自动移除旧加成、应用新加成。
+ *
+ * @apiNote 内部 API — 第三方模组应通过 {@link RPGSystems} 门面访问职业系统功能，
+ *          不应直接依赖此类。
  */
 public class ProfessionManager {
 

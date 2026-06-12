@@ -1,4 +1,4 @@
-package com.rpgcraft.equipment.api;
+package com.rpgcraft.core.equipment.api;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.equipment.EquipmentBonus;
@@ -10,11 +10,11 @@ import java.util.Map;
 /**
  * 装备属性加成处理器
  * <p>
- * 定义装备加成的计算和应用逻辑。默认实现为
- * {@link com.rpgcraft.equipment.DefaultEquipmentHandler}。
+ * 定义装备加成的计算和应用逻辑。
  * <p>
  * 其他模组可以替换此实现来提供自定义的装备加成机制，
- * 通过 {@code EquipmentManager.setHandler()} 注入。
+ * 通过 {@link com.rpgcraft.core.registry.RPGSystems} 注册的 {@link com.rpgcraft.core.registry.IEquipmentSystem}
+ * 注入自定义处理器。
  */
 public interface IEquipmentHandler {
 

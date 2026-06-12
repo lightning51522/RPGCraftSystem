@@ -1,6 +1,4 @@
-package com.rpgcraft.equipment.api;
-
-import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
+package com.rpgcraft.core.equipment.api;
 
 /**
  * 装备提供者 SPI

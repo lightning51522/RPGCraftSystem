@@ -12,7 +12,7 @@ import com.rpgcraft.core.attribute.api.Operation;
 import com.rpgcraft.core.equipment.EquipmentBonus;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
-import com.rpgcraft.equipment.api.IEquipmentHandler;
+import com.rpgcraft.core.equipment.api.IEquipmentHandler;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
