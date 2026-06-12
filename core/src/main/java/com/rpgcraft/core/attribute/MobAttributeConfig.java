@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 生物属性 JSON 配置加载器
@@ -27,6 +28,9 @@ import java.util.Optional;
  * <p>
  * 通过 {@link AddServerReloadListenersEvent} 注册为自定义资源重载监听器，
  * 支持 {@code /reload} 命令热更新配置。
+ * <p>
+ * 本类与具体属性解耦：按 {@link Identifier} 通用存取，不硬编码任何游戏属性名
+ * （生命除外，LIFE 由 core 提供）。具体属性的语义由消费方模块（如 combat）解释。
  */
 @EventBusSubscriber(modid = RPGCraftCore.MODID)
 public class MobAttributeConfig {
@@ -57,39 +61,23 @@ public class MobAttributeConfig {
             Map<Identifier, Integer> intrinsicBases,
             SpawnDistribution spawnDistribution
     ) {
-        /** 获取生命值基础值 */
+        /** 获取生命值基础值（LIFE 由 core 提供，必然存在） */
         public int life() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "life"), 0);
+            return getIntrinsicBase(AttributeManager.LIFE_ID);
         }
 
-        /** 获取力量基础值 */
-        public int strength() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "strength"), 0);
-        }
-
-        /** 获取防御力基础值 */
-        public int defense() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "defense"), 0);
-        }
-
-        /** 获取法术抗性基础值 */
-        public int resistance() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance"), 0);
-        }
-
-        /** 获取暴击率基础值 */
-        public int criticalRate() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate"), 0);
-        }
-
-        /** 获取暴击伤害基础值 */
-        public int criticalRatio() {
-            return intrinsicBases.getOrDefault(Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio"), 0);
+        /** 按属性 ID 获取固有基础值（未配置返回 0） */
+        public int getIntrinsicBase(Identifier id) {
+            return intrinsicBases.getOrDefault(id, 0);
         }
     }
 
     /** 配置文件路径 */
     private static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "rpg/mob_attributes.json");
+
+    /** 顶级元字段（非属性），旧格式解析时跳过 */
+    private static final Set<String> META_FIELDS = Set.of(
+            "attack_type", "level", "base_exp", "spawn");
 
     /** 生物类型ID → 属性配置 的映射，不可变快照 */
     private static volatile Map<Identifier, MobAttributes> configMap = Collections.emptyMap();
@@ -175,16 +163,19 @@ public class MobAttributeConfig {
      * <p>
      * 支持两种 JSON 格式（向后兼容）：
      * <ol>
-     *   <li><b>新格式</b>：{@code "intrinsic_bases": { "rpgcraftcore:life": 80, ... }}</li>
-     *   <li><b>旧格式</b>：顶级字段 {@code "life": 80, "strength": 15, ...}（自动映射为 Identifier）</li>
+     *   <li><b>新格式</b>：{@code "intrinsic_bases": { "rpgcraftcore:life": 80, ... }}
+     *       —— 按完整 Identifier 存储，对任意属性都成立。</li>
+     *   <li><b>旧格式</b>：顶级数值字段 {@code "life": 80, "strength": 15, ...}
+     *       —— 字段名即属性 path（namespace 固定 {@code rpgcraftcore}），通用规则，
+     *       不硬编码任何具体属性名。</li>
      * </ol>
-     * 若 {@code intrinsic_bases} 存在则优先使用，否则从顶级字段构建。
+     * 若 {@code intrinsic_bases} 存在则优先使用，否则从顶级数值字段构建。
      *
      * @param attrs 生物属性 JSON 对象
      * @return 属性基础值映射（不可变）
      */
     private static Map<Identifier, Integer> parseIntrinsicBases(JsonObject attrs) {
-        // 新格式：intrinsic_bases 对象
+        // 新格式：intrinsic_bases 对象（按完整 Identifier 存储，通用）
         if (attrs.has("intrinsic_bases") && attrs.get("intrinsic_bases").isJsonObject()) {
             Map<Identifier, Integer> bases = new LinkedHashMap<>();
             JsonObject basesObj = attrs.getAsJsonObject("intrinsic_bases");
@@ -200,26 +191,21 @@ public class MobAttributeConfig {
             return Collections.unmodifiableMap(bases);
         }
 
-        // 旧格式：从顶级字段构建（向后兼容）
+        // 旧格式：顶级数值字段名即属性 path（namespace 固定 rpgcraftcore）
+        // 通用规则，不硬编码任何具体属性名；跳过元字段和非数值字段
         Map<Identifier, Integer> bases = new LinkedHashMap<>();
-        String[][] fieldMappings = {
-                {"life", "life"},
-                {"strength", "strength"},
-                {"defense", "defense"},
-                {"resistance", "resistance"},
-                {"critical_rate", "critical_rate"},
-                {"critical_ratio", "critical_ratio"}
-        };
-        for (String[] mapping : fieldMappings) {
-            if (attrs.has(mapping[0])) {
-                try {
-                    bases.put(
-                            Identifier.fromNamespaceAndPath("rpgcraftcore", mapping[1]),
-                            attrs.getAsJsonPrimitive(mapping[0]).getAsInt()
-                    );
-                } catch (Exception e) {
-                    RPGCraftCore.LOGGER.warn("解析属性字段失败: {} - {}", mapping[0], e.getMessage());
-                }
+        for (Map.Entry<String, JsonElement> entry : attrs.entrySet()) {
+            String key = entry.getKey();
+            if (META_FIELDS.contains(key)) continue;
+            JsonElement val = entry.getValue();
+            if (!val.isJsonPrimitive() || !val.getAsJsonPrimitive().isNumber()) continue;
+            try {
+                bases.put(
+                        Identifier.fromNamespaceAndPath("rpgcraftcore", key),
+                        val.getAsInt()
+                );
+            } catch (Exception e) {
+                RPGCraftCore.LOGGER.warn("解析属性字段失败: {} - {}", key, e.getMessage());
             }
         }
         return Collections.unmodifiableMap(bases);

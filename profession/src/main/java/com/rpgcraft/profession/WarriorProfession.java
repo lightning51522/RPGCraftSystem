@@ -1,6 +1,5 @@
 package com.rpgcraft.profession;
 
-import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.resources.Identifier;
 
@@ -36,8 +35,8 @@ public class WarriorProfession implements IProfession {
     @Override
     public Map<Identifier, Integer> getBonusMap() {
         return Map.of(
-                AttributeManager.STRENGTH_ID, 5,
-                AttributeManager.AGILE_ID, -3
+                ProfessionAttributes.STRENGTH_ID, 5,
+                ProfessionAttributes.AGILE_ID, -3
         );
     }
 }

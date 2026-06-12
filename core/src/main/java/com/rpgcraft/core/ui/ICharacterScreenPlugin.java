@@ -2,6 +2,9 @@ package com.rpgcraft.core.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+
+import java.util.List;
 
 /**
  * 角色界面插件接口（仅客户端运行时调用）
@@ -58,5 +61,22 @@ public interface ICharacterScreenPlugin {
      */
     default boolean mouseClicked(double mouseX, double mouseY, int button) {
         return false;
+    }
+
+    /**
+     * 返回鼠标悬停在插件指定位置时应显示的 tooltip 文字行
+     * <p>
+     * 坐标为相对于此插件渲染区域的局部坐标（左上角为 0,0），与 {@link #mouseClicked} 一致。
+     * 返回 {@code null} 或空列表表示该位置无 tooltip。
+     * 默认实现返回 {@code null}（无 tooltip）。
+     *
+     * @param relX     鼠标 X（相对于渲染区域左上角）
+     * @param relY     鼠标 Y（相对于渲染区域左上角）
+     * @param width    渲染区域宽度
+     * @param snapshot 属性快照（所有属性数据的只读视图）
+     * @return tooltip 文字行列表，或 {@code null}
+     */
+    default List<Component> getTooltip(double relX, double relY, int width, AttributeSnapshot snapshot) {
+        return null;
     }
 }

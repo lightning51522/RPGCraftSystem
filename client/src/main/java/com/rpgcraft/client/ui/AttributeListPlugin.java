@@ -3,9 +3,11 @@ package com.rpgcraft.client.ui;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot.AttributeData;
+import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.ui.ICharacterScreenPlugin;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
@@ -175,6 +177,61 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         return false; // 右箭头检测在 renderFooter 中通过悬停高亮，翻页由左箭头 + 滚动处理
     }
 
+    /**
+     * 鼠标悬停在属性行上时返回该属性的说明 tooltip
+     * <p>
+     * 碰撞检测与 {@link #renderAttributes} 的两列网格布局对齐：
+     * 列表区域起始于插件内 {@value #HEADER_HEIGHT} 处，每行 {@value #LINE_HEIGHT} 高，两列等宽。
+     * 仅当命中的属性在注册表中有非空 description 时返回 tooltip。
+     *
+     * @param relX     相对插件区域的鼠标 X
+     * @param relY     相对插件区域的鼠标 Y
+     * @param width    插件渲染区域宽度
+     * @param snapshot 属性快照
+     * @return 说明文字行列表，或 {@code null}
+     */
+    @Override
+    public List<Component> getTooltip(double relX, double relY, int width, AttributeSnapshot snapshot) {
+        if (snapshot == null) return null;
+
+        // 列表纵向区域：HEADER_HEIGHT ~ HEADER_HEIGHT + MAX_ROWS*LINE_HEIGHT
+        int listTop = HEADER_HEIGHT;
+        int listBottom = HEADER_HEIGHT + MAX_ROWS * LINE_HEIGHT;
+        if (relY < listTop || relY >= listBottom) return null;
+
+        // 两列横向区域（与 renderAttributes 的 columnWidth 计算一致）
+        int columnWidth = (width - COLUMN_GAP) / 2;
+        int col;
+        if (relX >= 0 && relX < columnWidth) {
+            col = 0;
+        } else if (relX >= columnWidth + COLUMN_GAP && relX < width) {
+            col = 1;
+        } else {
+            return null; // 列间隙，不命中任何属性
+        }
+
+        int row = (int) ((relY - listTop) / LINE_HEIGHT);
+        int attrsPerPage = MAX_ROWS * 2;
+        int idx = currentPage * attrsPerPage + row * 2 + col;
+
+        List<Map.Entry<Identifier, AttributeData>> entries = new ArrayList<>(snapshot.getAll().entrySet());
+        if (idx < 0 || idx >= entries.size()) return null;
+
+        Identifier attrId = entries.get(idx).getKey();
+        IAttributeEntry entry = AttributeManager.getRegistry().getEntry(attrId);
+        if (entry == null) return null;
+
+        String desc = entry.getDescription();
+        if (desc == null || desc.isEmpty()) return null;
+
+        // 按 "\n" 分行构造 tooltip
+        List<Component> lines = new ArrayList<>();
+        for (String line : desc.split("\n")) {
+            lines.add(Component.literal(line));
+        }
+        return lines;
+    }
+
     // ====================================================================
     // 内部渲染方法
     // ====================================================================
@@ -207,7 +264,7 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
 
             // 暴击率颜色：≤100 白色，101-200 橙色，>200 红色
             int textColor = COLOR_TEXT;
-            if (mapEntry.getKey().equals(AttributeManager.CRITICAL_RATE_ID)) {
+            if (mapEntry.getKey().equals(ClientAttributes.CRITICAL_RATE_ID)) {
                 int critVal = data.currentValue();
                 if (critVal > 200) textColor = COLOR_CRIT_TIER2;
                 else if (critVal > 100) textColor = COLOR_CRIT_TIER1;

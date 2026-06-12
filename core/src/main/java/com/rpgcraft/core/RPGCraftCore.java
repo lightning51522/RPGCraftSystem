@@ -5,7 +5,6 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
-import com.rpgcraft.core.snapshot.AttributeSnapshotContributor;
 import com.rpgcraft.core.snapshot.SnapshotCoordinator;
 
 import org.slf4j.Logger;
@@ -99,7 +98,7 @@ public class RPGCraftCore {
         AttributeManager.init();
 
         // 注册快照贡献者
-        SnapshotCoordinator.registerContributor(new AttributeSnapshotContributor());
+        // AttributeSnapshotContributor 由 attributes 模块自行注册
         // LevelSnapshotContributor 由 leveling 模块自行注册
         // EquipmentSnapshotContributor 由 equipment 模块自行注册
         // ProfessionSnapshotContributor 由 profession 模块自行注册
@@ -111,6 +110,9 @@ public class RPGCraftCore {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
+
+        // 注册属性附件类型回调（必须在 DeferredRegister 之前注册，确保先执行）
+        modEventBus.addListener(AttributeManager::onRegisterAttachmentTypes);
 
         // 注册属性 AttachmentType（通过门面的便捷方法）
         AttributeManager.getDeferredRegister().register(modEventBus);

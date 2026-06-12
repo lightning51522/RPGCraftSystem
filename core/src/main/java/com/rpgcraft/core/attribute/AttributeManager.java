@@ -1,15 +1,17 @@
 package com.rpgcraft.core.attribute;
 
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
-import com.rpgcraft.core.attribute.api.IAttributeProvider;
+import com.rpgcraft.core.attribute.api.IAttributeModule;
 import com.rpgcraft.core.attribute.api.IAttributeRegistry;
+import com.rpgcraft.core.registry.RPGSystems;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
-import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
 /**
@@ -20,7 +22,14 @@ import java.util.function.Supplier;
  * 伤害计算器默认为透传实现，由 combat 模块通过
  * {@link #setDamageCalculator(IDamageCalculator)} 注册真实实现。
  * <p>
- * 新代码应通过 {@link IAttributeRegistry} 和 {@link IDamageCalculator} 接口访问。
+ * <b>生命属性（LIFE）由 core 直接定义并注册</b>。LIFE 需要与原版生命/死亡机制
+ * （原版血条同步、死亡快照触发、伤害扣血/回血）对接，属于核心机制而非游戏设计，
+ * 因此任何配置下都必然存在，第三方属性附属无需（也不应）重新提供。
+ * <p>
+ * 其余游戏属性（力量、防御、暴击等）由 {@code rpgcraftattributes} 附属模块通过
+ * {@link IAttributeModule} 提供，第三方模组可通过
+ * {@link RPGSystems#registerAttributeModule(IAttributeModule, int)} 完全替换。
+ * core 不硬编码任何这些游戏属性。
  * <p>
  * 命名与装备模块的 {@code EquipmentManager} 保持一致。
  */
@@ -40,6 +49,10 @@ public class AttributeManager {
      * <p>
      * 默认使用透传计算器（不减免、不暴击），由 combat 模块通过
      * {@link #setDamageCalculator(IDamageCalculator)} 注册真实的伤害公式。
+     * <p>
+     * 此处注册 core 自有的生命属性（LIFE）；其余游戏属性由通过
+     * {@link RPGSystems#registerAttributeModule} 注册的 {@link IAttributeModule}
+     * 在 {@link #onRegisterAttachmentTypes(RegisterEvent)} 中注册。
      */
     public static void init() {
         defaultRegistry = new DefaultAttributeRegistry("rpgcraftcore");
@@ -55,42 +68,45 @@ public class AttributeManager {
             }
         };
 
-        defaultRegistry.register(LIFE_ID, "生命", 100, 100, true, true);
-        defaultRegistry.register(SKILL_POINT_ID, "技力", 100, 100, true);
-        defaultRegistry.register(MAGIC_POINT_ID, "法力", 100, 100, true);
-        defaultRegistry.register(STRENGTH_ID, "力量", 10, Integer.MAX_VALUE);
-        defaultRegistry.register(MANA_ID, "魔力", 10, Integer.MAX_VALUE);
-        defaultRegistry.register(AGILE_ID, "敏捷", 10, Integer.MAX_VALUE);
-        defaultRegistry.register(PRECISION_ID, "精准", 10, Integer.MAX_VALUE);
-        defaultRegistry.register(DEFENSE_ID, "防御", 10, Integer.MAX_VALUE);
-        defaultRegistry.register(RESISTANCE_ID, "法抗", 2, 100);
-        defaultRegistry.register(CRITICAL_RATE_ID, "暴击率", 5, 300);
-        defaultRegistry.register(CRITICAL_RATIO_ID, "暴击伤害", 50, Integer.MAX_VALUE);
-
-        // 直接引用注册中心内部的 Supplier，消除每次 .get() 时的 Map 查找和类型转换
-        LIFE = defaultRegistry.getRawSupplier(LIFE_ID);
-        SKILL_POINT = defaultRegistry.getRawSupplier(SKILL_POINT_ID);
-        MAGIC_POINT = defaultRegistry.getRawSupplier(MAGIC_POINT_ID);
-        STRENGTH = defaultRegistry.getRawSupplier(STRENGTH_ID);
-        MANA = defaultRegistry.getRawSupplier(MANA_ID);
-        AGILE = defaultRegistry.getRawSupplier(AGILE_ID);
-        PRECISION = defaultRegistry.getRawSupplier(PRECISION_ID);
-        DEFENSE = defaultRegistry.getRawSupplier(DEFENSE_ID);
-        RESISTANCE = defaultRegistry.getRawSupplier(RESISTANCE_ID);
-        CRITICAL_RATE = defaultRegistry.getRawSupplier(CRITICAL_RATE_ID);
-        CRITICAL_RATIO = defaultRegistry.getRawSupplier(CRITICAL_RATIO_ID);
-
-        for (IAttributeProvider provider : ServiceLoader.load(IAttributeProvider.class)) {
-            provider.registerAttributes(defaultRegistry);
-        }
-
-        // 注册实体属性附件（非玩家实体专用数据袋）
+        // 注册实体属性附件（非玩家实体专用数据袋，core 自有）
         ENTITY_ATTRIBUTE_ATTACHMENT = defaultRegistry.getDeferredRegister().register(
                 "entity_attribute_attachment",
                 () -> AttachmentType.builder(EntityAttributeAttachment::new)
                         .serialize(EntityAttributeAttachment.CODEC)
                         .build()
         );
+
+        // 注册生命属性（core 自有，与原版生命/死亡机制对接，任何配置下必然存在）
+        // 其余游戏属性（力量、防御、暴击等）由 rpgcraftattributes 附属模块通过 IAttributeModule 提供
+        defaultRegistry.register(LIFE_ID, "生命", "角色的生命值。归零即死亡，重生时恢复至上限。",
+                100, 100, true, true);
+        LIFE = defaultRegistry.getRawSupplier(LIFE_ID);
+    }
+
+    /**
+     * RegisterEvent 回调：在 DeferredRegister 提交之前注册属性模块的 AttachmentType
+     * <p>
+     * 此方法由 {@link com.rpgcraft.core.RPGCraftCore} 构造函数通过
+     * {@code modEventBus.addListener(AttributeManager::onRegisterAttachmentTypes)} 注册，
+     * 且必须在 {@code getDeferredRegister().register(modEventBus)} 之前注册，
+     * 以确保本监听器在 DeferredRegister 的监听器之前执行。
+     * <p>
+     * 执行流程：
+     * <ol>
+     *   <li>查询 {@link RPGSystems#getAttributeModule()} 获取获胜的属性模块</li>
+     *   <li>调用获胜模块的 {@link IAttributeModule#registerAttributes(DefaultAttributeRegistry)}</li>
+     * </ol>
+     * 生命属性（LIFE）已在 {@link #init()} 中由 core 自行注册，不依赖任何属性模块。
+     *
+     * @param event NeoForge 注册事件
+     */
+    public static void onRegisterAttachmentTypes(RegisterEvent event) {
+        if (!event.getRegistryKey().equals(NeoForgeRegistries.Keys.ATTACHMENT_TYPES)) return;
+
+        IAttributeModule module = RPGSystems.getAttributeModule();
+        if (module != null) {
+            module.registerAttributes(defaultRegistry);
+        }
     }
 
     /**
@@ -120,36 +136,18 @@ public class AttributeManager {
     }
 
     // ====================================================================
-    // Identifier 常量
+    // 生命属性（core 自有，与原版机制对接）
     // ====================================================================
 
+    /** 生命属性标识符（core 自有，任何配置下必然存在） */
     public static final Identifier LIFE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "life");
-    public static final Identifier SKILL_POINT_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "skill_point");
-    public static final Identifier MAGIC_POINT_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "magic_point");
-    public static final Identifier STRENGTH_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    public static final Identifier MANA_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "mana");
-    public static final Identifier AGILE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
-    public static final Identifier PRECISION_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
-    public static final Identifier DEFENSE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "defense");
-    public static final Identifier RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
-    public static final Identifier CRITICAL_RATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
-    public static final Identifier CRITICAL_RATIO_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
 
-    // ====================================================================
-    // AttachmentType Supplier 访问器（init() 中直接赋值为注册中心的内部引用）
-    // ====================================================================
-
+    /**
+     * 生命属性附件 Supplier（由 {@link #init()} 注册后填充）
+     * <p>
+     * 永不为 null —— LIFE 由 core 直接注册，任何配置下必然存在。
+     */
     public static Supplier<AttachmentType<EntityAttribute>> LIFE;
-    public static Supplier<AttachmentType<EntityAttribute>> SKILL_POINT;
-    public static Supplier<AttachmentType<EntityAttribute>> MAGIC_POINT;
-    public static Supplier<AttachmentType<EntityAttribute>> STRENGTH;
-    public static Supplier<AttachmentType<EntityAttribute>> MANA;
-    public static Supplier<AttachmentType<EntityAttribute>> AGILE;
-    public static Supplier<AttachmentType<EntityAttribute>> PRECISION;
-    public static Supplier<AttachmentType<EntityAttribute>> DEFENSE;
-    public static Supplier<AttachmentType<EntityAttribute>> RESISTANCE;
-    public static Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATE;
-    public static Supplier<AttachmentType<EntityAttribute>> CRITICAL_RATIO;
 
     // ====================================================================
     // 实体属性附件（非玩家实体专用）
@@ -160,7 +158,7 @@ public class AttributeManager {
      * <p>
      * 挂载到所有 {@link net.minecraft.world.entity.LivingEntity} 上，
      * 存储非玩家实体的固有属性基础值和持久修饰符。
-     * 玩家属性继续使用上方 11 个独立 {@link EntityAttribute} 附件。
+     * 玩家属性继续使用各游戏属性模块注册的 {@link EntityAttribute} 附件。
      *
      * @see EntityAttributeAttachment
      */
@@ -184,6 +182,7 @@ public class AttributeManager {
      * @param player 目标玩家
      */
     public static void syncVanillaHealth(ServerPlayer player) {
+        if (LIFE == null) return;
         EntityAttribute lifeAttr = player.getData(LIFE);
         if (lifeAttr.getMaxValue() <= 0) return; // 避免除零
         // 按比例映射：custom_value / custom_max = vanilla_health / vanilla_max

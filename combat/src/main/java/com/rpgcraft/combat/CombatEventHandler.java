@@ -195,19 +195,19 @@ public class CombatEventHandler {
                 : scaler.scaleAttribute(base.life(), targetLevel, "life"), ratingMult);
         int scaledStrength = applyRating(overrides.containsKey("strength")
                 ? overrides.get("strength")
-                : scaler.scaleAttribute(base.strength(), targetLevel, "strength"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.STRENGTH_ID), targetLevel, "strength"), ratingMult);
         int scaledDefense = applyRating(overrides.containsKey("defense")
                 ? overrides.get("defense")
-                : scaler.scaleAttribute(base.defense(), targetLevel, "defense"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.DEFENSE_ID), targetLevel, "defense"), ratingMult);
         int scaledResistance = applyRating(overrides.containsKey("resistance")
                 ? overrides.get("resistance")
-                : scaler.scaleAttribute(base.resistance(), targetLevel, "resistance"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
         int scaledCritRate = applyRating(overrides.containsKey("critical_rate")
                 ? overrides.get("critical_rate")
-                : scaler.scaleAttribute(base.criticalRate(), targetLevel, "critical_rate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.CRITICAL_RATE_ID), targetLevel, "critical_rate"), ratingMult);
         int scaledCritRatio = applyRating(overrides.containsKey("critical_ratio")
                 ? overrides.get("critical_ratio")
-                : scaler.scaleAttribute(base.criticalRatio(), targetLevel, "critical_ratio"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
 
         // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
@@ -260,11 +260,11 @@ public class CombatEventHandler {
                                              int resistance, int criticalRate, int criticalRatio) {
         EntityAttributeAttachment attachment = entity.getData(AttributeManager.ENTITY_ATTRIBUTE_ATTACHMENT);
         attachment.setIntrinsicBase(AttributeManager.LIFE_ID, life);
-        attachment.setIntrinsicBase(AttributeManager.STRENGTH_ID, strength);
-        attachment.setIntrinsicBase(AttributeManager.DEFENSE_ID, defense);
-        attachment.setIntrinsicBase(AttributeManager.RESISTANCE_ID, resistance);
-        attachment.setIntrinsicBase(AttributeManager.CRITICAL_RATE_ID, criticalRate);
-        attachment.setIntrinsicBase(AttributeManager.CRITICAL_RATIO_ID, criticalRatio);
+        attachment.setIntrinsicBase(CombatAttributes.STRENGTH_ID, strength);
+        attachment.setIntrinsicBase(CombatAttributes.DEFENSE_ID, defense);
+        attachment.setIntrinsicBase(CombatAttributes.RESISTANCE_ID, resistance);
+        attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATE_ID, criticalRate);
+        attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID, criticalRatio);
     }
 
     /**

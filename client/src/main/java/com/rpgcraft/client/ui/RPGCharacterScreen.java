@@ -174,6 +174,9 @@ public class RPGCharacterScreen extends Screen {
         int contentWidth = PANEL_WIDTH - 2 * CONTENT_MARGIN;
         int currentY = contentStartY - this.scrollOffset;
 
+        // 鼠标悬停命中的 tooltip（一次只显示一个，取首个命中插件）
+        List<Component> hoverTooltip = null;
+
         for (ICharacterScreenPlugin plugin : plugins) {
             int pluginTop = currentY;
             int pluginBottom = currentY + plugin.getHeight();
@@ -183,8 +186,25 @@ public class RPGCharacterScreen extends Screen {
             // 仅渲染与可见区域有交集的插件（跳过完全不可见的）
             if (pluginBottom > visibleTop && pluginTop < visibleBottom) {
                 plugin.render(graphics, contentX, currentY, contentWidth, snapshot);
+
+                // 悬停 tooltip 检测：鼠标落在插件矩形内时，询问插件是否有 tooltip
+                if (hoverTooltip == null) {
+                    double relX = mouseX - contentX;
+                    double relY = mouseY - currentY;
+                    if (relX >= 0 && relX < contentWidth && relY >= 0 && relY < plugin.getHeight()) {
+                        List<Component> tip = plugin.getTooltip(relX, relY, contentWidth, snapshot);
+                        if (tip != null && !tip.isEmpty()) {
+                            hoverTooltip = tip;
+                        }
+                    }
+                }
             }
             currentY += plugin.getHeight();
+        }
+
+        // 9.1 渲染悬停命中的 tooltip（原版风格气泡框，锚点为鼠标位置）
+        if (hoverTooltip != null) {
+            graphics.setComponentTooltipForNextFrame(this.font, hoverTooltip, mouseX, mouseY);
         }
 
         // 10. 绘制滚动条指示器（内容超出可见区域时显示）

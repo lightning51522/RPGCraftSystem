@@ -70,6 +70,9 @@ neoForge {
             sourceSet sourceSets.main
         }
         // 插件模块：运行时由 core 的 classpath 加载
+        rpgcraftattributes {
+            sourceSet project(':attributes').sourceSets.main
+        }
         rpgcraftleveling {
             sourceSet project(':leveling').sourceSets.main
         }
@@ -94,6 +97,7 @@ configurations {
 
 dependencies {
     // 运行时加载所有插件模块（开发期间由 core 托管运行）
+    runtimeOnly project(':attributes')
     runtimeOnly project(':leveling')
     runtimeOnly project(':equipment')
     runtimeOnly project(':profession')

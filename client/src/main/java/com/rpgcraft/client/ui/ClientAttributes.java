@@ -1,0 +1,18 @@
+package com.rpgcraft.client.ui;
+
+import net.minecraft.resources.Identifier;
+
+/**
+ * 客户端模块依赖的游戏属性标识符（本地常量）
+ * <p>
+ * 这些属性由 {@code rpgcraftattributes} 附属模块注册。本模块不依赖 attributes 模块
+ * （遵循插件互不依赖铁律），自行声明所依赖的属性 ID 字面量。
+ * 生命属性（LIFE）继续使用 core 的 {@link com.rpgcraft.core.attribute.AttributeManager#LIFE_ID}。
+ */
+final class ClientAttributes {
+
+    private ClientAttributes() {
+    }
+
+    static final Identifier CRITICAL_RATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
+}

@@ -1,6 +1,7 @@
 package com.rpgcraft.core.snapshot;
 
 import com.rpgcraft.core.RPGCraftCore;
+import com.rpgcraft.core.attribute.AttributeManager;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.*;
@@ -57,7 +58,7 @@ public class SnapshotCoordinator {
      * @param player 可能即将死亡的玩家
      */
     public static void captureIfDying(ServerPlayer player) {
-        var lifeAttr = player.getData(com.rpgcraft.core.attribute.AttributeManager.LIFE);
+        var lifeAttr = player.getData(AttributeManager.LIFE);
         if (lifeAttr.getValue() <= 0) {
             captureDeath(player);
         }

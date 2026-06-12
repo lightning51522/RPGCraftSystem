@@ -1,5 +1,6 @@
 package com.rpgcraft.core.registry;
 
+import com.rpgcraft.core.attribute.api.IAttributeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +75,7 @@ public final class RPGSystems {
     private static Registration<IAttackTypeResolver> attackTypeResolver;
     private static Registration<IMobDataProvider> mobDataProvider;
     private static Registration<IClientSystem> clientSystem;
+    private static Registration<IAttributeModule> attributeModule;
     private static Supplier<?> playerLevelAttachment;
     private static Supplier<?> playerProfessionAttachment;
 
@@ -264,6 +266,39 @@ public final class RPGSystems {
         }
     }
 
+    // ====================================================================
+    // 属性模块注册
+    // ====================================================================
+
+    /**
+     * 注册属性模块实现（默认优先级）
+     * <p>
+     * 默认属性模块由 {@code rpgcraftattributes} 提供。
+     * 第三方模组可使用 {@link #registerAttributeModule(IAttributeModule, int)} 指定更高优先级来替换。
+     *
+     * @param module 属性模块实例
+     */
+    public static void registerAttributeModule(IAttributeModule module) {
+        registerAttributeModule(module, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册属性模块实现（指定优先级）
+     * <p>
+     * 属性模块决定了哪些 RPG 属性被注册到系统中。默认模块注册全部 12 个属性；
+     * 第三方模块可以只注册需要的属性子集。
+     * <p>
+     * 优先级规则与其他系统注册一致：高优先级覆盖低优先级，同优先级拒绝覆盖。
+     *
+     * @param module   属性模块实例
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerAttributeModule(IAttributeModule module, int priority) {
+        if (shouldOverride("IAttributeModule", attributeModule, priority)) {
+            attributeModule = new Registration<>(module, priority);
+        }
+    }
+
     /**
      * 注册玩家等级附件类型 Supplier
      * <p>
@@ -379,6 +414,17 @@ public final class RPGSystems {
             throw new IllegalStateException("IClientSystem 未注册，请先调用 registerClientSystem()");
         }
         return clientSystem.implementation();
+    }
+
+    /**
+     * 获取属性模块
+     * <p>
+     * 可能为 null（无属性模块时），调用方需自行处理。
+     *
+     * @return 属性模块实例，未注册时返回 null
+     */
+    public static IAttributeModule getAttributeModule() {
+        return attributeModule != null ? attributeModule.implementation() : null;
     }
 
     /**

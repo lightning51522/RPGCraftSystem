@@ -12,6 +12,7 @@ plugins {
 rootProject.name = 'RPGCraftSystem'
 
 include 'core'
+include 'attributes'
 include 'leveling'
 include 'equipment'
 include 'profession'

@@ -39,6 +39,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
     public static class DefaultEntry implements IAttributeEntry {
         private final Identifier id;
         private final String displayName;
+        private final String description;
         private final Supplier<AttachmentType<EntityAttribute>> supplier;
         private final int defaultValue;
         private final int defaultMaxValue;
@@ -46,12 +47,13 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
         private final boolean equipmentAffectsMax;
         private final IAttributeRendererFactory rendererFactory;
 
-        DefaultEntry(Identifier id, String displayName,
+        DefaultEntry(Identifier id, String displayName, String description,
                      Supplier<AttachmentType<EntityAttribute>> supplier,
                      int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
                      boolean equipmentAffectsMax, IAttributeRendererFactory rendererFactory) {
             this.id = id;
             this.displayName = displayName;
+            this.description = description;
             this.supplier = supplier;
             this.defaultValue = defaultValue;
             this.defaultMaxValue = defaultMaxValue;
@@ -88,6 +90,9 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
         public boolean equipmentAffectsMax() { return equipmentAffectsMax; }
 
         @Override
+        public String getDescription() { return description; }
+
+        @Override
         public IAttributeRendererFactory getRendererFactory() { return rendererFactory; }
     }
 
@@ -114,34 +119,29 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
     }
 
     @Override
-    public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue) {
-        register(id, displayName, defaultValue, defaultMaxValue, false);
-    }
-
-    @Override
-    public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn) {
-        register(id, displayName, defaultValue, defaultMaxValue, resetOnRespawn, false);
-    }
-
-    @Override
-    public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax) {
-        register(id, displayName, defaultValue, defaultMaxValue, resetOnRespawn, equipmentAffectsMax, null);
+    public void register(Identifier id, String displayName, String description,
+                         int defaultValue, int defaultMaxValue,
+                         boolean resetOnRespawn, boolean equipmentAffectsMax) {
+        register(id, displayName, description, defaultValue, defaultMaxValue,
+                resetOnRespawn, equipmentAffectsMax, null);
     }
 
     /**
-     * 注册属性（完整参数，含自定义渲染器工厂）
+     * 注册属性（完整参数，含说明文字和自定义渲染器工厂）
      * <p>
      * 此方法为注册链的最终调用点，所有其他 {@code register()} 重载最终委托到此方法。
      *
      * @param id               属性网络标识符
      * @param displayName      属性显示名称
+     * @param description      属性说明文字（角色界面悬停 tooltip，空字符串表示无说明）
      * @param defaultValue     默认值
      * @param defaultMaxValue  默认上限值
      * @param resetOnRespawn   重生时是否恢复
      * @param equipmentAffectsMax 装备加成是否影响上限
      * @param rendererFactory  自定义渲染器工厂（可为 null，使用默认文本渲染）
      */
-    public void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue,
+    public void register(Identifier id, String displayName, String description,
+                         int defaultValue, int defaultMaxValue,
                          boolean resetOnRespawn, boolean equipmentAffectsMax,
                          IAttributeRendererFactory rendererFactory) {
         boolean capped = defaultMaxValue < Integer.MAX_VALUE;
@@ -155,7 +155,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
                         .serialize(EntityAttribute.CODEC)
                         .build()
         );
-        DefaultEntry entry = new DefaultEntry(id, displayName, supplier, defaultValue, defaultMaxValue,
+        DefaultEntry entry = new DefaultEntry(id, displayName, description, supplier, defaultValue, defaultMaxValue,
                 resetOnRespawn, equipmentAffectsMax, rendererFactory);
         entries.put(id, entry);
         if (resetOnRespawn) {

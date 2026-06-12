@@ -70,7 +70,7 @@ public class GatherAttributeEvent extends RPGEvent {
      * 模块在事件回调中调用此方法注入修饰符。
      * 相同 attrId 的修饰符会累加到同一列表中。
      *
-     * @param attrId   属性标识符（如 {@code AttributeManager.DEFENSE_ID}）
+     * @param attrId   属性标识符（如 {@code Identifier.fromNamespaceAndPath("rpgcraftcore", "defense")}）
      * @param modifier 属性修饰符
      */
     public void addModifier(Identifier attrId, IAttributeModifier modifier) {

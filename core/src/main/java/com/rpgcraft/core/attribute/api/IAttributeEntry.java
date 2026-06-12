@@ -29,6 +29,16 @@ public interface IAttributeEntry {
     String getDisplayName();
 
     /**
+     * 属性的说明文字
+     * <p>
+     * 用于角色界面中鼠标悬停在属性上时显示的原版风格 tooltip。
+     * 默认为空字符串；为空时不显示 tooltip。支持以 {@code \n} 分隔的多行说明。
+     */
+    default String getDescription() {
+        return "";
+    }
+
+    /**
      * 属性的 AttachmentType 供应器
      * <p>
      * 用于从实体上读写属性数据：{@code entity.getData(entry.getSupplier())}。

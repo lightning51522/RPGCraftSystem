@@ -18,17 +18,36 @@ import java.util.List;
 public interface IAttributeRegistry {
 
     /**
-     * 注册一个新属性
+     * 注册一个新属性（完整参数，含说明文字）—— 注册链的最终抽象方法
+     * <p>
+     * 其他 {@code register(...)} 重载最终委托到此方法（说明文字默认传空字符串）。
+     *
+     * @param id                   属性的唯一标识符（如 rpgcraftcore:life）
+     * @param displayName          HUD/命令中的显示名称
+     * @param description          属性说明文字（角色界面悬停 tooltip，空字符串表示无说明）
+     * @param defaultValue         属性默认值
+     * @param defaultMaxValue      属性默认上限值（Integer.MAX_VALUE 表示无上限）
+     * @param resetOnRespawn       重生时是否恢复到最大值（资源型属性如生命、技力、法力为 true）
+     * @param equipmentAffectsMax  装备加成是否同时影响上限值
+     */
+    void register(Identifier id, String displayName, String description,
+                  int defaultValue, int defaultMaxValue,
+                  boolean resetOnRespawn, boolean equipmentAffectsMax);
+
+    /**
+     * 注册一个新属性（说明文字默认为空）
      *
      * @param id              属性的唯一标识符（如 rpgcraftcore:life）
      * @param displayName     HUD/命令中的显示名称
      * @param defaultValue    属性默认值
      * @param defaultMaxValue 属性默认上限值（Integer.MAX_VALUE 表示无上限）
      */
-    void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue);
+    default void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue) {
+        register(id, displayName, "", defaultValue, defaultMaxValue, false, false);
+    }
 
     /**
-     * 注册一个新属性（指定重生行为）
+     * 注册一个新属性（指定重生行为，说明文字默认为空）
      *
      * @param id              属性的唯一标识符
      * @param displayName     HUD/命令中的显示名称
@@ -36,10 +55,12 @@ public interface IAttributeRegistry {
      * @param defaultMaxValue 属性默认上限值（Integer.MAX_VALUE 表示无上限）
      * @param resetOnRespawn  重生时是否恢复到最大值（资源型属性如生命、技力、法力为 true）
      */
-    void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn);
+    default void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn) {
+        register(id, displayName, "", defaultValue, defaultMaxValue, resetOnRespawn, false);
+    }
 
     /**
-     * 注册一个新属性（指定重生行为和装备影响上限标志）
+     * 注册一个新属性（指定重生行为和装备影响上限标志，说明文字默认为空）
      *
      * @param id                   属性的唯一标识符
      * @param displayName          HUD/命令中的显示名称
@@ -48,7 +69,9 @@ public interface IAttributeRegistry {
      * @param resetOnRespawn       重生时是否恢复到最大值
      * @param equipmentAffectsMax  装备加成是否同时影响上限值
      */
-    void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax);
+    default void register(Identifier id, String displayName, int defaultValue, int defaultMaxValue, boolean resetOnRespawn, boolean equipmentAffectsMax) {
+        register(id, displayName, "", defaultValue, defaultMaxValue, resetOnRespawn, equipmentAffectsMax);
+    }
 
     /**
      * 通过 ID 查询属性条目
