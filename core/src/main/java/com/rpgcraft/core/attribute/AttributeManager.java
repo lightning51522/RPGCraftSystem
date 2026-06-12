@@ -3,6 +3,7 @@ package com.rpgcraft.core.attribute;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.attribute.api.IAttributeModule;
 import com.rpgcraft.core.attribute.api.IAttributeRegistry;
+import com.rpgcraft.core.preference.PlayerPreferences;
 import com.rpgcraft.core.registry.RPGSystems;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -81,6 +82,14 @@ public class AttributeManager {
         defaultRegistry.register(LIFE_ID, "生命", "角色的生命值。归零即死亡，重生时恢复至上限。",
                 100, 100, true, true);
         LIFE = defaultRegistry.getRawSupplier(LIFE_ID);
+
+        // 注册玩家偏好设置附件（HUD 开关、战斗日志开关等，持久化保存）
+        PLAYER_PREFERENCES = defaultRegistry.getDeferredRegister().register(
+                "player_preferences",
+                () -> AttachmentType.builder(PlayerPreferences::new)
+                        .serialize(PlayerPreferences.CODEC)
+                        .build()
+        );
     }
 
     /**
@@ -163,6 +172,20 @@ public class AttributeManager {
      * @see EntityAttributeAttachment
      */
     public static Supplier<AttachmentType<EntityAttributeAttachment>> ENTITY_ATTRIBUTE_ATTACHMENT;
+
+    // ====================================================================
+    // 玩家偏好设置（HUD 开关、战斗日志开关等）
+    // ====================================================================
+
+    /**
+     * 玩家偏好设置附件 Supplier
+     * <p>
+     * 挂载到玩家实体上，存储每玩家的个性化开关状态（HUD、战斗日志等），
+     * 通过附件系统自动持久化到存档。
+     *
+     * @see com.rpgcraft.core.preference.PlayerPreferences
+     */
+    public static Supplier<AttachmentType<PlayerPreferences>> PLAYER_PREFERENCES;
 
     // ====================================================================
     // 原版生命条同步

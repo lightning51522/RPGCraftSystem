@@ -5,6 +5,7 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
+import com.rpgcraft.core.preference.PlayerPreferences;
 import com.rpgcraft.core.snapshot.SnapshotCoordinator;
 
 import org.slf4j.Logger;
@@ -190,6 +191,12 @@ public class RPGCraftCore {
             com.rpgcraft.core.registry.RPGSystems.getLevelSystem().syncToClient(serverPlayer);
             // 同步职业数据到客户端（由 profession 模块通过 RPGSystems 处理）
             com.rpgcraft.core.registry.RPGSystems.getProfessionSystem().syncToClient(serverPlayer);
+
+            // 同步玩家偏好设置（HUD 开关）到客户端
+            PlayerPreferences prefs = serverPlayer.getData(AttributeManager.PLAYER_PREFERENCES);
+            if (!prefs.isHudEnabled()) {
+                com.rpgcraft.core.registry.RPGSystems.getClientSystem().sendHudToggle(serverPlayer, false);
+            }
         }
     }
 

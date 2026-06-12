@@ -2,6 +2,8 @@ package com.rpgcraft.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
+import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.core.preference.PlayerPreferences;
 import com.rpgcraft.core.registry.RPGSystems;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -11,14 +13,11 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * 客户端模块命令
  * <p>
- * 提供 HUD 开关命令和状态管理。HUD 状态存储在服务端，
+ * 提供 HUD 开关命令和状态管理。HUD 状态存储在服务端的
+ * {@link PlayerPreferences} 附件中（持久化保存），
  * 通过 {@link ToggleCrosshairPacket} 同步到客户端。
  * <p>
  * 这些命令和状态原本位于 core 的 {@code RPGCommands} 中，
@@ -54,19 +53,18 @@ public class ClientCommands {
         );
     }
 
-    // === HUD 开关状态（服务端存储） ===
-
-    /** 每个玩家的 HUD 开关状态，默认启用 */
-    private static final Map<UUID, Boolean> playerHudEnabled = new ConcurrentHashMap<>();
+    // === HUD 开关状态（服务端附件存储，持久化保存） ===
 
     /**
      * 查询指定玩家的 HUD 是否启用
+     * <p>
+     * 从 {@link PlayerPreferences} 附件读取，默认启用。
      *
-     * @param playerId 玩家 UUID
+     * @param player 服务端玩家
      * @return true 表示 HUD 已启用
      */
-    public static boolean isHudEnabled(UUID playerId) {
-        return playerHudEnabled.getOrDefault(playerId, true);
+    public static boolean isHudEnabled(ServerPlayer player) {
+        return player.getData(AttributeManager.PLAYER_PREFERENCES).isHudEnabled();
     }
 
     /**
@@ -75,7 +73,7 @@ public class ClientCommands {
     private static int executeHudStatus(CommandContext<CommandSourceStack> context)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        boolean enabled = isHudEnabled(player.getUUID());
+        boolean enabled = isHudEnabled(player);
         String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
                 () -> Component.literal("HUD 状态: " + status + "（属性面板 + 准星提示）"),
@@ -86,11 +84,14 @@ public class ClientCommands {
 
     /**
      * 切换 HUD 开关状态
+     * <p>
+     * 写入 {@link PlayerPreferences} 附件并同步到客户端。
      */
     private static int executeHudToggle(CommandContext<CommandSourceStack> context, boolean enabled)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
-        playerHudEnabled.put(player.getUUID(), enabled);
+        PlayerPreferences prefs = player.getData(AttributeManager.PLAYER_PREFERENCES);
+        prefs.setHudEnabled(enabled);
 
         // 同步到客户端（通过 client 模块注册的 IClientSystem 接口发送网络包）
         RPGSystems.getClientSystem().sendHudToggle(player, enabled);

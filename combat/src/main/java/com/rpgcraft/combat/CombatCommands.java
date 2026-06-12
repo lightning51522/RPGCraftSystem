@@ -29,8 +29,6 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 战斗模块命令
@@ -105,19 +103,18 @@ public class CombatCommands {
         );
     }
 
-    // === 战斗日志开关（每玩家，默认关闭） ===
-
-    /** 每个玩家的战斗日志开关状态，默认关闭（调试功能） */
-    private static final Map<UUID, Boolean> playerCombatLogEnabled = new ConcurrentHashMap<>();
+    // === 战斗日志开关（每玩家，默认关闭，持久化保存到 PlayerPreferences 附件） ===
 
     /**
      * 查询指定玩家的战斗日志是否启用
+     * <p>
+     * 从 {@link com.rpgcraft.core.preference.PlayerPreferences} 附件读取，默认关闭。
      *
-     * @param playerId 玩家 UUID
+     * @param player 服务端玩家
      * @return true 表示启用战斗日志
      */
-    public static boolean isCombatLogEnabled(UUID playerId) {
-        return playerCombatLogEnabled.getOrDefault(playerId, false);
+    public static boolean isCombatLogEnabled(net.minecraft.server.level.ServerPlayer player) {
+        return player.getData(com.rpgcraft.core.attribute.AttributeManager.PLAYER_PREFERENCES).isCombatLogEnabled();
     }
 
     /**
@@ -126,7 +123,7 @@ public class CombatCommands {
     private static int executeCombatLogStatus(CommandContext<CommandSourceStack> context)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         net.minecraft.server.level.ServerPlayer player = context.getSource().getPlayerOrException();
-        boolean enabled = isCombatLogEnabled(player.getUUID());
+        boolean enabled = isCombatLogEnabled(player);
         String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
                 () -> Component.literal("战斗日志状态: " + status),
@@ -137,11 +134,15 @@ public class CombatCommands {
 
     /**
      * 切换战斗日志开关状态
+     * <p>
+     * 写入 {@link com.rpgcraft.core.preference.PlayerPreferences} 附件，持久化保存。
      */
     private static int executeCombatLogToggle(CommandContext<CommandSourceStack> context, boolean enabled)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         net.minecraft.server.level.ServerPlayer player = context.getSource().getPlayerOrException();
-        playerCombatLogEnabled.put(player.getUUID(), enabled);
+        com.rpgcraft.core.preference.PlayerPreferences prefs =
+                player.getData(com.rpgcraft.core.attribute.AttributeManager.PLAYER_PREFERENCES);
+        prefs.setCombatLogEnabled(enabled);
 
         String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(

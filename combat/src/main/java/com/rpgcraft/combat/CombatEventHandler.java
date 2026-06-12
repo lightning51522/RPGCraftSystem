@@ -380,7 +380,7 @@ public class CombatEventHandler {
 
         // === 战斗日志：向攻击者玩家发送伤害信息 ===
         if (attackerLiving instanceof ServerPlayer attackerPlayer
-                && CombatCommands.isCombatLogEnabled(attackerPlayer.getUUID())) {
+                && CombatCommands.isCombatLogEnabled(attackerPlayer)) {
             String targetName = target.getName().getString();
             String typeLabel = attackType == AttackType.PHYSICAL ? "物理"
                     : attackType == AttackType.MAGIC ? "魔法" : "混合";

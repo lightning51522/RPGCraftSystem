@@ -53,7 +53,7 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
             if (!(context.player() instanceof ServerPlayer player)) return;
 
             // 检查玩家 HUD 是否启用，禁用时不回复
-            if (!ClientCommands.isHudEnabled(player.getUUID())) return;
+            if (!ClientCommands.isHudEnabled(player)) return;
 
             // 通过实体 ID 查找实体
             Entity entity = player.level().getEntity(data.entityId());
