@@ -1,8 +1,10 @@
 package com.rpgcraft.client;
 
 import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
+import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.combat.MobLevelData;
 // ClientCommands 引用（同模块，替代原来对 core RPGCommands 的引用）
 import com.rpgcraft.core.registry.RPGSystems;
@@ -18,13 +20,12 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 
-import java.util.Optional;
-
 /**
  * 怪物信息查询包 —— 客户端到服务端
  * <p>
- * 客户端在准星指向敌对实体时发送此包，请求服务端返回该实体的等级和击杀经验。
+ * 客户端在准星指向敌对实体时发送此包，请求服务端返回该实体的等级、属性和击杀经验。
  * 服务端通过实体 ID 查找实体，获取 {@link MobLevelData} 等级，
+ * 通过 {@link AttributeSnapshotManager} 读取属性快照，
  * 使用 {@link com.rpgcraft.core.registry.IMobDataProvider} 查询数据，然后通过 {@link SyncMobInfoPacket} 回复。
  *
  * @param entityId 客户端准星指向的实体 ID
@@ -46,7 +47,7 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
     }
 
     /**
-     * 服务端处理：查询实体等级和经验，回复给请求的玩家
+     * 服务端处理：查询实体等级、属性和经验，回复给请求的玩家
      */
     public static void handle(QueryMobInfoPacket data, IPayloadContext context) {
         context.enqueueWork(() -> {
@@ -94,13 +95,41 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
             int playerLevel = RPGSystems.getLevelSystem().getLevel(player);
             int expGain = (int) (Math.sqrt((double) mobLevel / Math.max(1, playerLevel)) * baseExp);
 
-            // 回复给客户端（包含评级名称和生命值）
-            String ratingName = levelData.getRating().name();
+            // 读取属性快照（包含所有已注册属性的计算值）
+            AttributeSnapshot snapshot = AttributeSnapshotManager.getSnapshot(livingEntity);
+
+            // 读取生命值（从 EntityAttribute 直接读取， LIFE 是 core 自有属性）
             EntityAttribute lifeAttr = livingEntity.getData(AttributeManager.LIFE);
             int currentHealth = lifeAttr.getValue();
             int maxHealth = lifeAttr.getMaxValue();
+
+            // 从快照读取战斗属性（属性未注册时读取值为 0，自动降级）
+            int strength = getSnapshotValue(snapshot, "rpgcraftcore", "strength");
+            int mana = getSnapshotValue(snapshot, "rpgcraftcore", "mana");
+            int defense = getSnapshotValue(snapshot, "rpgcraftcore", "defense");
+            int resistance = getSnapshotValue(snapshot, "rpgcraftcore", "resistance");
+
+            // 回复给客户端
+            String ratingName = levelData.getRating().name();
             player.connection.send(new SyncMobInfoPacket(data.entityId(), ratingName, mobLevel,
-                    currentHealth, maxHealth, Math.max(0, expGain)));
+                    currentHealth, maxHealth, strength, mana, defense, resistance,
+                    Math.max(0, expGain)));
         });
+    }
+
+    /**
+     * 从属性快照中读取指定属性的当前值
+     * <p>
+     * 属性未注册时返回 0（优雅降级，不崩溃）。
+     *
+     * @param snapshot  属性快照
+     * @param namespace 命名空间
+     * @param path      路径
+     * @return 属性当前值，未注册时返回 0
+     */
+    private static int getSnapshotValue(AttributeSnapshot snapshot, String namespace, String path) {
+        AttributeSnapshot.AttributeData data = snapshot.get(
+                Identifier.fromNamespaceAndPath(namespace, path));
+        return data != null ? data.currentValue() : 0;
     }
 }

@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.neoforged.api.distmarker.Dist;
@@ -26,13 +26,13 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * 负责两项渲染任务：
  * <ol>
  *   <li>自定义生命条 —— 替换原版心形血条，以进度条方式显示自定义生命值</li>
- *   <li>属性文本面板 —— 在游戏主界面左上角以文字形式显示所有 RPG 属性值</li>
+ *   <li>目标属性面板 —— 准星指向怪物时在左上角显示生命、力量、法力、防御、法抗</li>
  * </ol>
  * <p>
  * 使用 NeoForge 26.1 的 {@link GuiLayer} 图层系统：
  * <ul>
  *   <li>通过 {@code replaceLayer} 替换原版生命条图层</li>
- *   <li>通过 {@code registerAboveAll} 注册属性文本图层</li>
+ *   <li>通过 {@code registerAboveAll} 注册目标属性面板图层</li>
  * </ul>
  * <p>
  * <h3>自定义生命条样式</h3>
@@ -67,7 +67,19 @@ public class AttributeHudOverlay {
     private static final int COLOR_LOST = 0xFF373737;         // 深灰色（已损失生命）
     private static final int COLOR_TEXT = 0xFFFFFFFF;         // 白色文字
 
-    // === 怪物信息准星提示 ===
+    // === 目标属性面板样式 ===
+    /** 左上角面板 X 偏移（像素） */
+    private static final int PANEL_X = 4;
+    /** 左上角面板 Y 偏移（像素） */
+    private static final int PANEL_Y = 4;
+    /** 面板行间距（像素） */
+    private static final int LINE_HEIGHT = 12;
+    /** 面板背景颜色（半透明黑色） */
+    private static final int COLOR_PANEL_BG = 0x80000000;
+    /** 面板内边距（像素） */
+    private static final int PANEL_PADDING = 4;
+
+    // === 怪物信息缓存 ===
 
     /** HUD 开关状态（控制属性面板和准星提示，不影响生命条） */
     private static boolean hudEnabled = true;
@@ -82,6 +94,14 @@ public class AttributeHudOverlay {
     private static int cachedMobCurrentHealth = 0;
     /** 缓存的怪物最大生命值 */
     private static int cachedMobMaxHealth = 0;
+    /** 缓存的怪物力量 */
+    private static int cachedMobStrength = 0;
+    /** 缓存的怪物法力 */
+    private static int cachedMobMana = 0;
+    /** 缓存的怪物防御 */
+    private static int cachedMobDefense = 0;
+    /** 缓存的怪物法抗 */
+    private static int cachedMobResistance = 0;
     /** 缓存的击杀经验值 */
     private static int cachedMobExp = 0;
     /** 上一次查询的实体 ID（用于检测准星目标变化） */
@@ -99,15 +119,25 @@ public class AttributeHudOverlay {
      * @param level          怪物等级
      * @param currentHealth  当前生命值
      * @param maxHealth      最大生命值
+     * @param strength       力量
+     * @param mana           法力
+     * @param defense        防御
+     * @param resistance     法抗
      * @param exp            击杀经验值
      */
     public static void cacheMobInfo(int entityId, String ratingName, int level,
-                                    int currentHealth, int maxHealth, int exp) {
+                                    int currentHealth, int maxHealth,
+                                    int strength, int mana, int defense, int resistance,
+                                    int exp) {
         cachedMobEntityId = entityId;
         cachedMobRatingName = ratingName;
         cachedMobLevel = level;
         cachedMobCurrentHealth = currentHealth;
         cachedMobMaxHealth = maxHealth;
+        cachedMobStrength = strength;
+        cachedMobMana = mana;
+        cachedMobDefense = defense;
+        cachedMobResistance = resistance;
         cachedMobExp = exp;
     }
 
@@ -132,12 +162,12 @@ public class AttributeHudOverlay {
     }
 
     /**
-     * 客户端 Tick 事件处理 —— 检测准星指向的敌对实体并发送信息查询
+     * 客户端 Tick 事件处理 —— 检测准星指向的生物实体并发送信息查询
      * <p>
      * 每个客户端 tick 执行一次（20 tps）：
      * <ol>
      *   <li>获取准星指向的实体（{@code mc.crosshairPickEntity}）</li>
-     *   <li>仅对实现 {@link Monster} 接口的敌对实体发送查询</li>
+     *   <li>对所有 {@link LivingEntity}（含友善和敌对）发送查询，排除玩家自身</li>
      *   <li>当目标实体变化时立即发送查询；相同目标每 {@value #QUERY_INTERVAL} tick 重新查询一次</li>
      * </ol>
      */
@@ -155,8 +185,8 @@ public class AttributeHudOverlay {
 
         Entity target = mc.crosshairPickEntity;
 
-        // 非敌对实体：清除缓存，不发送查询
-        if (!(target instanceof Monster)) {
+        // 仅对 LivingEntity（非玩家）发送查询：包含敌对和友善生物
+        if (!(target instanceof LivingEntity) || target instanceof Player) {
             cachedMobEntityId = -1;
             lastQueriedEntityId = -1;
             return;
@@ -179,7 +209,7 @@ public class AttributeHudOverlay {
      * HUD 图层注册回调（Mod 事件总线）
      * <p>
      * 1. 替换原版生命条图层为自定义进度条
-     * 2. 将属性文本面板注册到所有图层的最上层
+     * 2. 将目标属性面板注册到所有图层的最上层
      */
     @SubscribeEvent
     public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
@@ -189,7 +219,7 @@ public class AttributeHudOverlay {
                 AttributeHudOverlay::renderHealthBar
         );
 
-        // 注册属性文本面板（在所有图层之上）
+        // 注册目标属性面板（在所有图层之上）
         event.registerAboveAll(
                 Identifier.fromNamespaceAndPath("rpgcraftcore", "attribute_hud"),
                 AttributeHudOverlay::renderOverlay
@@ -317,17 +347,21 @@ public class AttributeHudOverlay {
     }
 
     /**
-     * HUD 图层渲染回调 —— 每帧执行
+     * HUD 图层渲染回调 —— 左上角目标属性面板
      * <p>
-     * 从注册中心遍历所有属性，读取客户端玩家的 Attachment 值并绘制。
-     * 格式示例：
-     * <ul>
-     *   <li>有上限的属性：{@code "法力: 80 / 100"}</li>
-     *   <li>无上限的属性：{@code "力量: 15"}</li>
-     * </ul>
+     * 当准星指向怪物且 HUD 启用时，在屏幕左上角显示：
+     * <pre>
+     *   [评级] 等级: X
+     *   生命: X / X
+     *   力量: X
+     *   法力: X
+     *   防御: X
+     *   法抗: X
+     * </pre>
+     * 带半透明黑色背景面板，提高可读性。
      *
      * @param guiGraphics 图形绘制上下文
-     * @param deltaTracker 帧间时间增量（本实现未使用，但 GuiLayer 接口要求）
+     * @param deltaTracker 帧间时间增量
      */
     private static void renderOverlay(GuiGraphicsExtractor guiGraphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
@@ -335,38 +369,80 @@ public class AttributeHudOverlay {
 
         if (player == null) return;
 
-        // HUD 禁用时跳过准星提示（生命条不受影响）
+        // HUD 禁用时跳过目标属性面板
         if (!hudEnabled) return;
 
-        // === 怪物信息准星提示 ===
         // 仅在缓存数据与当前准星实体匹配时渲染
         Entity crosshairTarget = mc.crosshairPickEntity;
-        if (crosshairTarget != null && crosshairTarget.getId() == cachedMobEntityId) {
-            int screenW = mc.getWindow().getGuiScaledWidth();
-            int screenH = mc.getWindow().getGuiScaledHeight();
+        if (crosshairTarget == null || crosshairTarget.getId() != cachedMobEntityId) return;
 
-            HUD_BUILDER.setLength(0);
-            // 非普通评级时显示评级前缀
-            if (!"NORMAL".equals(cachedMobRatingName)) {
-                try {
-                    com.rpgcraft.core.combat.MobRating rating =
-                            com.rpgcraft.core.combat.MobRating.valueOf(cachedMobRatingName);
-                    HUD_BUILDER.append("[").append(rating.getDisplayName()).append("] ");
-                } catch (IllegalArgumentException ignored) {
-                    // 未知评级名称，跳过前缀
-                }
+        // === 渲染左上角目标属性面板 ===
+        int lineIndex = 0;
+
+        // 1. 评级和等级行
+        HUD_BUILDER.setLength(0);
+        // 非普通评级时显示评级前缀
+        if (!"NORMAL".equals(cachedMobRatingName)) {
+            try {
+                com.rpgcraft.core.combat.MobRating rating =
+                        com.rpgcraft.core.combat.MobRating.valueOf(cachedMobRatingName);
+                HUD_BUILDER.append("[").append(rating.getDisplayName()).append("] ");
+            } catch (IllegalArgumentException ignored) {
+                // 未知评级名称，跳过前缀
             }
-            HUD_BUILDER.append("等级: ").append(cachedMobLevel)
-                    .append("  生命: ").append(cachedMobCurrentHealth).append('/').append(cachedMobMaxHealth)
-                    .append("  经验: ").append(cachedMobExp);
+        }
+        HUD_BUILDER.append("等级: ").append(cachedMobLevel);
+        String headerLine = HUD_BUILDER.toString();
 
-            String mobInfoText = HUD_BUILDER.toString();
-            int textW = mc.font.width(mobInfoText);
-            int tooltipX = (screenW - textW) / 2;
-            int tooltipY = screenH / 2 - 25; // 准星上方
+        // 预计算所有行以确定面板尺寸
+        // 行内容：标题、生命、力量、法力、防御、法抗
+        int totalLines = 6;
+        int maxWidth = mc.font.width(headerLine);
+        String[] lines = new String[totalLines];
+        lines[0] = headerLine;
 
-            // 0xFFFFFF00 = ARGB 不透明黄色
-            guiGraphics.text(mc.font, mobInfoText, tooltipX, tooltipY, 0xFFFFFF00, true);
+        // 2. 生命行
+        HUD_BUILDER.setLength(0);
+        HUD_BUILDER.append("生命: ").append(cachedMobCurrentHealth).append('/').append(cachedMobMaxHealth);
+        lines[1] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[1]));
+
+        // 3. 力量行
+        HUD_BUILDER.setLength(0);
+        HUD_BUILDER.append("力量: ").append(cachedMobStrength);
+        lines[2] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[2]));
+
+        // 4. 法力行
+        HUD_BUILDER.setLength(0);
+        HUD_BUILDER.append("法力: ").append(cachedMobMana);
+        lines[3] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[3]));
+
+        // 5. 防御行
+        HUD_BUILDER.setLength(0);
+        HUD_BUILDER.append("防御: ").append(cachedMobDefense);
+        lines[4] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[4]));
+
+        // 6. 法抗行
+        HUD_BUILDER.setLength(0);
+        HUD_BUILDER.append("法抗: ").append(cachedMobResistance);
+        lines[5] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[5]));
+
+        // 绘制半透明背景面板
+        int panelW = maxWidth + PANEL_PADDING * 2;
+        int panelH = totalLines * LINE_HEIGHT + PANEL_PADDING * 2 - (LINE_HEIGHT - mc.font.lineHeight);
+        guiGraphics.fill(PANEL_X, PANEL_Y, PANEL_X + panelW, PANEL_Y + panelH, COLOR_PANEL_BG);
+
+        // 绘制所有行
+        int textX = PANEL_X + PANEL_PADDING;
+        int textY = PANEL_Y + PANEL_PADDING;
+        for (int i = 0; i < totalLines; i++) {
+            // 标题行（评级+等级）使用黄色，属性行使用白色
+            int color = (i == 0) ? 0xFFFFFF00 : COLOR_TEXT;
+            guiGraphics.text(mc.font, lines[i], textX, textY + i * LINE_HEIGHT, color, true);
         }
     }
 }

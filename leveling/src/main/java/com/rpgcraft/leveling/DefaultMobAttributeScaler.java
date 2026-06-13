@@ -12,7 +12,8 @@ import com.rpgcraft.core.level.api.IMobAttributeScaler;
  *   <li>等级 3 = 110%</li>
  *   <li>等级 20 = 195%</li>
  * </ul>
- * 缩放后的值最低为 1。
+ * 基础值为 0 时缩放结果也为 0（表示该生物没有此属性），
+ * 否则缩放后的值最低为 1。
  */
 public class DefaultMobAttributeScaler implements IMobAttributeScaler {
 
@@ -21,6 +22,8 @@ public class DefaultMobAttributeScaler implements IMobAttributeScaler {
 
     @Override
     public int scaleAttribute(int baseValue, int mobLevel, String attributeName) {
+        // 基础值为 0 时保持 0（表示该生物没有此属性，如普通动物的防御力）
+        if (baseValue == 0) return 0;
         double multiplier = 1.0 + (mobLevel - 1) * PER_LEVEL_BONUS;
         return Math.max(1, (int) (baseValue * multiplier));
     }
