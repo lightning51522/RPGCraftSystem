@@ -9,9 +9,6 @@ description='''
 RPG Profession Module - Character classes with attribute bonuses.
 '''
 
-[[mixins]]
-config="${mod_id}.mixins.json"
-
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"

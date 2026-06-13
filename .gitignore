@@ -39,6 +39,9 @@ run/
 repo/
 !**/src/**/repo/
 
+### 工具缓存（仅生成 WorldProto.java 时用到的 protoc 二进制） ###
+.tools/
+
 ### Claude Code ###
 CLAUDE.md
 .claude/

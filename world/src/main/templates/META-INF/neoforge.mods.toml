@@ -6,7 +6,8 @@ version="${mod_version}"
 displayName="${mod_name}"
 authors="Berserker10086"
 description='''
-RPG Equipment Module - Equipment bonuses and weapon types.
+RPG World Module - Replaceable world generation (custom overworld terrain).
+Absent → vanilla generation; present → custom RPG terrain.
 '''
 
 [[dependencies.${mod_id}]]

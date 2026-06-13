@@ -9,9 +9,6 @@ description='''
 RPG Leveling Module - Experience and leveling system.
 '''
 
-[[mixins]]
-config="${mod_id}.mixins.json"
-
 [[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"
