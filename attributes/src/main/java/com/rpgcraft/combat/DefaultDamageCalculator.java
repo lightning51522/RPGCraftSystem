@@ -4,6 +4,7 @@ import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.attributes.DefaultAttributes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +24,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * </ul>
  * <p>
  * 本类所引用的游戏属性 ID（DEFENSE/RESISTANCE/STRENGTH/MANA/CRITICAL_RATE/CRITICAL_RATIO/FIXED_DAMAGE/PHYSICAL_PENETRATE/MAGICAL_PENETRATE）
- * 为本模块本地常量 {@link CombatAttributes}，与 attributes 附属模块松耦合；
+ * 为 {@link DefaultAttributes} 常量，与属性注册同属一个模块；
  * 对应属性未注册时读取值为 0，公式自动降级（不减免/不暴击/不穿透）。
  *
  * <h3>伤害减免公式（Incoming）</h3>
@@ -57,28 +58,28 @@ public class DefaultDamageCalculator implements IDamageCalculator {
                                         AttackType type, @Nullable LivingEntity attacker) {
         // 读取攻击方穿透属性（无攻击方时为 0）
         int physicalPenetrate = attacker != null
-                ? getAttributeValue(attacker, CombatAttributes.PHYSICAL_PENETRATE_ID) : 0;
+                ? getAttributeValue(attacker, DefaultAttributes.PHYSICAL_PENETRATE_ID) : 0;
         int magicalPenetrate = attacker != null
-                ? getAttributeValue(attacker, CombatAttributes.MAGICAL_PENETRATE_ID) : 0;
+                ? getAttributeValue(attacker, DefaultAttributes.MAGICAL_PENETRATE_ID) : 0;
 
         return switch (type) {
             case PHYSICAL -> {
                 // 物理减免：防御力被物理穿透降低后，再从原始伤害中扣除
-                int defense = getAttributeValue(target, CombatAttributes.DEFENSE_ID);
+                int defense = getAttributeValue(target, DefaultAttributes.DEFENSE_ID);
                 int effectiveDefense = Math.max(0, defense - physicalPenetrate);
                 yield Math.max(0, originalDamage - effectiveDefense);
             }
             case MAGIC -> {
                 // 法术减免：法抗被法术穿透降低后，按百分比减免
-                int resistance = getAttributeValue(target, CombatAttributes.RESISTANCE_ID);
+                int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
                 yield (int) Math.max(0, originalDamage * (1.0 - effectiveResistance / 100.0));
             }
             case MIX_TYPE -> {
                 // 混合减免：物理部分受物理穿透，魔法部分受法术穿透
                 int half = originalDamage / 2;
-                int defense = getAttributeValue(target, CombatAttributes.DEFENSE_ID);
-                int resistance = getAttributeValue(target, CombatAttributes.RESISTANCE_ID);
+                int defense = getAttributeValue(target, DefaultAttributes.DEFENSE_ID);
+                int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
                 int effectiveDefense = Math.max(0, defense - physicalPenetrate);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
                 int physicalPart = Math.max(0, half - effectiveDefense);
@@ -93,23 +94,23 @@ public class DefaultDamageCalculator implements IDamageCalculator {
     public int calculateOutgoingDamage(LivingEntity entity, AttackType type) {
         // 混合伤害：分别取力量和魔力的一半，统一暴击后相加
         if (type == AttackType.MIX_TYPE) {
-            int strHalf = getAttributeValue(entity, CombatAttributes.STRENGTH_ID) / 2;
-            int manaHalf = getAttributeValue(entity, CombatAttributes.MANA_ID) / 2;
+            int strHalf = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID) / 2;
+            int manaHalf = getAttributeValue(entity, DefaultAttributes.MANA_ID) / 2;
             double multiplier = rollCriticalMultiplier(entity);
-            int fixedDmg = getAttributeValue(entity, CombatAttributes.FIXED_DAMAGE_ID);
+            int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
             return (int) (strHalf * multiplier) + (int) (manaHalf * multiplier) + fixedDmg;
         }
 
         // 根据攻击类型确定基础伤害
         int baseDamage = switch (type) {
-            case PHYSICAL -> getAttributeValue(entity, CombatAttributes.STRENGTH_ID);
-            case MAGIC -> getAttributeValue(entity, CombatAttributes.MANA_ID);
+            case PHYSICAL -> getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
+            case MAGIC -> getAttributeValue(entity, DefaultAttributes.MANA_ID);
             default -> 0;
         };
 
         // 多层暴击判定
         double multiplier = rollCriticalMultiplier(entity);
-        int fixedDmg = getAttributeValue(entity, CombatAttributes.FIXED_DAMAGE_ID);
+        int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
         return (int) (baseDamage * multiplier) + fixedDmg;
     }
 
@@ -129,7 +130,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @return 暴击倍率（≥1.0，1.0 表示未暴击）
      */
     private double rollCriticalMultiplier(LivingEntity entity) {
-        int critRate = getAttributeValue(entity, CombatAttributes.CRITICAL_RATE_ID);
+        int critRate = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID);
         if (critRate <= 0) return 1.0;
 
         // 保底暴击层数 + 额外一层概率
@@ -144,7 +145,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
         if (totalCrits == 0) return 1.0;
 
         // 每层暴击乘以 (1 + critRatio/100)，多层为幂次
-        int critRatio = getAttributeValue(entity, CombatAttributes.CRITICAL_RATIO_ID);
+        int critRatio = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID);
         double critMulti = 1.0 + critRatio / 100.0;
         return Math.pow(critMulti, totalCrits);
     }

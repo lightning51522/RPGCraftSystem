@@ -7,6 +7,8 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.EntityAttributeAttachment;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.attributes.DefaultAttributes;
+import com.rpgcraft.coreattributes.AttributesMod;
 // CombatCommands 引用（同模块，替代原来对 core RPGCommands 的引用）
 import com.rpgcraft.core.combat.MobLevelData;
 import com.rpgcraft.core.combat.MobRating;
@@ -65,7 +67,7 @@ import java.util.Set;
  *   <li>在 Post 中校正原版生命值并同步到客户端</li>
  * </ol>
  */
-@EventBusSubscriber(modid = CombatMod.MODID)
+@EventBusSubscriber(modid = AttributesMod.MODID)
 public class CombatEventHandler {
 
     /**
@@ -195,25 +197,25 @@ public class CombatEventHandler {
                 : scaler.scaleAttribute(base.life(), targetLevel, "life"), ratingMult);
         int scaledStrength = applyRating(overrides.containsKey("strength")
                 ? overrides.get("strength")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.STRENGTH_ID), targetLevel, "strength"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.STRENGTH_ID), targetLevel, "strength"), ratingMult);
         int scaledDefense = applyRating(overrides.containsKey("defense")
                 ? overrides.get("defense")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.DEFENSE_ID), targetLevel, "defense"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.DEFENSE_ID), targetLevel, "defense"), ratingMult);
         int scaledResistance = applyRating(overrides.containsKey("resistance")
                 ? overrides.get("resistance")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
         int scaledCritRate = applyRating(overrides.containsKey("critical_rate")
                 ? overrides.get("critical_rate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.CRITICAL_RATE_ID), targetLevel, "critical_rate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.CRITICAL_RATE_ID), targetLevel, "critical_rate"), ratingMult);
         int scaledCritRatio = applyRating(overrides.containsKey("critical_ratio")
                 ? overrides.get("critical_ratio")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
         int scaledPhysicalPenetrate = applyRating(overrides.containsKey("physical_penetrate")
                 ? overrides.get("physical_penetrate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.PHYSICAL_PENETRATE_ID), targetLevel, "physical_penetrate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.PHYSICAL_PENETRATE_ID), targetLevel, "physical_penetrate"), ratingMult);
         int scaledMagicalPenetrate = applyRating(overrides.containsKey("magical_penetrate")
                 ? overrides.get("magical_penetrate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.MAGICAL_PENETRATE_ID), targetLevel, "magical_penetrate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.MAGICAL_PENETRATE_ID), targetLevel, "magical_penetrate"), ratingMult);
 
         // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
@@ -270,13 +272,13 @@ public class CombatEventHandler {
                                              int physicalPenetrate, int magicalPenetrate) {
         EntityAttributeAttachment attachment = entity.getData(AttributeManager.ENTITY_ATTRIBUTE_ATTACHMENT);
         attachment.setIntrinsicBase(AttributeManager.LIFE_ID, life);
-        attachment.setIntrinsicBase(CombatAttributes.STRENGTH_ID, strength);
-        attachment.setIntrinsicBase(CombatAttributes.DEFENSE_ID, defense);
-        attachment.setIntrinsicBase(CombatAttributes.RESISTANCE_ID, resistance);
-        attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATE_ID, criticalRate);
-        attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID, criticalRatio);
-        attachment.setIntrinsicBase(CombatAttributes.PHYSICAL_PENETRATE_ID, physicalPenetrate);
-        attachment.setIntrinsicBase(CombatAttributes.MAGICAL_PENETRATE_ID, magicalPenetrate);
+        attachment.setIntrinsicBase(DefaultAttributes.STRENGTH_ID, strength);
+        attachment.setIntrinsicBase(DefaultAttributes.DEFENSE_ID, defense);
+        attachment.setIntrinsicBase(DefaultAttributes.RESISTANCE_ID, resistance);
+        attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATE_ID, criticalRate);
+        attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATIO_ID, criticalRatio);
+        attachment.setIntrinsicBase(DefaultAttributes.PHYSICAL_PENETRATE_ID, physicalPenetrate);
+        attachment.setIntrinsicBase(DefaultAttributes.MAGICAL_PENETRATE_ID, magicalPenetrate);
     }
 
     /**

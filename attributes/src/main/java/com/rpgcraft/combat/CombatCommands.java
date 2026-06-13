@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.combat.MobRating;
+import com.rpgcraft.coreattributes.AttributesMod;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;
@@ -47,7 +48,7 @@ import java.util.Set;
  * /rpg spawn &lt;entity&gt; &lt;level&gt; [json_attributes] — 召唤指定等级的 RPG 生物
  * </pre>
  */
-@EventBusSubscriber(modid = CombatMod.MODID)
+@EventBusSubscriber(modid = AttributesMod.MODID)
 public class CombatCommands {
 
     private CombatCommands() {
