@@ -2,6 +2,7 @@ package com.rpgcraft.core.attribute.api;
 
 import com.rpgcraft.core.attribute.AttackType;
 import net.minecraft.world.entity.LivingEntity;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 属性伤害计算接口
@@ -23,6 +24,23 @@ public interface IDamageCalculator {
      * @return 减免后的最终伤害（不低于 0）
      */
     int calculateIncomingDamage(LivingEntity target, int originalDamage, AttackType type);
+
+    /**
+     * 计算承伤（含攻击方穿透属性）
+     * <p>
+     * 默认实现忽略攻击方，委托给 {@link #calculateIncomingDamage(LivingEntity, int, AttackType)}。
+     * combat 模块的默认实现会读取攻击方的物理/法术穿透属性来降低目标的有效防御/法抗。
+     *
+     * @param target         受击实体
+     * @param originalDamage 原始伤害（减免前）
+     * @param type           伤害类型
+     * @param attacker       攻击方实体（null 时无穿透效果）
+     * @return 减免后的最终伤害（不低于 0）
+     */
+    default int calculateIncomingDamage(LivingEntity target, int originalDamage,
+                                         AttackType type, @Nullable LivingEntity attacker) {
+        return calculateIncomingDamage(target, originalDamage, type);
+    }
 
     /**
      * 计算实体造成的伤害数值（含暴击）

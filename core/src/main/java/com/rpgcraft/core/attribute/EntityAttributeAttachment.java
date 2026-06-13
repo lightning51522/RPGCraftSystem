@@ -20,7 +20,7 @@ import java.util.*;
  * {@code AttributeSnapshotManager} 提供数据源，使非玩家实体也能通过
  * 修饰符管线动态计算属性值。
  * <p>
- * <b>与玩家路径的关系</b>：玩家继续使用现有的 11 个
+ * <b>与玩家路径的关系</b>：玩家继续使用现有的 13 个
  * {@link AttachmentType<EntityAttribute>} 独立附件（已稳定运行），不使用此附件。
  * <p>
  * 序列化通过 {@link #CODEC} 实现 NeoForge AttachmentType 的存档读写。

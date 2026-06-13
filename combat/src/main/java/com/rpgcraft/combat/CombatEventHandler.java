@@ -208,6 +208,12 @@ public class CombatEventHandler {
         int scaledCritRatio = applyRating(overrides.containsKey("critical_ratio")
                 ? overrides.get("critical_ratio")
                 : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
+        int scaledPhysicalPenetrate = applyRating(overrides.containsKey("physical_penetrate")
+                ? overrides.get("physical_penetrate")
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.PHYSICAL_PENETRATE_ID), targetLevel, "physical_penetrate"), ratingMult);
+        int scaledMagicalPenetrate = applyRating(overrides.containsKey("magical_penetrate")
+                ? overrides.get("magical_penetrate")
+                : scaler.scaleAttribute(base.getIntrinsicBase(CombatAttributes.MAGICAL_PENETRATE_ID), targetLevel, "magical_penetrate"), ratingMult);
 
         // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
@@ -219,10 +225,11 @@ public class CombatEventHandler {
         // 写入实体属性附件（固有基础值，供快照管理器通过 MobSnapshotBuilder 读取）
         // 非玩家实体的属性计算路径：EntityAttributeAttachment → GatherAttributeEvent → AttributePipeline → 快照
         writeIntrinsicBases(entity, scaledLife, scaledStrength, scaledDefense,
-                scaledResistance, scaledCritRate, scaledCritRatio);
+                scaledResistance, scaledCritRate, scaledCritRatio,
+                scaledPhysicalPenetrate, scaledMagicalPenetrate);
 
         // 仅 LIFE 需要同时写入 EntityAttribute（战斗系统通过 EntityAttribute 进行运行时扣血/回血）
-        // 其他属性（STRENGTH/DEFENSE/RESISTANCE/CRITICAL_RATE/CRITICAL_RATIO）
+        // 其他属性（STRENGTH/DEFENSE/RESISTANCE/CRITICAL_RATE/CRITICAL_RATIO/PHYSICAL_PENETRATE/MAGICAL_PENETRATE）
         // 由 DefaultDamageCalculator 通过 AttributeSnapshotManager 读取，不再需要 EntityAttribute
         setAttribute(entity, AttributeManager.LIFE, scaledLife);
 
@@ -247,17 +254,20 @@ public class CombatEventHandler {
      * 供 {@code AttributeSnapshotManager} 通过 {@code MobSnapshotBuilder} 读取，
      * 作为非玩家实体属性快照计算的数据源。
      *
-     * @param entity           目标实体
-     * @param life             生命值
-     * @param strength         力量
-     * @param defense          防御
-     * @param resistance       法抗
-     * @param criticalRate     暴击率
-     * @param criticalRatio    暴击伤害
+     * @param entity              目标实体
+     * @param life                生命值
+     * @param strength            力量
+     * @param defense             防御
+     * @param resistance          法抗
+     * @param criticalRate        暴击率
+     * @param criticalRatio       暴击伤害
+     * @param physicalPenetrate   物理穿透
+     * @param magicalPenetrate    法术穿透
      */
     private static void writeIntrinsicBases(LivingEntity entity,
                                              int life, int strength, int defense,
-                                             int resistance, int criticalRate, int criticalRatio) {
+                                             int resistance, int criticalRate, int criticalRatio,
+                                             int physicalPenetrate, int magicalPenetrate) {
         EntityAttributeAttachment attachment = entity.getData(AttributeManager.ENTITY_ATTRIBUTE_ATTACHMENT);
         attachment.setIntrinsicBase(AttributeManager.LIFE_ID, life);
         attachment.setIntrinsicBase(CombatAttributes.STRENGTH_ID, strength);
@@ -265,6 +275,8 @@ public class CombatEventHandler {
         attachment.setIntrinsicBase(CombatAttributes.RESISTANCE_ID, resistance);
         attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATE_ID, criticalRate);
         attachment.setIntrinsicBase(CombatAttributes.CRITICAL_RATIO_ID, criticalRatio);
+        attachment.setIntrinsicBase(CombatAttributes.PHYSICAL_PENETRATE_ID, physicalPenetrate);
+        attachment.setIntrinsicBase(CombatAttributes.MAGICAL_PENETRATE_ID, magicalPenetrate);
     }
 
     /**
@@ -362,7 +374,7 @@ public class CombatEventHandler {
         if (attackerLiving != null) {
             // 2. 战斗伤害：RPG 公式计算绝对伤害值
             int damage = calculator.calculateOutgoingDamage(attackerLiving, attackType);
-            flatDamage = calculator.calculateIncomingDamage(target, damage, attackType);
+            flatDamage = calculator.calculateIncomingDamage(target, damage, attackType, attackerLiving);
         } else {
             // 3. 环境伤害：使用 Pre 事件中可能被修改的伤害值
             flatDamage = preEvent.getDamage();

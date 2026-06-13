@@ -6,10 +6,10 @@ import com.rpgcraft.core.attribute.api.IAttributeModule;
 /**
  * 默认属性模块实现
  * <p>
- * 注册除生命外的 11 个 RPG 核心游戏属性：
+ * 注册除生命外的 13 个 RPG 核心游戏属性：
  * <ul>
  *   <li>资源型：技力、法力（重生恢复，有上限）</li>
- *   <li>能力型：力量、魔力、敏捷、精准、防御、法抗、暴击率、暴击伤害、固定伤害</li>
+ *   <li>能力型：力量、魔力、敏捷、精准、防御、法抗、暴击率、暴击伤害、固定伤害、物理穿透、法术穿透</li>
  * </ul>
  * <p>
  * <b>生命属性（LIFE）不在此注册</b> —— 它由 core 直接提供（与原版生命/死亡机制对接），
@@ -49,6 +49,10 @@ public class DefaultAttributeModule implements IAttributeModule {
         registry.register(DefaultAttributes.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害百分比倍率。",
                 50, Integer.MAX_VALUE, false, false);
         registry.register(DefaultAttributes.FIXED_DAMAGE_ID, "固定伤害", "每次攻击额外附加的固定伤害。",
+                0, Integer.MAX_VALUE, false, false);
+        registry.register(DefaultAttributes.PHYSICAL_PENETRATE_ID, "物理穿透", "攻击时无视目标防御的值。",
+                0, Integer.MAX_VALUE, false, false);
+        registry.register(DefaultAttributes.MAGICAL_PENETRATE_ID, "法术穿透", "攻击时无视目标法抗的值。",
                 0, Integer.MAX_VALUE, false, false);
     }
 }

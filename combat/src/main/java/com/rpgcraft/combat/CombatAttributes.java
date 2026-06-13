@@ -24,4 +24,6 @@ final class CombatAttributes {
     static final Identifier CRITICAL_RATE_ID  = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
     static final Identifier CRITICAL_RATIO_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
     static final Identifier FIXED_DAMAGE_ID   = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
+    static final Identifier PHYSICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
+    static final Identifier MAGICAL_PENETRATE_ID  = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
 }

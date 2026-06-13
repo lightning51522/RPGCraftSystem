@@ -6,6 +6,7 @@ import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
+import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -21,16 +22,16 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li>玩家：快照管理器透传 {@code EntityAttribute}（自带管线缓存），无额外开销</li>
  * </ul>
  * <p>
- * 本类所引用的游戏属性 ID（DEFENSE/RESISTANCE/STRENGTH/MANA/CRITICAL_RATE/CRITICAL_RATIO/FIXED_DAMAGE）
+ * 本类所引用的游戏属性 ID（DEFENSE/RESISTANCE/STRENGTH/MANA/CRITICAL_RATE/CRITICAL_RATIO/FIXED_DAMAGE/PHYSICAL_PENETRATE/MAGICAL_PENETRATE）
  * 为本模块本地常量 {@link CombatAttributes}，与 attributes 附属模块松耦合；
- * 对应属性未注册时读取值为 0，公式自动降级（不减免/不暴击）。
+ * 对应属性未注册时读取值为 0，公式自动降级（不减免/不暴击/不穿透）。
  *
  * <h3>伤害减免公式（Incoming）</h3>
  * <ul>
- *   <li><b>物理减免：</b>{@code max(0, 原始伤害 - 防御力)}
- *     <br>示例：攻击力 30，防御力 10 → 最终伤害 = max(0, 30-10) = 20</li>
- *   <li><b>法术减免：</b>{@code (int)(原始伤害 × (1 - 法抗/100.0))}
- *     <br>示例：法术伤害 40，法抗 25 → 最终伤害 = (int)(40 × 0.75) = 30</li>
+ *   <li><b>物理减免：</b>{@code max(0, 原始伤害 - max(0, 防御力 - 物理穿透))}
+ *     <br>示例：攻击力 30，防御力 10，物理穿透 3 → 有效防御 = 7，最终伤害 = 23</li>
+ *   <li><b>法术减免：</b>{@code (int)(原始伤害 × (1 - max(0, 法抗 - 法术穿透)/100.0))}
+ *     <br>示例：法术伤害 40，法抗 25，法术穿透 10 → 有效法抗 = 15，最终伤害 = (int)(40 × 0.85) = 34</li>
  * </ul>
  *
  * <h3>伤害输出公式（Outgoing）</h3>
@@ -47,24 +48,41 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
     @Override
     public int calculateIncomingDamage(LivingEntity entity, int originalDamage, AttackType type) {
+        // 无攻击方信息时退化为原公式（穿透为 0）
+        return calculateIncomingDamage(entity, originalDamage, type, null);
+    }
+
+    @Override
+    public int calculateIncomingDamage(LivingEntity target, int originalDamage,
+                                        AttackType type, @Nullable LivingEntity attacker) {
+        // 读取攻击方穿透属性（无攻击方时为 0）
+        int physicalPenetrate = attacker != null
+                ? getAttributeValue(attacker, CombatAttributes.PHYSICAL_PENETRATE_ID) : 0;
+        int magicalPenetrate = attacker != null
+                ? getAttributeValue(attacker, CombatAttributes.MAGICAL_PENETRATE_ID) : 0;
+
         return switch (type) {
             case PHYSICAL -> {
-                // 物理减免：直接减去防御力，最低为 0
-                int defense = getAttributeValue(entity, CombatAttributes.DEFENSE_ID);
-                yield Math.max(0, originalDamage - defense);
+                // 物理减免：防御力被物理穿透降低后，再从原始伤害中扣除
+                int defense = getAttributeValue(target, CombatAttributes.DEFENSE_ID);
+                int effectiveDefense = Math.max(0, defense - physicalPenetrate);
+                yield Math.max(0, originalDamage - effectiveDefense);
             }
             case MAGIC -> {
-                // 法术减免：按法抗百分比减免（法抗 100 = 完全免疫）
-                int resistance = getAttributeValue(entity, CombatAttributes.RESISTANCE_ID);
-                yield (int) Math.max(0, originalDamage * (1.0 - resistance / 100.0));
+                // 法术减免：法抗被法术穿透降低后，按百分比减免
+                int resistance = getAttributeValue(target, CombatAttributes.RESISTANCE_ID);
+                int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
+                yield (int) Math.max(0, originalDamage * (1.0 - effectiveResistance / 100.0));
             }
             case MIX_TYPE -> {
-                // 混合减免：伤害一分为二，物理部分减防，魔法部分减抗，相加为最终伤害
+                // 混合减免：物理部分受物理穿透，魔法部分受法术穿透
                 int half = originalDamage / 2;
-                int defense = getAttributeValue(entity, CombatAttributes.DEFENSE_ID);
-                int resistance = getAttributeValue(entity, CombatAttributes.RESISTANCE_ID);
-                int physicalPart = Math.max(0, half - defense);
-                int magicPart = (int) Math.max(0, half * (1.0 - resistance / 100.0));
+                int defense = getAttributeValue(target, CombatAttributes.DEFENSE_ID);
+                int resistance = getAttributeValue(target, CombatAttributes.RESISTANCE_ID);
+                int effectiveDefense = Math.max(0, defense - physicalPenetrate);
+                int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
+                int physicalPart = Math.max(0, half - effectiveDefense);
+                int magicPart = (int) Math.max(0, half * (1.0 - effectiveResistance / 100.0));
                 yield physicalPart + magicPart;
             }
             default -> originalDamage;

@@ -3,7 +3,7 @@ package com.rpgcraft.core.attributes;
 import net.minecraft.resources.Identifier;
 
 /**
- * 默认属性词汇表（除生命外的 11 个游戏属性标识符）
+ * 默认属性词汇表（除生命外的 13 个游戏属性标识符）
  * <p>
  * 本类是默认游戏属性集的<b>唯一真相源</b>。生命属性（LIFE）由 core 直接提供
  * （{@code com.rpgcraft.core.attribute.AttributeManager#LIFE_ID}），不在此处，
@@ -20,15 +20,17 @@ public final class DefaultAttributes {
     private DefaultAttributes() {
     }
 
-    public static final Identifier SKILL_POINT_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "skill_point");
-    public static final Identifier MAGIC_POINT_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "magic_point");
-    public static final Identifier STRENGTH_ID       = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    public static final Identifier MANA_ID           = Identifier.fromNamespaceAndPath("rpgcraftcore", "mana");
-    public static final Identifier AGILE_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
-    public static final Identifier PRECISION_ID      = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
-    public static final Identifier DEFENSE_ID        = Identifier.fromNamespaceAndPath("rpgcraftcore", "defense");
-    public static final Identifier RESISTANCE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
-    public static final Identifier CRITICAL_RATE_ID  = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
-    public static final Identifier CRITICAL_RATIO_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
-    public static final Identifier FIXED_DAMAGE_ID   = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
+    public static final Identifier SKILL_POINT_ID           = Identifier.fromNamespaceAndPath("rpgcraftcore", "skill_point");
+    public static final Identifier MAGIC_POINT_ID           = Identifier.fromNamespaceAndPath("rpgcraftcore", "magic_point");
+    public static final Identifier STRENGTH_ID              = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
+    public static final Identifier MANA_ID                  = Identifier.fromNamespaceAndPath("rpgcraftcore", "mana");
+    public static final Identifier AGILE_ID                 = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
+    public static final Identifier PRECISION_ID             = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
+    public static final Identifier DEFENSE_ID               = Identifier.fromNamespaceAndPath("rpgcraftcore", "defense");
+    public static final Identifier RESISTANCE_ID            = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
+    public static final Identifier CRITICAL_RATE_ID         = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
+    public static final Identifier CRITICAL_RATIO_ID        = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
+    public static final Identifier FIXED_DAMAGE_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
+    public static final Identifier PHYSICAL_PENETRATE_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
+    public static final Identifier MAGICAL_PENETRATE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
 }
