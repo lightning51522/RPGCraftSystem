@@ -1,6 +1,7 @@
 package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
+import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.player.Player;
  *   <li>标题 "玩家信息"（居中，黄色）</li>
  *   <li>等级行：{@code "等级: X (MAX)"} 或 {@code "等级: X  经验: current/next"}</li>
  *   <li>职业行：{@code "职业: 名称"}</li>
+ *   <li>可分配点数行：{@code "可分配点数: N"}（N &gt; 0 时绿色高亮，提示玩家分配）</li>
  *   <li>分隔线</li>
  * </ol>
  *
@@ -42,8 +44,8 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     /** 分隔线上下方间距 */
     private static final int SEPARATOR_GAP = 2;
 
-    /** 插件总高度 */
-    private static final int PLUGIN_HEIGHT = TITLE_HEIGHT + LINE_HEIGHT * 2 + SEPARATOR_GAP * 2 + 1;
+    /** 插件总高度（标题 + 等级 + 职业 + 可分配点数 + 分隔线间距 + 1px 分隔线） */
+    private static final int PLUGIN_HEIGHT = TITLE_HEIGHT + LINE_HEIGHT * 3 + SEPARATOR_GAP * 2 + 1;
 
     // ====================================================================
     // 颜色常量（ARGB 格式）
@@ -55,6 +57,10 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final int COLOR_TEXT = 0xFFFFFFFF;
     /** 灰色分隔线 */
     private static final int COLOR_SEPARATOR = 0xFF555555;
+    /** 绿色高亮（有可分配点数时） */
+    private static final int COLOR_HIGHLIGHT = 0xFF55FF55;
+    /** 灰色提示（无可分配点数时） */
+    private static final int COLOR_HINT = 0xFFAAAAAA;
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
@@ -118,9 +124,20 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
                 .getProfessionById(profData.getProfessionId());
         String profText = "职业: " + (prof != null ? prof.getDisplayName() : "未知");
         graphics.text(mc.font, profText, x, currentY, COLOR_TEXT, false);
+        currentY += LINE_HEIGHT;
+
+        // 4. 可分配属性点数（属性点模块加载时显示；N > 0 绿色高亮提示分配）
+        if (RPGSystems.hasAttributePointSystem()) {
+            PlayerAttributePoints points = player.getData(
+                    RPGSystems.<PlayerAttributePoints>getPlayerAttributePointsAttachment().get());
+            int available = points.getAvailablePoints();
+            String pointsText = "可分配点数: " + available;
+            int pointsColor = available > 0 ? COLOR_HIGHLIGHT : COLOR_HINT;
+            graphics.text(mc.font, pointsText, x, currentY, pointsColor, false);
+        }
         currentY += LINE_HEIGHT + SEPARATOR_GAP;
 
-        // 4. 分隔线
+        // 5. 分隔线
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
     }
 }

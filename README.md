@@ -35,6 +35,7 @@ RPGCraftSystem/
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |
 | client | `rpgcraftclient` | `ClientMod` | core |
+| attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
 
 > 插件模块**互不依赖**，跨模块通信全部走 core 的 `RPGSystems` 注册门面。
 
@@ -294,7 +295,7 @@ baseValue
 
 | 文件 | 用途 |
 |------|------|
-| `config/rpgcraftleveling/rpg/level_config.json` | 等级经验表 |
+| `config/rpgcraftcore/rpg/level_config.json` | 等级经验表 |
 | `config/rpgcraftcore/rpg/mob_attributes.json` | 怪物属性配置（基础值 / 等级缩放 / 攻击类型 / 掉落经验 / 自然刷新权重） |
 | `config/rpgcraftcore/rpg/equipment_attributes.json` | 装备加成配置（稀有度 / 属性加成 / 攻击类型） |
 

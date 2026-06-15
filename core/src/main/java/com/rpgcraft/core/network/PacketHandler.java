@@ -52,7 +52,16 @@ public class PacketHandler {
                 RequestCharacterScreenPacket::handle
         );
 
+        // 属性点分配请求包（客户端 → 服务端）
+        // 客户端在角色界面点击 [+] 按钮时发送，委托 attributepoints 模块校验+应用
+        registrar.playToServer(
+                AllocateAttributePointPacket.TYPE,
+                AllocateAttributePointPacket.STREAM_CODEC,
+                AllocateAttributePointPacket::handle
+        );
+
         // 怪物信息查询/回复包、HUD 开关包由 client 模块自行注册
         // 职业同步包由 profession 模块自行注册
+        // 属性点同步包由 attributepoints 模块自行注册
     }
 }

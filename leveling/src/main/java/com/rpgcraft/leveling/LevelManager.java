@@ -95,7 +95,13 @@ public class LevelManager {
 
             @Override
             public void setLevel(ServerPlayer player, int level) {
+                int oldLevel = player.getData(PLAYER_LEVEL).getLevel();
                 player.getData(PLAYER_LEVEL).setLevel(level);
+                if (level > oldLevel) {
+                    // 等级上升时触发升级事件（覆盖 /rpg setlevel 路径）
+                    net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                            new com.rpgcraft.core.event.PlayerLevelUpEvent(player, oldLevel, level));
+                }
             }
 
             @Override
@@ -105,7 +111,15 @@ public class LevelManager {
 
             @Override
             public boolean addExperience(ServerPlayer player, int amount) {
-                return player.getData(PLAYER_LEVEL).addExperience(amount);
+                int oldLevel = player.getData(PLAYER_LEVEL).getLevel();
+                boolean leveledUp = player.getData(PLAYER_LEVEL).addExperience(amount);
+                if (leveledUp) {
+                    int newLevel = player.getData(PLAYER_LEVEL).getLevel();
+                    // 触发升级事件（携带连续升级的等级增量，供属性点等系统消费）
+                    net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                            new com.rpgcraft.core.event.PlayerLevelUpEvent(player, oldLevel, newLevel));
+                }
+                return leveledUp;
             }
 
             @Override

@@ -46,8 +46,17 @@ public class RPGCharacterScreen extends Screen {
     // 布局常量
     // ====================================================================
 
-    /** 面板固定宽度（像素） */
+    /** 左侧主面板固定宽度（像素） */
     private static final int PANEL_WIDTH = 200;
+
+    /** 右侧属性点面板宽度（像素） */
+    private static final int RIGHT_PANEL_WIDTH = 130;
+
+    /** 左右面板间距（像素） */
+    private static final int PANEL_GAP = 8;
+
+    /** 两面板并排显示的最小屏幕宽度（低于此值隐藏右侧面板） */
+    private static final int MIN_WIDTH_FOR_RIGHT_PANEL = 360;
 
     /** 顶部内边距（标题区域上方） */
     private static final int TOP_PADDING = 20;
@@ -118,8 +127,10 @@ public class RPGCharacterScreen extends Screen {
         // 注意：不调用 this.extractBackground()！框架已在调用此方法前完成背景渲染。
         // 再次调用会导致 IllegalStateException: Can only blur once per frame
 
-        // 1. 计算面板位置（水平居中）
-        int panelX = (this.width - PANEL_WIDTH) / 2;
+        // 1. 计算左面板位置（以"左+间距+右"总宽居中，使右侧属性点面板能并排显示）
+        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL;
+        int totalWidth = showRightPanel ? (PANEL_WIDTH + PANEL_GAP + RIGHT_PANEL_WIDTH) : PANEL_WIDTH;
+        int panelX = (this.width - totalWidth) / 2;
         int panelY = TOP_PADDING;
         int panelHeight = this.height - TOP_PADDING - BOTTOM_PADDING;
 
@@ -222,6 +233,17 @@ public class RPGCharacterScreen extends Screen {
                     COLOR_SCROLLBAR
             );
         }
+
+        // 11. 渲染右侧属性点面板（屏幕足够宽时显示）
+        if (showRightPanel) {
+            int rightX = panelX + PANEL_WIDTH + PANEL_GAP;
+            fillRounded(graphics, rightX - 1, panelY - 1, RIGHT_PANEL_WIDTH + 2, panelHeight + 2,
+                    CORNER_RADIUS + 1, COLOR_BORDER);
+            fillRounded(graphics, rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight,
+                    CORNER_RADIUS, COLOR_BG);
+            AttributePointPanel.render(graphics, rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight,
+                    mouseX, mouseY);
+        }
     }
 
     // ====================================================================
@@ -279,18 +301,35 @@ public class RPGCharacterScreen extends Screen {
      */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean isPick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+
+        // 与 extractRenderState 一致的面板定位（含右侧面板时的居中）
+        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL;
+        int totalWidth = showRightPanel ? (PANEL_WIDTH + PANEL_GAP + RIGHT_PANEL_WIDTH) : PANEL_WIDTH;
+        int panelX = (this.width - totalWidth) / 2;
+        int panelY = TOP_PADDING;
+        int panelHeight = this.height - TOP_PADDING - BOTTOM_PADDING;
+
+        // 先尝试右侧属性点面板的点击（[+] 按钮）
+        if (showRightPanel) {
+            int rightX = panelX + PANEL_WIDTH + PANEL_GAP;
+            if (mouseX >= rightX && mouseX < rightX + RIGHT_PANEL_WIDTH
+                    && mouseY >= panelY && mouseY < panelY + panelHeight) {
+                if (AttributePointPanel.mouseClicked(rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight,
+                        mouseX, mouseY, button)) {
+                    return true;
+                }
+            }
+        }
+
         AttributeSnapshot snapshot = UISnapshotCache.get();
         if (snapshot == null) return false;
 
         List<ICharacterScreenPlugin> plugins = RPGUIPlugins.getPlugins();
         if (plugins.isEmpty()) return false;
 
-        double mouseX = event.x();
-        double mouseY = event.y();
-        int button = event.button();
-
-        int panelX = (this.width - PANEL_WIDTH) / 2;
-        int panelY = TOP_PADDING;
         int contentStartY = panelY + TITLE_HEIGHT;
         int contentX = panelX + CONTENT_MARGIN;
         int contentWidth = PANEL_WIDTH - 2 * CONTENT_MARGIN;

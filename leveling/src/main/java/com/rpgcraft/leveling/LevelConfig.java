@@ -20,29 +20,54 @@ import java.util.TreeMap;
 /**
  * {@link ILevelRegistry} 的默认实现
  * <p>
- * 从 {@code data/rpgcraftleveling/rpg/level_config.json} 读取每级升级所需增量经验，
+ * 从 {@code data/rpgcraftcore/rpg/level_config.json} 读取每级升级所需增量经验，
  * 同时支持编程式注册（通过 {@link #registerExpRequirement}）。
  * <p>
  * JSON 格式（键 = 当前等级，值 = 升到下一级所需增量经验）：
  * <pre>
  * {
- *   "1": 100,
- *   "2": 250,
- *   "3": 500
+ *   "1": 50,
+ *   "2": 141,
+ *   "3": 260
  * }
  * </pre>
- * 最大等级 = 最大键值 + 1。
+ * 最大等级 = 最大键值 + 1。默认经验表由公式 {@code round(50 * L^1.5)} 生成（L=1..299），
+ * 最大等级 300。
  * <p>
  * 支持 {@code /reload} 热重载。
  */
 @EventBusSubscriber(modid = LevelingMod.MODID)
 public class LevelConfig implements ILevelRegistry {
 
-    /** 配置文件路径 */
-    private static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftleveling", "rpg/level_config.json");
+    /** 配置文件路径（命名空间 rpgcraftcore，匹配 core 模块资源位置） */
+    private static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "rpg/level_config.json");
 
-    /** 默认经验表（1→2: 100, 2→3: 300, 3→4: 600, 4→5: 1000, 5→6: 2000） */
-    private static final int[] DEFAULT_EXP_TABLE = {100, 300, 600, 1000, 2000};
+    /**
+     * 默认经验表（JSON 加载失败时的兜底）
+     * <p>
+     * 使用平滑递增曲线公式 {@code round(50 * L^1.5)} 生成 299 项（L=1..299），
+     * 最大等级 = 300。与 {@code data/rpgcraftcore/rpg/level_config.json} 一致。
+     * <p>
+     * 示例：1→2 需 50；10→11 需 1581；50→51 需 17678；100→101 需 50000；299→300 需 258510。
+     */
+    private static final int[] DEFAULT_EXP_TABLE = generateExpTable(299);
+
+    /**
+     * 按公式 {@code round(50 * L^1.5)} 生成经验表（L=1..length，每项为该等级升到下一级所需经验）
+     * <p>
+     * 前期升级快、后期渐慢，符合 RPG 节奏；不会指数爆炸。
+     *
+     * @param length 表长度（= 最大等级 - 1）
+     * @return 经验表数组
+     */
+    private static int[] generateExpTable(int length) {
+        int[] table = new int[length];
+        for (int i = 0; i < length; i++) {
+            int level = i + 1; // L = 当前等级（1-based）
+            table[i] = (int) Math.round(50 * Math.pow(level, 1.5));
+        }
+        return table;
+    }
 
     /** 经验表快照：expTable[0] = 等级 1 升到 2 所需经验，长度 = 最大等级 - 1 */
     private volatile int[] expTable = DEFAULT_EXP_TABLE.clone();

@@ -85,6 +85,9 @@ neoForge {
         rpgcraftclient {
             sourceSet project(':client').sourceSets.main
         }
+        rpgcraftattributepoints {
+            sourceSet project(':attributepoints').sourceSets.main
+        }
     }
 }
 
@@ -99,6 +102,7 @@ dependencies {
     runtimeOnly project(':equipment')
     runtimeOnly project(':profession')
     runtimeOnly project(':client')
+    runtimeOnly project(':attributepoints')
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

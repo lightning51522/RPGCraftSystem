@@ -79,6 +79,10 @@ public final class RPGSystems {
     private static Supplier<?> playerLevelAttachment;
     private static Supplier<?> playerProfessionAttachment;
 
+    // 属性点系统
+    private static Registration<IAttributePointSystem> attributePointSystem;
+    private static Supplier<?> playerAttributePointsAttachment;
+
     private RPGSystems() {
         // 禁止实例化
     }
@@ -321,6 +325,38 @@ public final class RPGSystems {
         playerProfessionAttachment = supplier;
     }
 
+    /**
+     * 注册属性点系统实现（默认优先级）
+     *
+     * @param system 属性点系统实例
+     */
+    public static void registerAttributePointSystem(IAttributePointSystem system) {
+        registerAttributePointSystem(system, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册属性点系统实现（指定优先级）
+     *
+     * @param system   属性点系统实例
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerAttributePointSystem(IAttributePointSystem system, int priority) {
+        if (shouldOverride("IAttributePointSystem", attributePointSystem, priority)) {
+            attributePointSystem = new Registration<>(system, priority);
+        }
+    }
+
+    /**
+     * 注册玩家属性点附件类型 Supplier
+     * <p>
+     * 由 attributepoints 模块调用，供客户端 UI 通过 {@link #getPlayerAttributePointsAttachment()} 获取附件类型。
+     *
+     * @param supplier AttachmentType<PlayerAttributePoints> 的 Supplier
+     */
+    public static void registerPlayerAttributePointsAttachment(Supplier<?> supplier) {
+        playerAttributePointsAttachment = supplier;
+    }
+
     // ====================================================================
     // 查询方法（跨模块访问，未注册时抛出 IllegalStateException）
     // ====================================================================
@@ -459,5 +495,44 @@ public final class RPGSystems {
             throw new IllegalStateException("playerProfessionAttachment 未注册，请先由 profession 模块初始化");
         }
         return (Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) playerProfessionAttachment;
+    }
+
+    /**
+     * 获取属性点系统
+     *
+     * @return 属性点系统实例
+     * @throws IllegalStateException 未注册时抛出
+     */
+    public static IAttributePointSystem getAttributePointSystem() {
+        if (attributePointSystem == null) {
+            throw new IllegalStateException("IAttributePointSystem 未注册，请先调用 registerAttributePointSystem()");
+        }
+        return attributePointSystem.implementation();
+    }
+
+    /**
+     * 查询属性点系统是否已注册（避免 UI 在模块未加载时空指针）
+     *
+     * @return {@code true} 已注册
+     */
+    public static boolean hasAttributePointSystem() {
+        return attributePointSystem != null;
+    }
+
+    /**
+     * 获取玩家属性点附件类型 Supplier
+     * <p>
+     * 用于客户端 UI 访问玩家属性点数据附件。
+     *
+     * @param <T> 附件数据类型（PlayerAttributePoints）
+     * @return 附件类型 Supplier
+     * @throws IllegalStateException 未注册时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerAttributePointsAttachment() {
+        if (playerAttributePointsAttachment == null) {
+            throw new IllegalStateException("playerAttributePointsAttachment 未注册，请先由 attributepoints 模块初始化");
+        }
+        return (Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) playerAttributePointsAttachment;
     }
 }
