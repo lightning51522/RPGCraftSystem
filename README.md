@@ -32,7 +32,7 @@ RPGCraftSystem/
 | 模块 | mod ID | 入口类 | 依赖 |
 |------|--------|--------|------|
 | core | `rpgcraftcore` | `RPGCraftCore` | — |
-| attributes | `rpgcraftcore-attributes` | `AttributesMod` | core |
+| attributes | `rpgcraftattributes` | `AttributesMod` | core |
 | leveling | `rpgcraftleveling` | `LevelingMod` | core |
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |

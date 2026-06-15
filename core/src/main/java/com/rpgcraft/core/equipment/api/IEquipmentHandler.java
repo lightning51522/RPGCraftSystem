@@ -45,18 +45,19 @@ public interface IEquipmentHandler {
     /**
      * 重扫模式下根据当前装备重新计算并应用所有属性
      * <p>
-     * 从死亡快照中剥离死亡时的装备加成得到基础值，
-     * 再根据玩家当前身上实际装备重新计算总加成并应用。
-     * 适用于装备在死亡时掉落的场景。
-     * <p>
-     * 该方法同时会更新装备加成追踪附件（等效于调用 {@link #restoreBonusTracking}），
-     * 并将所有属性同步到客户端。
+     * <b>已废弃（默认空实现）</b>：RESCAN 语义现由快照贡献者协作实现 ——
+     * {@code AttributeSnapshotContributor} 恢复纯基础值，{@code EquipmentSnapshotContributor}
+     * 通过 {@link #restoreBonusTracking} 根据重生后装备重新添加修饰符。本接口方法
+     * 保留为 {@code default} 空实现仅为向后兼容（避免破坏实现此接口的第三方处理器），
+     * 不再有默认实现调用它。
      *
-     * @param player                重生后的新玩家实体
-     * @param deathSnapshot         死亡时的属性快照
-     * @param deathEquipmentBonuses 死亡时的装备加成映射（字符串键，来自追踪附件）
+     * @param player                重生后的新玩家实体（未使用）
+     * @param deathSnapshot         死亡时的属性快照（未使用）
+     * @param deathEquipmentBonuses 死亡时的装备加成映射（未使用）
      */
-    void rescanAndApplyAttributes(ServerPlayer player,
-                                   AttributeSnapshot deathSnapshot,
-                                   Map<String, EquipmentBonus> deathEquipmentBonuses);
+    default void rescanAndApplyAttributes(ServerPlayer player,
+                                          AttributeSnapshot deathSnapshot,
+                                          Map<String, EquipmentBonus> deathEquipmentBonuses) {
+        // 默认空实现：RESCAN 语义由 restoreBonusTracking + AttributeSnapshotContributor 协作完成
+    }
 }

@@ -153,38 +153,41 @@ public class CombatCommands {
         return enabled ? 1 : 0;
     }
 
-    // === 随机刷新开关（全局，默认关闭） ===
-
-    /** 全局随机刷新开关，默认关闭。开启后自然刷新的怪物会从权重表中随机选择等级和评级 */
-    private static volatile boolean randomSpawnEnabled = false;
+    // === 随机刷新开关（全局，默认关闭，持久化到主世界 SavedData） ===
 
     /**
      * 查询随机刷新是否启用
+     * <p>
+     * 读取 {@link RandomSpawnSavedData} 的内存镜像（零开销）。
+     * 服务端启动时由 SavedData 从存档恢复镜像，运行期由 {@code /rpg randspawn} 写入。
      *
      * @return true = 自然刷新使用权重表随机等级/评级
      */
     public static boolean isRandomSpawnEnabled() {
-        return randomSpawnEnabled;
+        return RandomSpawnSavedData.isEnabled();
     }
 
     /**
      * 显示当前随机刷新开关状态
      */
     private static int executeRandSpawnStatus(CommandContext<CommandSourceStack> context) {
-        String status = randomSpawnEnabled ? "§a开启" : "§c关闭";
+        boolean enabled = isRandomSpawnEnabled();
+        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
                 () -> Component.literal("随机刷新状态: " + status + "（自然生成的怪物" +
-                        (randomSpawnEnabled ? "会从权重表中随机选择等级和评级" : "使用配置静态等级") + "）"),
+                        (enabled ? "会从权重表中随机选择等级和评级" : "使用配置静态等级") + "）"),
                 false
         );
-        return randomSpawnEnabled ? 1 : 0;
+        return enabled ? 1 : 0;
     }
 
     /**
      * 切换随机刷新开关
+     * <p>
+     * 写入 {@link RandomSpawnSavedData}，持久化到主世界存档，跨重启保留。
      */
     private static int executeRandSpawnToggle(CommandContext<CommandSourceStack> context, boolean enabled) {
-        randomSpawnEnabled = enabled;
+        RandomSpawnSavedData.setEnabled(context.getSource().getServer(), enabled);
 
         String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
@@ -200,7 +203,9 @@ public class CombatCommands {
     /** 合法的 JSON 属性字段名（不含 attack_type，它单独解析） */
     private static final Set<String> VALID_ATTRIBUTE_FIELDS = Set.of(
             "life", "strength", "defense", "resistance",
-            "critical_rate", "critical_ratio", "base_exp"
+            "critical_rate", "critical_ratio",
+            "physical_penetrate", "magical_penetrate",
+            "base_exp"
     );
 
     private static final Gson GSON = new Gson();
@@ -309,7 +314,7 @@ public class CombatCommands {
         for (String key : json.keySet()) {
             if (!VALID_ATTRIBUTE_FIELDS.contains(key) && !"attack_type".equals(key) && !"rating".equals(key)) {
                 context.getSource().sendFailure(Component.literal(
-                        "未知属性: " + key + "。合法字段: attack_type, rating, base_exp, life, strength, defense, resistance, critical_rate, critical_ratio"));
+                        "未知属性: " + key + "。合法字段: attack_type, rating, base_exp, life, strength, defense, resistance, critical_rate, critical_ratio, physical_penetrate, magical_penetrate"));
                 return 0;
             }
         }

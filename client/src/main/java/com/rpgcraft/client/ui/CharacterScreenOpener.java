@@ -43,10 +43,16 @@ public final class CharacterScreenOpener {
     /**
      * 角色界面快捷键分类
      * <p>
-     * 使用 {@link KeyMapping.Category#register(Identifier)} 注册自定义分类，
-     * 在游戏设置 → 按键绑定 中显示为独立分组。
+     * 自定义分类，通过 {@link RegisterKeyMappingsEvent#registerCategory(KeyMapping.Category)}
+     * 在快捷键注册阶段注册，在游戏设置 → 按键绑定 中显示为独立分组。
+     * <p>
+     * <b>MC 26.1 API 变更</b>：{@code Category.register(Identifier)} 已弃用，
+     * 改为先构造 {@code Category} 记录（{@code new Category(Identifier)}），
+     * 再在 mod 事件总线的 {@link RegisterKeyMappingsEvent} 中调用
+     * {@code registerCategory}。这避免了静态初始化阶段的副作用（向全局 SORT_ORDER
+     * 列表注册），将分类注册纳入事件生命周期。
      */
-    public static final KeyMapping.Category RPGCRAFT_CATEGORY = KeyMapping.Category.register(
+    public static final KeyMapping.Category RPGCRAFT_CATEGORY = new KeyMapping.Category(
             Identifier.fromNamespaceAndPath("rpgcraftcore", "rpgcraft")
     );
 
@@ -69,11 +75,13 @@ public final class CharacterScreenOpener {
     /**
      * 快捷键注册回调（Mod 事件总线）
      * <p>
+     * 先注册自定义分类 {@link #RPGCRAFT_CATEGORY}，再注册快捷键本身。
      * 在 ClientMod 构造函数中通过 {@code modEventBus.addListener(CharacterScreenOpener::registerKeyMapping)} 挂载。
      *
      * @param event NeoForge 快捷键注册事件
      */
     public static void registerKeyMapping(RegisterKeyMappingsEvent event) {
+        event.registerCategory(RPGCRAFT_CATEGORY);
         event.register(CHARACTER_SCREEN_KEY);
         ClientMod.LOGGER.debug("注册角色界面快捷键：R");
     }

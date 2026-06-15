@@ -36,7 +36,7 @@ import org.jspecify.annotations.NonNull;
 public record OpenCharacterScreenPacket() implements CustomPacketPayload {
 
     public static final Type<OpenCharacterScreenPacket> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath("rpgcraftclient", "open_character_screen")
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "open_character_screen")
     );
 
     /**

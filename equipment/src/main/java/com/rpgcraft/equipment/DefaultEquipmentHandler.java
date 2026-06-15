@@ -4,7 +4,6 @@ import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.AttributeModifier;
 import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
-import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.attribute.api.IAttributeModifier;
@@ -225,102 +224,6 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
             }
 
             SyncPlayerAttributePacket.sendToClient(player, entry.getId(), (EntityAttribute) attr);
-        }
-    }
-
-    /**
-     * 重扫模式下根据当前装备重新计算并应用所有属性
-     * <p>
-     * 核心思路：快照值 = 基础值 + 死亡时装备加成，因此 基础值 = 快照值 - 死亡时装备加成。
-     * 计算出基础值后，清理所有旧修饰符，设置正确的基础值，
-     * 然后根据当前装备重新添加修饰符（由管线自动计算最终值）。
-     *
-     * @param player                重生后的新玩家实体
-     * @param deathSnapshot         死亡时的属性快照
-     * @param deathEquipmentBonuses 死亡时的装备加成映射（字符串键，来自追踪附件）
-     */
-    @Override
-    public void rescanAndApplyAttributes(ServerPlayer player,
-                                          AttributeSnapshot deathSnapshot,
-                                          Map<String, EquipmentBonus> deathEquipmentBonuses) {
-        // 1. 将死亡时的装备加成从存储格式转换为计算格式
-        Map<Identifier, EquipmentBonus> deathBonuses = storageToMap(deathEquipmentBonuses);
-
-        // 2. 计算玩家当前装备的总加成
-        Map<Identifier, EquipmentBonus> currentBonuses = calculateTotalBonus(player);
-
-        // 3. 逐属性恢复基础值并清理旧修饰符
-        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
-            AttributeSnapshot.AttributeData deathData = deathSnapshot.get(entry.getId());
-            if (deathData == null) continue;
-
-            EquipmentBonus deathBonus = deathBonuses.getOrDefault(entry.getId(), EquipmentBonus.ZERO);
-
-            IAttribute attr = player.getData(entry.getSupplier());
-
-            // 清理所有旧修饰符
-            attr.removeModifier(modifierSourceId(entry.getId()));
-            attr.removeModifier(Identifier.fromNamespaceAndPath(MODIFIER_PREFIX,
-                    "max_" + entry.getId().getNamespace() + "_" + entry.getId().getPath()));
-
-            if (entry.equipmentAffectsMax()) {
-                // 资源型属性：恢复基础上限值
-                int baseMax = Math.max(0, deathData.maxValue() - deathBonus.value());
-                attr.setBaseMaxValue(baseMax);
-            } else {
-                // 能力型属性：恢复基础当前值
-                int baseValue = Math.max(0, deathData.currentValue() - deathBonus.value());
-                attr.setBaseValue(baseValue);
-            }
-        }
-
-        // 4. 根据当前装备添加新修饰符
-        for (Map.Entry<Identifier, EquipmentBonus> bonusEntry : currentBonuses.entrySet()) {
-            IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(bonusEntry.getKey());
-            if (attrEntry == null) continue;
-
-            EquipmentBonus bonus = bonusEntry.getValue();
-            IAttribute attr = player.getData(attrEntry.getSupplier());
-
-            // 值修饰符
-            attr.addModifier(AttributeModifier.of(
-                    modifierSourceId(bonusEntry.getKey()),
-                    Operation.ADDITION,
-                    bonus.value()
-            ));
-
-            // 资源型属性的上限修饰符
-            if (attrEntry.equipmentAffectsMax() && bonus.value() != 0) {
-                attr.addModifier(AttributeModifier.of(
-                        Identifier.fromNamespaceAndPath(MODIFIER_PREFIX,
-                                "max_" + bonusEntry.getKey().getNamespace() + "_" + bonusEntry.getKey().getPath()),
-                        Operation.ADDITION,
-                        bonus.value()
-                ));
-            }
-        }
-
-        // 5. 脱装备导致生命为 0 时保留 1 点防止死亡
-        EntityAttribute lifeAttr = player.getData(AttributeManager.LIFE);
-        if (lifeAttr.getValue() < 1) {
-            lifeAttr.setValue(1);
-        }
-
-        // 6. 资源型属性重生时恢复到满值
-        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
-            if (entry.shouldResetOnRespawn()) {
-                IAttribute attr = player.getData(entry.getSupplier());
-                attr.fillMax();
-            }
-        }
-
-        // 7. 更新装备加成追踪附件
-        player.setData(EquipmentData.EQUIPMENT_BONUS.get(), mapToStorage(currentBonuses));
-
-        // 8. 同步所有属性到客户端
-        for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
-            EntityAttribute attr = (EntityAttribute) player.getData(entry.getSupplier());
-            SyncPlayerAttributePacket.sendToClient(player, entry.getId(), attr);
         }
     }
 

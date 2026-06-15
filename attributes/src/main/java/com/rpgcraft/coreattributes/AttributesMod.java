@@ -2,6 +2,7 @@ package com.rpgcraft.coreattributes;
 
 import com.rpgcraft.combat.CombatEventHandler;
 import com.rpgcraft.combat.DefaultDamageCalculator;
+import com.rpgcraft.combat.RandomSpawnSavedData;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attributes.DefaultAttributeModule;
@@ -10,10 +11,14 @@ import com.rpgcraft.core.registry.ICombatSystem;
 import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.snapshot.AttributeSnapshotContributor;
 import com.rpgcraft.core.snapshot.SnapshotCoordinator;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -68,5 +73,27 @@ public class AttributesMod {
                         overrides, attackTypeOverride, rating);
             }
         });
+
+        // 注册全局事件监听（服务端启动时预加载随机刷新开关的内存镜像）
+        NeoForge.EVENT_BUS.register(this);
+    }
+
+    /**
+     * 主世界首次加载时预加载 {@link RandomSpawnSavedData}
+     * <p>
+     * 确保随机刷新开关的内存镜像在任何怪物自然生成之前从存档恢复，
+     * 避免 {@link RandomSpawnSavedData#isEnabled()} 在首只怪物入世界时仍为默认值。
+     * <p>
+     * SavedData 挂载在 {@link net.minecraft.server.MinecraftServer#getDataStorage()} 上
+     * （服务器全局，不绑定维度），这里借用主世界加载事件作为预加载时机（主世界总是首个加载）。
+     *
+     * @param event 世界加载事件
+     */
+    @SubscribeEvent
+    public void onLevelLoad(LevelEvent.Load event) {
+        if (event.getLevel() instanceof ServerLevel serverLevel && serverLevel.equals(serverLevel.getServer().overworld())) {
+            // 触发 SavedData 加载，同步内存镜像
+            RandomSpawnSavedData.get(serverLevel.getServer());
+        }
     }
 }
