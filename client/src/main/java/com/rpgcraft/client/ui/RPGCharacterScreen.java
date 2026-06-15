@@ -90,7 +90,7 @@ public class RPGCharacterScreen extends Screen {
     private int scrollOffset = 0;
 
     public RPGCharacterScreen() {
-        super(Component.literal("RPG 角色信息"));
+        super(Component.literal("角色信息"));
     }
 
     // ====================================================================
@@ -130,7 +130,7 @@ public class RPGCharacterScreen extends Screen {
                 CORNER_RADIUS, COLOR_BG);
 
         // 4. 绘制标题
-        String title = "RPG 角色信息";
+        String title = "角色信息";
         int titleWidth = this.font.width(title);
         graphics.text(this.font, title, panelX + (PANEL_WIDTH - titleWidth) / 2,
                 panelY + 6, COLOR_TITLE, true);

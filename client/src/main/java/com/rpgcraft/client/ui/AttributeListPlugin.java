@@ -122,7 +122,7 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         int currentY = y;
 
         // 1. 标题 "RPG属性"
-        String title = "RPG属性";
+        String title = "属性";
         int titleWidth = mc.font.width(title);
         graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
         currentY += 13;
