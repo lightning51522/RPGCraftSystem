@@ -60,8 +60,17 @@ public class PacketHandler {
                 AllocateAttributePointPacket::handle
         );
 
+        // 属性点模块配置同步包（服务端 → 客户端）
+        // 推送 allow_decrease 配置（是否允许减少属性点），由 attributepoints 模块在登录/reload 时发送
+        registrar.playToClient(
+                SyncAttributePointsConfigPacket.TYPE,
+                SyncAttributePointsConfigPacket.STREAM_CODEC,
+                SyncAttributePointsConfigPacket::handle
+        );
+
         // 怪物信息查询/回复包、HUD 开关包由 client 模块自行注册
         // 职业同步包由 profession 模块自行注册
-        // 属性点同步包由 attributepoints 模块自行注册
+        // 属性点点数同步包（SyncPlayerAttributePointsPacket）由 attributepoints 模块自行注册
+        // 属性点配置同步包（上方）注册在此处，供 client 模块通过 core 访问客户端镜像
     }
 }

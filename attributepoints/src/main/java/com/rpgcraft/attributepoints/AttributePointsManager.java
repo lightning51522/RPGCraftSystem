@@ -205,6 +205,8 @@ public class AttributePointsManager {
      * @return {@code true} 成功；{@code false} 校验失败
      */
     public static boolean deallocate(ServerPlayer player, Identifier attrId, int points) {
+        // 配置禁用减少时拒绝所有回收请求（防作弊：即便客户端绕过 UI 直接发包也会被拒）
+        if (!AttributePointsConfig.isAllowDecrease()) return false;
         if (points <= 0) return false;
         if (!isAllocatable(attrId)) return false;
 

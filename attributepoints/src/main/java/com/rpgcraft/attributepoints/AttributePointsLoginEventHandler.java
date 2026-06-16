@@ -24,5 +24,7 @@ public class AttributePointsLoginEventHandler {
         // 登录时重建属性点修饰符（修饰符不持久化，需从 allocations 重新应用）
         AttributePointsManager.reapplyAllModifiers(player);
         AttributePointsManager.syncToClient(player);
+        // 推送模块配置（如 allow_decrease），供客户端决定是否渲染 [-] 按钮
+        AttributePointsConfig.syncToClient(player);
     }
 }

@@ -5,6 +5,7 @@ import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.AllocateAttributePointPacket;
 import com.rpgcraft.core.registry.RPGSystems;
+import com.rpgcraft.core.ui.AttributePointClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
@@ -144,12 +145,16 @@ public class AttributePointPanel {
                                   int x, int rowY, int width,
                                   String name, int allocated, int available,
                                   boolean canDecrement, int mouseX, int mouseY) {
+        // 配置 allow_decrease=false 时隐藏 [-] 按钮：[+] 直接右对齐到面板右边，
+        // +N 文本右对齐到 [+] 左侧。allow_decrease=true 时保持原有 [+] [-] 双按钮布局。
+        boolean allowDecrease = AttributePointClientConfig.isAllowDecrease();
+
         // [+] 按钮位置（最右）
         int plusX = x + width - CONTENT_MARGIN - BUTTON_WIDTH;
-        // [-] 按钮位置（[+] 左侧）
+        // [-] 按钮位置（[+] 左侧）—— 仅 allow_decrease=true 时存在
         int minusX = plusX - BUTTON_GAP - BUTTON_WIDTH;
         // 按钮区左边界
-        int buttonAreaLeft = minusX;
+        int buttonAreaLeft = allowDecrease ? minusX : plusX;
         // +N 文本右边界
         int allocRight = buttonAreaLeft - TEXT_BUTTON_GAP;
 
@@ -161,9 +166,11 @@ public class AttributePointPanel {
         int allocColor = allocated > 0 ? COLOR_ALLOCATED : COLOR_HINT;
         graphics.text(mc.font, allocStr, allocRight - mc.font.width(allocStr), rowY, allocColor, false);
 
-        // [-] 按钮
-        renderButton(graphics, mc, "[-]", minusX, rowY, mouseX, mouseY,
-                canDecrement, COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_BUTTON_DISABLED);
+        // [-] 按钮（仅 allow_decrease=true 时渲染）
+        if (allowDecrease) {
+            renderButton(graphics, mc, "[-]", minusX, rowY, mouseX, mouseY,
+                    canDecrement, COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_BUTTON_DISABLED);
+        }
         // [+] 按钮
         renderButton(graphics, mc, "[+]", plusX, rowY, mouseX, mouseY,
                 available > 0, COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_BUTTON_DISABLED);
@@ -234,8 +241,9 @@ public class AttributePointPanel {
                 mc.getConnection().send(new AllocateAttributePointPacket(attrId, 1, true));
                 return true;
             }
-            // [-] 命中（需要已分配 > 0）
-            if (points.getAllocated(attrId) > 0
+            // [-] 命中（需要已分配 > 0，且配置允许减少）
+            if (AttributePointClientConfig.isAllowDecrease()
+                    && points.getAllocated(attrId) > 0
                     && isHover(mouseX, mouseY, minusX, btnY, BUTTON_WIDTH, LINE_HEIGHT)) {
                 mc.getConnection().send(new AllocateAttributePointPacket(attrId, 1, false));
                 return true;

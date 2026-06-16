@@ -1,6 +1,7 @@
 package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
+import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.ui.ICharacterScreenPlugin;
 import com.rpgcraft.core.ui.RPGUIPlugins;
 import com.rpgcraft.core.ui.UISnapshotCache;
@@ -128,7 +129,10 @@ public class RPGCharacterScreen extends Screen {
         // 再次调用会导致 IllegalStateException: Can only blur once per frame
 
         // 1. 计算左面板位置（以"左+间距+右"总宽居中，使右侧属性点面板能并排显示）
-        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL;
+        // 右侧属性点面板仅在屏幕足够宽 *且* 属性点模块已加载时显示；
+        // 模块未加载时不显示右侧面板（也不显示"模块未加载"提示），只居中显示左侧属性面板
+        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL
+                && RPGSystems.hasAttributePointSystem();
         int totalWidth = showRightPanel ? (PANEL_WIDTH + PANEL_GAP + RIGHT_PANEL_WIDTH) : PANEL_WIDTH;
         int panelX = (this.width - totalWidth) / 2;
         int panelY = TOP_PADDING;
@@ -306,7 +310,10 @@ public class RPGCharacterScreen extends Screen {
         int button = event.button();
 
         // 与 extractRenderState 一致的面板定位（含右侧面板时的居中）
-        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL;
+        // 右侧属性点面板仅在屏幕足够宽 *且* 属性点模块已加载时显示；
+        // 模块未加载时不显示右侧面板（也不显示"模块未加载"提示），只居中显示左侧属性面板
+        boolean showRightPanel = this.width >= MIN_WIDTH_FOR_RIGHT_PANEL
+                && RPGSystems.hasAttributePointSystem();
         int totalWidth = showRightPanel ? (PANEL_WIDTH + PANEL_GAP + RIGHT_PANEL_WIDTH) : PANEL_WIDTH;
         int panelX = (this.width - totalWidth) / 2;
         int panelY = TOP_PADDING;
