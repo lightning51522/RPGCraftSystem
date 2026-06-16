@@ -75,6 +75,10 @@ public class LevelEventHandler {
         PlayerLevelData levelData = player.getData(LevelManager.PLAYER_LEVEL);
         boolean leveledUp = levelData.addExperience(expGain);
 
+        // 广播经验获取事件（供职业经验等"与等级经验同步"的副作用消费，不论是否升级）
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                new com.rpgcraft.core.event.PlayerExpGainEvent(player, expGain));
+
         // 升级时标记属性快照脏（为未来属性点/升级加成做准备）
         if (leveledUp) {
             AttributeSnapshotManager.markDirty(player);

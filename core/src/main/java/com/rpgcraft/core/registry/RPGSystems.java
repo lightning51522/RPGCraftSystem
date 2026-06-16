@@ -388,6 +388,15 @@ public final class RPGSystems {
     }
 
     /**
+     * 查询职业系统是否已注册（避免 UI 在模块未加载时空指针）
+     *
+     * @return {@code true} 已注册
+     */
+    public static boolean hasProfessionSystem() {
+        return professionSystem != null;
+    }
+
+    /**
      * 获取职业系统
      *
      * @return 职业系统实例

@@ -45,7 +45,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final int SEPARATOR_GAP = 2;
 
     /** 插件总高度（标题 + 等级 + 职业 + 可分配点数 + 分隔线间距 + 1px 分隔线） */
-    private static final int PLUGIN_HEIGHT = TITLE_HEIGHT + LINE_HEIGHT * 3 + SEPARATOR_GAP * 2 + 1;
+    private static final int PLUGIN_HEIGHT = TITLE_HEIGHT + LINE_HEIGHT * 5 + SEPARATOR_GAP * 2 + 1;
 
     // ====================================================================
     // 颜色常量（ARGB 格式）
@@ -117,14 +117,34 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
 
-        // 3. 职业信息
+        // 3. 职业信息（含当前主职业等级 + 副职业）
         ProfessionData profData = player.getData(
                 RPGSystems.<ProfessionData>getPlayerProfessionAttachment().get());
         IProfession prof = RPGSystems.getProfessionSystem()
                 .getProfessionById(profData.getProfessionId());
-        String profText = "职业: " + (prof != null ? prof.getDisplayName() : "未知");
+        int profLevel = profData.getProfessionLevel(profData.getProfessionId());
+        String profText = "职业: " + (prof != null ? prof.getDisplayName() : "未知")
+                + " Lv." + Math.max(1, profLevel);
         graphics.text(mc.font, profText, x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
+        // 副职业
+        net.minecraft.resources.Identifier secId = profData.getSecondaryProfessionId();
+        if (secId != null) {
+            IProfession secProf = RPGSystems.getProfessionSystem().getProfessionById(secId);
+            int secLevel = profData.getProfessionLevel(secId);
+            String secText = "  副: " + (secProf != null ? secProf.getDisplayName() : "未知")
+                    + " Lv." + Math.max(1, secLevel)
+                    + (profData.isSecondaryActive() ? "(开)" : "(关)");
+            graphics.text(mc.font, secText, x, currentY, COLOR_HINT, false);
+            currentY += LINE_HEIGHT;
+        }
+        // 可分配职业经验池
+        int profPool = profData.getSkillPointPool();
+        if (profPool > 0) {
+            String poolText = "职业经验: " + profPool;
+            graphics.text(mc.font, poolText, x, currentY, COLOR_TITLE, false);
+            currentY += LINE_HEIGHT;
+        }
 
         // 4. 可分配属性点数（属性点模块加载时显示；N > 0 绿色高亮提示分配）
         if (RPGSystems.hasAttributePointSystem()) {

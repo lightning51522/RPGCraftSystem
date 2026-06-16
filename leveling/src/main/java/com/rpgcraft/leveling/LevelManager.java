@@ -113,6 +113,11 @@ public class LevelManager {
             public boolean addExperience(ServerPlayer player, int amount) {
                 int oldLevel = player.getData(PLAYER_LEVEL).getLevel();
                 boolean leveledUp = player.getData(PLAYER_LEVEL).addExperience(amount);
+                if (amount > 0) {
+                    // 广播经验获取事件（与打怪路径一致，供职业经验等同步副作用消费）
+                    net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(
+                            new com.rpgcraft.core.event.PlayerExpGainEvent(player, amount));
+                }
                 if (leveledUp) {
                     int newLevel = player.getData(PLAYER_LEVEL).getLevel();
                     // 触发升级事件（携带连续升级的等级增量，供属性点等系统消费）
@@ -125,6 +130,16 @@ public class LevelManager {
             @Override
             public int getExpForNextLevel(ServerPlayer player) {
                 return player.getData(PLAYER_LEVEL).getExpForNextLevel();
+            }
+
+            @Override
+            public int getExpForLevel(int level) {
+                return registry.getExpForLevel(level);
+            }
+
+            @Override
+            public int getMaxLevel() {
+                return registry.getMaxLevel();
             }
 
             @Override

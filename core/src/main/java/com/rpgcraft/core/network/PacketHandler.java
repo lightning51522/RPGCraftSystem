@@ -68,6 +68,30 @@ public class PacketHandler {
                 SyncAttributePointsConfigPacket::handle
         );
 
+        // 职业面板状态请求包（客户端 → 服务端）
+        // 客户端按 P 键打开职业面板时请求完整职业状态
+        registrar.playToServer(
+                RequestProfessionStatePacket.TYPE,
+                RequestProfessionStatePacket.STREAM_CODEC,
+                RequestProfessionStatePacket::handle
+        );
+
+        // 职业面板状态同步包（服务端 → 客户端）
+        // 推送完整职业状态（池/等级/解锁/树元数据）供职业面板渲染
+        registrar.playToClient(
+                SyncProfessionStatePacket.TYPE,
+                SyncProfessionStatePacket.STREAM_CODEC,
+                SyncProfessionStatePacket::handle
+        );
+
+        // 职业动作请求包（客户端 → 服务端）
+        // 投入经验/进阶/切换主职/设置副职/切换副职开关，服务端权威校验
+        registrar.playToServer(
+                ProfessionActionPacket.TYPE,
+                ProfessionActionPacket.STREAM_CODEC,
+                ProfessionActionPacket::handle
+        );
+
         // 怪物信息查询/回复包、HUD 开关包由 client 模块自行注册
         // 职业同步包由 profession 模块自行注册
         // 属性点点数同步包（SyncPlayerAttributePointsPacket）由 attributepoints 模块自行注册

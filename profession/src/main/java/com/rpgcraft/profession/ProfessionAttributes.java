@@ -16,4 +16,8 @@ final class ProfessionAttributes {
 
     static final Identifier STRENGTH_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
     static final Identifier AGILE_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
+    /** 生命属性（狂战士使用）。属性未注册时加成静默失效，不崩溃 */
+    static final Identifier LIFE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "life");
+    /** 暴击属性（神射手使用） */
+    static final Identifier CRITICAL_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
 }

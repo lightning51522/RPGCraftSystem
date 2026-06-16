@@ -4,6 +4,7 @@ import com.rpgcraft.client.network.OpenCharacterScreenPacket;
 import com.rpgcraft.client.ui.AttributeListPlugin;
 import com.rpgcraft.client.ui.CharacterScreenOpener;
 import com.rpgcraft.client.ui.PlayerInfoPlugin;
+import com.rpgcraft.client.ui.ProfessionScreenOpener;
 import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.registry.IClientSystem;
 import com.rpgcraft.core.registry.RPGSystems;
@@ -45,6 +46,12 @@ public class ClientMod {
 
         // 注册角色界面快捷键 tick 检测（Game 事件总线）
         NeoForge.EVENT_BUS.addListener(CharacterScreenOpener::onClientTick);
+
+        // 注册职业面板快捷键（Mod 事件总线，复用 rpgcraft 分类）
+        modEventBus.addListener(ProfessionScreenOpener::registerKeyMapping);
+
+        // 注册职业面板快捷键 tick 检测（Game 事件总线）
+        NeoForge.EVENT_BUS.addListener(ProfessionScreenOpener::onClientTick);
 
         // 注册角色界面 UI 插件（按显示顺序：玩家信息在上，属性列表在下）
         RPGUIPlugins.register(new PlayerInfoPlugin());

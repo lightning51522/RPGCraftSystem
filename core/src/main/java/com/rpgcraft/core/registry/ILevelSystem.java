@@ -63,6 +63,23 @@ public interface ILevelSystem {
     int getExpForNextLevel(ServerPlayer player);
 
     /**
+     * 查询经验表：从 {@code level} 升到 {@code level+1} 所需经验
+     * <p>
+     * 与玩家实例无关的静态经验表查询，供其他模块（如职业经验池计算）反算升级经验。
+     *
+     * @param level 当前等级（1-based）
+     * @return 该级升级所需经验；level &lt; 1 或 &ge; 最大等级时返回 -1
+     */
+    int getExpForLevel(int level);
+
+    /**
+     * 获取玩家等级上限
+     *
+     * @return 最大等级
+     */
+    int getMaxLevel();
+
+    /**
      * 同步等级数据到客户端
      *
      * @param player 服务端玩家
