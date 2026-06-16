@@ -1,8 +1,7 @@
-package com.rpgcraft.client.command;
+package com.rpgcraft.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import com.rpgcraft.client.ClientMod;
 import com.rpgcraft.client.network.OpenCharacterScreenPacket;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
@@ -31,15 +30,15 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * </pre>
  * <p>
  * 使用 {@code @EventBusSubscriber(modid = ClientMod.MODID)} 注册，
- * 遵循与 {@link com.rpgcraft.client.ClientCommands} 相同的模式。
+ * 遵循与 {@link ClientCommands} 相同的模式。
  *
  * @see com.rpgcraft.client.ui.RPGCharacterScreen
  * @see OpenCharacterScreenPacket
  */
 @EventBusSubscriber(modid = ClientMod.MODID)
-public class CharacterCommand {
+public class CharacterCommands {
 
-    private CharacterCommand() {
+    private CharacterCommands() {
         // 禁止实例化
     }
 
@@ -56,7 +55,7 @@ public class CharacterCommand {
 
                 // === 角色界面命令 ===
                 .then(Commands.literal("character")
-                        .executes(CharacterCommand::executeCharacter)
+                        .executes(CharacterCommands::executeCharacter)
                 )
         );
     }

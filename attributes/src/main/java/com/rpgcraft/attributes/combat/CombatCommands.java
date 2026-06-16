@@ -1,4 +1,4 @@
-package com.rpgcraft.combat;
+package com.rpgcraft.attributes.combat;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -9,7 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.combat.MobRating;
-import com.rpgcraft.coreattributes.AttributesMod;
+import com.rpgcraft.attributes.AttributesMod;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.IdentifierArgument;

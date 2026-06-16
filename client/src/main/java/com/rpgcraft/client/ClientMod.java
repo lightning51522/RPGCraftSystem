@@ -54,7 +54,7 @@ public class ClientMod {
         RPGSystems.registerClientSystem(new IClientSystem() {
             @Override
             public void sendHudToggle(net.minecraft.server.level.ServerPlayer player, boolean enabled) {
-                player.connection.send(new ToggleCrosshairPacket(enabled));
+                player.connection.send(new ToggleHudPacket(enabled));
             }
         });
 
@@ -93,9 +93,9 @@ public class ClientMod {
 
         // 注册 HUD 开关同步包（服务端 → 客户端）
         registrar.playToClient(
-                ToggleCrosshairPacket.TYPE,
-                ToggleCrosshairPacket.STREAM_CODEC,
-                ToggleCrosshairPacket::handle
+                ToggleHudPacket.TYPE,
+                ToggleHudPacket.STREAM_CODEC,
+                ToggleHudPacket::handle
         );
 
         // 注册打开角色界面信号包（服务端 → 客户端）

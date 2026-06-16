@@ -1,6 +1,6 @@
 package com.rpgcraft.client.ui;
 
-import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
+import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.AllocateAttributePointPacket;

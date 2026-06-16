@@ -1,4 +1,4 @@
-package com.rpgcraft.core.attributepoint;
+package com.rpgcraft.core.attributepoints;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;

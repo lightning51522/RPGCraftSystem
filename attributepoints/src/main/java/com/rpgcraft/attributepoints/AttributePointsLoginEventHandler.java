@@ -16,7 +16,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
  * 是对称的设计。
  */
 @EventBusSubscriber(modid = AttributePointsMod.MODID)
-public class AttributePointLoginHandler {
+public class AttributePointsLoginEventHandler {
 
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {

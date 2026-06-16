@@ -1,4 +1,4 @@
-package com.rpgcraft.core.attributes;
+package com.rpgcraft.attributes.module;
 
 import net.minecraft.resources.Identifier;
 

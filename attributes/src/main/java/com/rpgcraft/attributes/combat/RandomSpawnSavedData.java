@@ -1,4 +1,4 @@
-package com.rpgcraft.combat;
+package com.rpgcraft.attributes.combat;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;

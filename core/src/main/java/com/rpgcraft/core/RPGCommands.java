@@ -1,4 +1,4 @@
-package com.rpgcraft.core.command;
+package com.rpgcraft.core;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;

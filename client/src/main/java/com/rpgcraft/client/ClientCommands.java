@@ -18,7 +18,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * <p>
  * 提供 HUD 开关命令和状态管理。HUD 状态存储在服务端的
  * {@link PlayerPreferences} 附件中（持久化保存），
- * 通过 {@link ToggleCrosshairPacket} 同步到客户端。
+ * 通过 {@link ToggleHudPacket} 同步到客户端。
  * <p>
  * 这些命令和状态原本位于 core 的 {@code RPGCommands} 中，
  * Phase 10 重构后迁移到客户端模块中，实现命令与模块的归属一致性。

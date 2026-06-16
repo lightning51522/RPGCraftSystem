@@ -1,10 +1,10 @@
-package com.rpgcraft.combat;
+package com.rpgcraft.attributes.combat;
 
 import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
-import com.rpgcraft.core.attributes.DefaultAttributes;
+import com.rpgcraft.attributes.module.DefaultAttributes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;

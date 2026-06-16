@@ -1,13 +1,2 @@
 {
-  "itemGroup.rpgcraftcore": "Example Mod Tab",
-  "block.rpgcraftcore.example_block": "Example Block",
-  "item.rpgcraftcore.example_item": "Example Item",
-
-  "rpgcraftcore.configuration.title": "RPGCraftCore Configs",
-  "rpgcraftcore.configuration.section.rpgcraftcore.common.toml": "RPGCraftCore Configs",
-  "rpgcraftcore.configuration.section.rpgcraftcore.common.toml.title": "RPGCraftCore Configs",
-  "rpgcraftcore.configuration.items": "Item List",
-  "rpgcraftcore.configuration.logDirtBlock": "Log Dirt Block",
-  "rpgcraftcore.configuration.magicNumberIntroduction": "Magic Number Text",
-  "rpgcraftcore.configuration.magicNumber": "Magic Number"
 }

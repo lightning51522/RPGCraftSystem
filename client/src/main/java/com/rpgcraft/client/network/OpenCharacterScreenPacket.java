@@ -30,7 +30,7 @@ import org.jspecify.annotations.NonNull;
  * TCP 保证两个包的到达顺序，且 {@code enqueueWork} 保证处理顺序，
  * 因此快照一定在界面打开前就已缓存完毕。
  *
- * @see com.rpgcraft.client.command.CharacterCommand
+ * @see com.rpgcraft.client.CharacterCommands
  * @see RPGCharacterScreen
  */
 public record OpenCharacterScreenPacket() implements CustomPacketPayload {

@@ -1,7 +1,7 @@
 package com.rpgcraft.attributepoints.snapshot;
 
 import com.rpgcraft.attributepoints.AttributePointsManager;
-import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
+import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import com.rpgcraft.core.snapshot.DeathRestoreMode;
 import com.rpgcraft.core.snapshot.ISnapshotContributor;
 import net.minecraft.resources.Identifier;

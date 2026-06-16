@@ -77,10 +77,10 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     private static final int COLOR_ARROW = 0xFFFFFFFF;
     /** 翻页箭头悬停 */
     private static final int COLOR_ARROW_HOVER = 0xFFFFFF00;
-    /** 暴击率等级 1（橙色，101-200%） */
-    private static final int COLOR_CRIT_TIER1 = 0xFFFFA500;
-    /** 暴击率等级 2（红色，>200%） */
-    private static final int COLOR_CRIT_TIER2 = 0xFFFF4444;
+    /** 暴击率中档（橙色，101-200%） */
+    private static final int COLOR_CRIT_MID = 0xFFFFA500;
+    /** 暴击率高档（红色，>200%） */
+    private static final int COLOR_CRIT_HIGH = 0xFFFF4444;
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
@@ -266,8 +266,8 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
             int textColor = COLOR_TEXT;
             if (mapEntry.getKey().equals(ClientAttributes.CRITICAL_RATE_ID)) {
                 int critVal = data.currentValue();
-                if (critVal > 200) textColor = COLOR_CRIT_TIER2;
-                else if (critVal > 100) textColor = COLOR_CRIT_TIER1;
+        if (critVal > 200) textColor = COLOR_CRIT_HIGH;
+        else if (critVal > 100) textColor = COLOR_CRIT_MID;
             }
 
             int attrX = x + col * (columnWidth + COLUMN_GAP);

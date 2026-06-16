@@ -7,7 +7,7 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.attribute.api.Operation;
-import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
+import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.network.SyncAttributeSnapshotPacket;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  * 修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存计算后的值），因此：
  * <ul>
  *   <li>分配/重置时：{@code removeModifier} + {@code addModifier} 重算</li>
- *   <li>登录时：由 {@code AttributePointLoginHandler} 调用 {@link #reapplyAllModifiers}</li>
+ *   <li>登录时：由 {@code AttributePointsLoginEventHandler} 调用 {@link #reapplyAllModifiers}</li>
  *   <li>重生时：由 {@code AttributePointsSnapshotContributor} 调用 {@link #reapplyAllModifiers}</li>
  * </ul>
  *

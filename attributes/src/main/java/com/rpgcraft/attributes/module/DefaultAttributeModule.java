@@ -1,4 +1,4 @@
-package com.rpgcraft.core.attributes;
+package com.rpgcraft.attributes.module;
 
 import com.rpgcraft.core.attribute.DefaultAttributeRegistry;
 import com.rpgcraft.core.attribute.api.IAttributeModule;

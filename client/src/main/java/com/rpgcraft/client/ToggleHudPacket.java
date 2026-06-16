@@ -19,15 +19,15 @@ import org.jspecify.annotations.NonNull;
  *
  * @param enabled true = 启用 HUD，false = 禁用 HUD
  */
-public record ToggleCrosshairPacket(boolean enabled) implements CustomPacketPayload {
+public record ToggleHudPacket(boolean enabled) implements CustomPacketPayload {
 
-    public static final Type<ToggleCrosshairPacket> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "toggle_crosshair")
+    public static final Type<ToggleHudPacket> TYPE = new Type<>(
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "toggle_hud")
     );
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ToggleCrosshairPacket> STREAM_CODEC = StreamCodec.composite(
-            net.minecraft.network.codec.ByteBufCodecs.BOOL, ToggleCrosshairPacket::enabled,
-            ToggleCrosshairPacket::new
+    public static final StreamCodec<RegistryFriendlyByteBuf, ToggleHudPacket> STREAM_CODEC = StreamCodec.composite(
+            net.minecraft.network.codec.ByteBufCodecs.BOOL, ToggleHudPacket::enabled,
+            ToggleHudPacket::new
     );
 
     @Override
@@ -38,7 +38,7 @@ public record ToggleCrosshairPacket(boolean enabled) implements CustomPacketPayl
     /**
      * 客户端处理：更新 HUD 开关状态
      */
-    public static void handle(ToggleCrosshairPacket data, IPayloadContext context) {
+    public static void handle(ToggleHudPacket data, IPayloadContext context) {
         context.enqueueWork(() -> {
             Player clientPlayer = Minecraft.getInstance().player;
             if (clientPlayer == null) return;

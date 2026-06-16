@@ -142,7 +142,7 @@ public class AttributeHudOverlay {
     }
 
     /**
-     * 设置 HUD 开关状态（供 {@link ToggleCrosshairPacket} 客户端处理器调用）
+     * 设置 HUD 开关状态（供 {@link ToggleHudPacket} 客户端处理器调用）
      *
      * @param enabled true = 启用 HUD（属性面板 + 准星提示），false = 禁用
      */

@@ -39,7 +39,7 @@ import java.util.Optional;
  * 避免直接依赖 equipment 模块的实现类。
  */
 @EventBusSubscriber(modid = ClientMod.MODID, value = Dist.CLIENT)
-public class EquipmentTooltipHandler {
+public class EquipmentTooltipEventHandler {
 
     private static final Gson GSON = new Gson();
 

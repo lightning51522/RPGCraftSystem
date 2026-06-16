@@ -1,7 +1,7 @@
 package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
-import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
+import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;

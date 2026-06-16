@@ -12,7 +12,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
  * 获取导致的连续升级（一次授予多点）。
  */
 @EventBusSubscriber(modid = AttributePointsMod.MODID)
-public class AttributePointLevelUpHandler {
+public class AttributePointsLevelUpEventHandler {
 
     @SubscribeEvent
     public static void onLevelUp(PlayerLevelUpEvent event) {

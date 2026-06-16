@@ -23,8 +23,8 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
 
     public static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "rpg/equipment_attributes.json");
 
-    private static final String RARITY_KEY = "rarity";
-    private static final String ATTACK_TYPE_KEY = "attack_type";
+    private static final String KEY_RARITY = "rarity";
+    private static final String KEY_ATTACK_TYPE = "attack_type";
 
     private volatile Map<Identifier, Map<Identifier, EquipmentBonus>> configMap = Collections.emptyMap();
     private volatile Map<Identifier, EquipmentRarity> rarityMap = Collections.emptyMap();
@@ -49,28 +49,28 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
                 JsonObject attrObj = itemEntry.getValue().getAsJsonObject();
 
                 // 解析稀有度
-                if (attrObj.has(RARITY_KEY)) {
-                    EquipmentRarity rarity = EquipmentRarity.fromName(attrObj.get(RARITY_KEY).getAsString());
+                if (attrObj.has(KEY_RARITY)) {
+                    EquipmentRarity rarity = EquipmentRarity.fromName(attrObj.get(KEY_RARITY).getAsString());
                     newRarityMap.put(itemId, rarity);
                 }
 
                 // 解析攻击类型，缺失时默认为 PHYSICAL
-                if (attrObj.has(ATTACK_TYPE_KEY)) {
+                if (attrObj.has(KEY_ATTACK_TYPE)) {
                     try {
                         AttackType at = AttackType.valueOf(
-                                attrObj.getAsJsonPrimitive(ATTACK_TYPE_KEY).getAsString().toUpperCase());
+                                attrObj.getAsJsonPrimitive(KEY_ATTACK_TYPE).getAsString().toUpperCase());
                         newAttackTypeMap.put(itemId, at);
                     } catch (IllegalArgumentException e) {
                         EquipmentMod.LOGGER.warn("未知的攻击类型: {}，使用默认 PHYSICAL",
-                                attrObj.getAsJsonPrimitive(ATTACK_TYPE_KEY).getAsString());
+                                attrObj.getAsJsonPrimitive(KEY_ATTACK_TYPE).getAsString());
                     }
                 }
 
                 // 解析属性加成（跳过 "rarity" 和 "attack_type" 键）
                 Map<Identifier, EquipmentBonus> bonuses = new HashMap<>();
                 for (Map.Entry<String, JsonElement> attrEntry : attrObj.entrySet()) {
-                    if (attrEntry.getKey().equals(RARITY_KEY)) continue;
-                    if (attrEntry.getKey().equals(ATTACK_TYPE_KEY)) continue;
+                    if (attrEntry.getKey().equals(KEY_RARITY)) continue;
+                    if (attrEntry.getKey().equals(KEY_ATTACK_TYPE)) continue;
                     try {
                         Identifier attrId = Identifier.parse(attrEntry.getKey());
                         bonuses.put(attrId, new EquipmentBonus(attrEntry.getValue().getAsInt()));

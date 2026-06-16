@@ -1,11 +1,11 @@
-package com.rpgcraft.coreattributes;
+package com.rpgcraft.attributes;
 
-import com.rpgcraft.combat.CombatEventHandler;
-import com.rpgcraft.combat.DefaultDamageCalculator;
-import com.rpgcraft.combat.RandomSpawnSavedData;
+import com.rpgcraft.attributes.combat.CombatEventHandler;
+import com.rpgcraft.attributes.combat.DefaultDamageCalculator;
+import com.rpgcraft.attributes.combat.RandomSpawnSavedData;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.AttributeManager;
-import com.rpgcraft.core.attributes.DefaultAttributeModule;
+import com.rpgcraft.attributes.module.DefaultAttributeModule;
 import com.rpgcraft.core.combat.MobRating;
 import com.rpgcraft.core.registry.ICombatSystem;
 import com.rpgcraft.core.registry.RPGSystems;

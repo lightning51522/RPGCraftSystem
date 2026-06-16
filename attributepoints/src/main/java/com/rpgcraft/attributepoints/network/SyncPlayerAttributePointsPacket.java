@@ -1,7 +1,7 @@
 package com.rpgcraft.attributepoints.network;
 
 import com.rpgcraft.attributepoints.AttributePointsManager;
-import com.rpgcraft.core.attributepoint.PlayerAttributePoints;
+import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;

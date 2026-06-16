@@ -12,31 +12,12 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
  * RPGCraftCore 模组主类 —— 微内核协调器
@@ -55,34 +36,6 @@ public class RPGCraftCore {
 
     /** SLF4J 日志记录器 */
     public static final Logger LOGGER = LogUtils.getLogger();
-
-    // ====================================================================
-    // 原版注册器（方块、物品、创造标签页）
-    // 使用 DeferredRegister 延迟注册模式，在构造函数中统一挂载到 Mod 事件总线
-    // ====================================================================
-
-    /** 方块注册器 */
-    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
-    /** 物品注册器 */
-    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
-    /** 创造模式标签页注册器 */
-    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
-
-    /** 示例方块 */
-    public static final DeferredBlock<Block> EXAMPLE_BLOCK = BLOCKS.registerSimpleBlock("example_block", p -> p.mapColor(MapColor.STONE));
-    /** 示例方块对应的物品 */
-    public static final DeferredItem<BlockItem> EXAMPLE_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("example_block", EXAMPLE_BLOCK);
-    /** 示例食物物品 */
-    public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", p -> p.food(new FoodProperties.Builder()
-            .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
-    /** 示例创造模式标签页 */
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
-            .title(Component.translatable("itemGroup.rpgcraftcore"))
-            .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
-            .displayItems((parameters, output) -> {
-                output.accept(EXAMPLE_ITEM.get());
-            }).build());
 
     /**
      * 模组主构造函数 —— FML 自动调用
@@ -103,14 +56,7 @@ public class RPGCraftCore {
         // LevelSnapshotContributor 由 leveling 模块自行注册
         // EquipmentSnapshotContributor 由 equipment 模块自行注册
         // ProfessionSnapshotContributor 由 profession 模块自行注册
-
-        // 注册通用初始化回调
-        modEventBus.addListener(this::commonSetup);
-
-        // 注册原版内容的延迟注册器
-        BLOCKS.register(modEventBus);
-        ITEMS.register(modEventBus);
-        CREATIVE_MODE_TABS.register(modEventBus);
+        // AttributePointsSnapshotContributor 由 attributepoints 模块自行注册
 
         // 注册属性附件类型回调（必须在 DeferredRegister 之前注册，确保先执行）
         modEventBus.addListener(AttributeManager::onRegisterAttachmentTypes);
@@ -121,52 +67,13 @@ public class RPGCraftCore {
         // 等级模块 AttachmentType 由 leveling 模块自行注册
         // 职业模块 AttachmentType 由 profession 模块自行注册
         // 装备模块 AttachmentType 由 equipment 模块自行注册
+        // 属性点模块 AttachmentType 由 attributepoints 模块自行注册
 
         // 注册网络包处理器
         modEventBus.addListener(PacketHandler::register);
 
         // 将本类注册到 Game 事件总线，使 @SubscribeEvent 方法生效
         NeoForge.EVENT_BUS.register(this);
-
-        // 注册创造标签页内容回调
-        modEventBus.addListener(this::addCreative);
-
-        // 注册模组配置文件
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
-    }
-
-    /**
-     * 通用初始化回调（Mod 事件总线）
-     *
-     * @param event 通用设置事件
-     */
-    private void commonSetup(FMLCommonSetupEvent event) {
-        LOGGER.info("HELLO FROM COMMON SETUP");
-
-        if (Config.LOG_DIRT_BLOCK.getAsBoolean()) {
-            LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
-        }
-
-        LOGGER.info("{}{}", Config.MAGIC_NUMBER_INTRODUCTION.get(), Config.MAGIC_NUMBER.getAsInt());
-
-        Config.ITEM_STRINGS.get().forEach((item) -> LOGGER.info("ITEM >> {}", item));
-    }
-
-    /**
-     * 创造标签页内容回调（Mod 事件总线）
-     */
-    private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
-            event.accept(EXAMPLE_BLOCK_ITEM);
-        }
-    }
-
-    /**
-     * 服务器启动回调（Game 事件总线）
-     */
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("HELLO from server starting");
     }
 
     /**

@@ -1,4 +1,4 @@
-package com.rpgcraft.combat;
+package com.rpgcraft.attributes.combat;
 
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.AttributeManager;
@@ -7,8 +7,8 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.EntityAttributeAttachment;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
-import com.rpgcraft.core.attributes.DefaultAttributes;
-import com.rpgcraft.coreattributes.AttributesMod;
+import com.rpgcraft.attributes.module.DefaultAttributes;
+import com.rpgcraft.attributes.AttributesMod;
 // CombatCommands 引用（同模块，替代原来对 core RPGCommands 的引用）
 import com.rpgcraft.core.combat.MobLevelData;
 import com.rpgcraft.core.combat.MobRating;
