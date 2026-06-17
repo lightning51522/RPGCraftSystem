@@ -75,16 +75,21 @@ public class ProfessionCommands {
     }
 
     /**
-     * 显示玩家当前职业信息
+     * 显示玩家当前职业信息（含当前等级下的实际加成）
      */
     private static int executeProfessionInfo(CommandContext<CommandSourceStack> context, ServerPlayer target) {
-        IProfession prof = RPGSystems.getProfessionSystem().getProfession(target);
+        com.rpgcraft.core.registry.IProfessionSystem sys = RPGSystems.getProfessionSystem();
+        IProfession prof = sys.getProfession(target);
+        int level = sys.getProfessionLevel(target, prof.getId());
+        int maxLevel = prof.getMaxLevel();
+        String typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY ? "[副职业]" : "[主职业]";
         context.getSource().sendSuccess(
                 () -> Component.literal("—— " + target.getName().getString() + " 的职业信息 ——"),
                 false
         );
         context.getSource().sendSuccess(
-                () -> Component.literal("  职业: " + prof.getDisplayName()),
+                () -> Component.literal("  职业: " + prof.getDisplayName() + " " + typeLabel
+                        + " (" + level + "/" + maxLevel + ")"),
                 false
         );
         context.getSource().sendSuccess(
@@ -92,14 +97,14 @@ public class ProfessionCommands {
                 false
         );
 
-        if (!prof.getBonusMap().isEmpty()) {
+        if (!prof.getBaseBonusMap().isEmpty()) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  属性加成:"),
+                    () -> Component.literal("  属性加成 (当前等级 " + level + "):"),
                     false
             );
-            for (Map.Entry<Identifier, Integer> entry : prof.getBonusMap().entrySet()) {
+            for (Map.Entry<Identifier, Integer> entry : prof.getBaseBonusMap().entrySet()) {
                 String attrName = entry.getKey().getPath();
-                int bonus = entry.getValue();
+                int bonus = prof.getBonusAtLevel(entry.getKey(), level);
                 String sign = bonus >= 0 ? "+" : "";
                 context.getSource().sendSuccess(
                         () -> Component.literal("    " + attrName + ": " + sign + bonus),
@@ -116,7 +121,7 @@ public class ProfessionCommands {
     }
 
     /**
-     * 列出所有可用职业
+     * 列出所有可用职业（标注主/副职业类型与基础加成）
      */
     private static int executeProfessionList(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(
@@ -125,8 +130,8 @@ public class ProfessionCommands {
         );
         for (IProfession prof : RPGSystems.getProfessionSystem().getAllProfessions()) {
             StringBuilder bonuses = new StringBuilder();
-            if (!prof.getBonusMap().isEmpty()) {
-                for (Map.Entry<Identifier, Integer> entry : prof.getBonusMap().entrySet()) {
+            if (!prof.getBaseBonusMap().isEmpty()) {
+                for (Map.Entry<Identifier, Integer> entry : prof.getBaseBonusMap().entrySet()) {
                     String attrName = entry.getKey().getPath();
                     int bonus = entry.getValue();
                     String sign = bonus >= 0 ? "+" : "";
@@ -134,9 +139,10 @@ public class ProfessionCommands {
                     bonuses.append(attrName).append(sign).append(bonus);
                 }
             }
+            String typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY ? "[副]" : "[主]";
             String bonusText = bonuses.length() > 0 ? " (" + bonuses + ")" : "";
             context.getSource().sendSuccess(
-                    () -> Component.literal("  " + prof.getId().getPath() + " - " +
+                    () -> Component.literal("  " + prof.getId().getPath() + " " + typeLabel + " - " +
                             prof.getDisplayName() + ": " + prof.getDescription() + bonusText),
                     false
             );

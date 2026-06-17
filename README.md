@@ -1,11 +1,11 @@
 # RPGCraftSystem
 
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
-> Minecraft **26.1.2** / NeoForge **26.1.2** / Java **25**
+> Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.4.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.4.1--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
-[![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2-blue)](#)
+[![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
 
 ---
@@ -19,12 +19,13 @@
 
 ```
 RPGCraftSystem/
-├── core/         微内核：接口 + 属性管线 + 事件总线 + 快照 SPI + RPGSystems 注册门面
-├── attributes/   13 个默认 RPG 属性 + 战斗（伤害公式 / 怪物初始化 / 治疗 / 命令）
-├── leveling/     等级 / 经验 / 怪物属性按等级缩放
-├── equipment/    装备加成（修饰符模式） + 装备追踪
-├── profession/   职业注册 + 职业切换加成
-└── client/       HUD / 角色信息界面 / Tooltip / UI 插件系统
+├── core/             微内核：接口 + 属性管线 + 事件总线 + 快照 SPI + RPGSystems 注册门面
+├── attributes/       13 个默认 RPG 属性 + 战斗（伤害公式 / 怪物初始化 / 治疗 / 命令）
+├── leveling/         等级（上限 300）/ 经验 / 怪物属性按等级缩放
+├── equipment/        装备加成（修饰符模式） + 装备追踪
+├── profession/       职业注册 + 职业树 / 进阶 / 副职业 / 职业等级与经验池
+├── attributepoints/  自由属性点分配系统（升级获点，玩家自行分配到任意属性）
+└── client/           HUD / 角色信息界面 / 职业面板 / Tooltip / UI 插件系统
 ```
 
 | 模块 | mod ID | 入口类 | 依赖 |
@@ -34,8 +35,8 @@ RPGCraftSystem/
 | leveling | `rpgcraftleveling` | `LevelingMod` | core |
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |
-| client | `rpgcraftclient` | `ClientMod` | core |
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
+| client | `rpgcraftclient` | `ClientMod` | core |
 
 > 插件模块**互不依赖**，跨模块通信全部走 core 的 `RPGSystems` 注册门面。
 
@@ -56,6 +57,7 @@ RPGCraftSystem/
 | `registerEquipmentSystem()` | equipment | `IEquipmentSystem` |
 | `registerAttackTypeResolver()` | equipment | `IAttackTypeResolver` |
 | `registerProfessionSystem()` | profession | `IProfessionSystem` |
+| `registerAttributePointSystem()` | attributepoints | `IAttributePointSystem` |
 | `registerClientSystem()` | client | `IClientSystem` |
 
 所有 `register` 方法都接受可选的 `priority` 参数，`OVERRIDE_PRIORITY (100) > DEFAULT_PRIORITY (0)`，第三方模组可借此完全覆盖官方实现：
@@ -127,20 +129,20 @@ baseValue
 
 | 属性 ID | 中文名 | 默认值 | 上限 | 说明 |
 |---------|--------|--------|------|------|
-| `life` | 生命 | 100 | 100 | core 注册，对接原版血量；装备加成同时影响上限 |
-| `skill_point` | 技能点 | 100 | 100 | 资源型，重生恢复 |
-| `magic_point` | 法力点 | 100 | 100 | 资源型，重生恢复 |
-| `strength` | 力量 | 10 | ∞ | 物理攻击力 |
-| `mana` | 魔力 | 10 | ∞ | 法术攻击力 |
-| `agile` | 敏捷 | 10 | ∞ | 速度/闪避 |
-| `precision` | 精准 | 10 | ∞ | 命中率 |
-| `defense` | 防御 | 10 | ∞ | 物理伤害减免（点） |
-| `resistance` | 抗性 | 2 | 100 | 法术伤害减免（百分比） |
-| `critical_rate` | 暴击率 | 5 | 300 | 暴击概率 |
-| `critical_ratio` | 暴击倍率 | 50 | ∞ | 每层暴击伤害加成 |
-| `fixed_damage` | 固定伤害 | 0 | ∞ | 无视防御的附加伤害（**不参与暴击**） |
-| `physical_penetrate` | 物理穿透 | 0 | ∞ | 穿透目标物理防御 |
-| `magical_penetrate` | 法术穿透 | 0 | ∞ | 穿透目标法术抗性 |
+| `life` | 生命 | 100 | 按配置 | core 注册，对接原版血量；装备加成同时影响上限 |
+| `skill_point` | 技能点 | 100 | 1000000 | 资源型，重生恢复 |
+| `magic_point` | 法力点 | 100 | 1000000 | 资源型，重生恢复 |
+| `strength` | 力量 | 10 | 1000000 | 物理攻击力 |
+| `mana` | 魔力 | 10 | 1000000 | 法术攻击力 |
+| `agile` | 敏捷 | 10 | 1000000 | 速度/闪避 |
+| `precision` | 精准 | 10 | 1000000 | 命中率 |
+| `defense` | 防御 | 0 | 1000000 | 物理伤害减免（点） |
+| `resistance` | 抗性 | 0 | 100 | 法术伤害减免（百分比） |
+| `critical_rate` | 暴击率 | 5 | 1000 | 暴击概率（千分比） |
+| `critical_ratio` | 暴击倍率 | 50 | 1000 | 每层暴击伤害加成（百分比） |
+| `fixed_damage` | 固定伤害 | 0 | 1000000 | 无视防御的附加伤害（**不参与暴击**） |
+| `physical_penetrate` | 物理穿透 | 0 | 1000000 | 穿透目标物理防御 |
+| `magical_penetrate` | 法术穿透 | 0 | 1000000 | 穿透目标法术抗性 |
 
 ### 属性分类
 
@@ -189,6 +191,121 @@ baseValue
 | `LORD` | 领主 | 5.0× |
 
 计算流程：`配置基础值 → 等级缩放 → JSON 覆盖 → 评级倍率 → 最终值`。
+
+---
+
+##  职业系统
+
+`profession` 模块的**框架**（注册门面、经验/等级、进阶、主副职业逻辑）与**具体职业定义**完全解耦：具体职业全部由 datapack JSON 驱动，框架代码不再硬编码任何职业。核心数据持久化在 `ProfessionData` 附件中。
+
+### 严格区分主职业与副职业
+
+职业分两类（由 JSON 的 `type` 字段决定）：
+
+| | 主职业（primary） | 副职业（secondary） |
+|---|---|---|
+| 职业树 | 链根于 `commoner`（平民，唯一根） | 独立成树 |
+| `prerequisite` 约束 | 只能指 primary，链最终追溯到 commoner | 只能指 secondary 或为 null |
+| 可做主职业 | ✅（`advance` / `switchMain` 仅限此类） | ❌ |
+| 可做副职业 | ❌ | ✅（`setSecondary` 仅限此类） |
+| 可投入经验升级 | ✅ | ✅ |
+| 加成生效 | 当前主职业按等级生效 | 激活的副职业按等级生效 |
+
+> 历史版本下"任意已解锁职业都能做副职业"的旧行为已废弃；旧存档若副职业引用了 primary 类型职业，登录时会自动清空（WARN）。
+
+### 职业定义 JSON（datapack 驱动）
+
+每个职业一个文件，放在 `data/rpgcraftcore/rpg/professions/`，文件名（去 `.json`）即职业 ID 的 path，命名空间固定 `rpgcraftcore`：
+
+```jsonc
+// data/rpgcraftcore/rpg/professions/warrior.json
+{
+  "name": "战士",
+  "description": "力量提升，敏捷降低",
+  "type": "primary",              // 必填："primary" 主职业 | "secondary" 副职业
+  "prerequisite": "commoner",     // 父职业 path（同命名空间）；根职业用 null 或省略
+  "max_level": 20,                // 可省略，默认读全局 default_max_level
+  "bonuses": {                    // 1 级基础加成：完整 attrId → 数值（可负）
+    "rpgcraftcore:strength": 5,
+    "rpgcraftcore:agile": -3
+  },
+  "per_level": {                  // 每升 1 级增量：attrId → 数值（省略某属性 = 0）
+    "rpgcraftcore:strength": 1
+  },
+  "exp_table": [50, 141, 260, ...] // 可省略；省略则用全局公式 round(50×L^1.5)
+}
+```
+
+任意等级加成 = `base + perLevel × (level - 1)`；进阶职业与前置职业的加成**叠加**生效。
+
+### 内置职业（随模组提供，可被 datapack 覆盖）
+
+```
+主职业树：commoner（平民）→ warrior（战士）→ berserker（狂战士）
+                       → archer（弓箭手）→ marksman（神射手）
+副职业树：（首期无内置副职业，由下方占位副职业兜底）
+```
+
+| 职业 | 前置 | 加成（基础 / 每级） |
+|------|------|---------------------|
+| `commoner` 平民 | — | 无加成 |
+| `warrior` 战士 | commoner | 力量 +5 / +1 每级；敏捷 -3 |
+| `archer` 弓箭手 | commoner | 敏捷 +5 / +1 每级；力量 -3 |
+| `berserker` 狂战士 | warrior（满级） | 力量 +6 / +1 每级；生命 +10 / +2 每级 |
+| `marksman` 神射手 | archer（满级） | 敏捷 +6 / +1 每级；暴击率 +3 / +1 每级 |
+
+### 默认占位副职业（apprentice）
+
+当 datapack **未提供任何 `type=secondary` 职业**时，系统自动注入一个真实注册的占位副职业 `rpgcraftcore:apprentice`（学徒）：可在职业面板副职业分区看到、可设为副职业、可投入经验升级（加成为空，无实际属性效果）。一旦 datapack 出现任意真实副职业 JSON，`/reload` 后占位即移除；已选中 apprentice 为副职业的玩家副职业会被清空（WARN）。
+
+> 这保证玩家在未配置副职业时也能体验完整的副职业交互流程。
+
+### 兜底与校验（加载器保证不崩溃）
+
+- `commoner.json` 缺失 → 代码注入空 commoner，保证"commoner 必解锁"不变量不致存档损坏
+- `prerequisite` 跨类型引用（primary→secondary 或反向）→ 拒绝并 WARN
+- 主职业链未追溯到 commoner、存在循环 → 拒绝并 WARN
+- 字段缺失/类型错误 → 回退默认值并 WARN
+
+### 职业经验与等级
+
+- 玩家获得等级经验时（不论是否升级），等量经验进入 **可分配职业经验池**（`skill_point_pool`）
+- 在职业面板中可将经验池投入某职业升级，每升一级消耗该职业经验表对应值点（职业无专属 `exp_table` 时用全局公式 `round(50×L^1.5)`）
+- 投入规则：目标职业需已解锁、未满级、池内经验足够
+
+### 进阶与副职业
+
+| 操作 | 规则 |
+|------|------|
+| **进阶** | 仅主职业可进阶；前置主职业达到满级后才可解锁进阶职业，进阶后两段加成叠加 |
+| **切换主职业** | 仅可在已解锁的**主职业**间切换；默认禁止从进阶职业退回基础职业（可由 `allow_downgrade_switch` 开启） |
+| **设为副职业** | 仅**副职业**类型职业可设为副职业；提供被动属性加成 |
+| **副职业开关** | 副职业加成可单独开关（`secondaryActive`），关闭时加成失效但不丢失副职业身份 |
+
+### 职业面板（按 `P` 键）
+
+| 元素 | 说明 |
+|------|------|
+| 左侧大画布 | **上下分区**的职业树：上半为主职业树、下半为副职业树（各自独立成树，用"主职业"/"副职业"小标题分隔）。每个职业用方形节点表示，父子节点用连接线相连；当前主职业节点带金色高亮边框 |
+| 鼠标拖动 | 按住左键拖动画布空白处可**平移**整个职业树，支持树超出可见区时查看其余部分 |
+| 打开居中 | 每次按 P 打开时，自动以**当前主职业**节点为中心显示 |
+| 右侧小详情 | 选中职业的类型标签、等级、经验、加成与操作按钮（投入经验 / 进阶 / 设为主职业 / 设为副职业 / 切换副职业开关） |
+| 顶部 | 可分配职业经验池 |
+
+> 所有操作通过 `ProfessionActionPacket` 发送至服务端权威处理，防作弊。`/reload` 后职业定义立即重载并推送在线玩家。
+
+---
+
+##  属性点系统
+
+`attributepoints` 模块提供自由属性点分配：玩家每升一级自动获得 1 个可分配点数，可在角色界面（按 `R`）分配到除 `life`/`skill_point`/`magic_point` 外的任意属性。
+
+| 配置项 | 文件 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `allow_decrease` | `attribute_points_config.json` | `true` | 是否允许回收/减少已分配点数；`false` 时服务端拒绝回收，角色界面隐藏 `[-]` 按钮 |
+
+- 分配/回收通过属性管线以 `ADDITION` 修饰符表达，**不直接修改属性基础值**
+- 配置在玩家登录时推送客户端，`/reload` 后对在线玩家即时生效
 
 ---
 
@@ -248,7 +365,17 @@ baseValue
 | `/rpg profession list` | 无 | 列出所有已注册职业 |
 | `/rpg profession set <职业ID> [player]` | op-2 | 切换职业（自动移除旧加成、应用新加成） |
 
-内置职业：`commoner`（平民，无加成）、`warrior`（战士，力量加成）、`archer`（弓箭手，敏捷加成）。
+> 职业**升级、进阶、副职业切换**等操作不通过命令，而是在 **职业面板**（按 `P` 键打开）中完成。命令只负责查看和 GM 强制切换。
+
+### 属性点
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg attrpoints [player]` | 无 | 查看可分配点数与各属性已分配情况 |
+| `/rpg attrpoints add <数量> [player]` | op-2 | 授予可分配点数 |
+| `/rpg attrpoints reset [player]` | op-2 | 重置全部分配并退还所有已分配点数 |
+
+> 玩家每升一级自动获得 1 个可分配点数；点数可在角色界面（按 `R`）分配到除 `life`/`skill_point`/`magic_point` 之外的任意属性。
 
 ### 战斗 / 怪物
 
@@ -286,8 +413,9 @@ baseValue
 
 | 按键 | 功能 |
 |------|------|
-| `R` | 打开/关闭角色信息界面（toggle） |
-| `ESC` | 关闭角色信息界面 |
+| `R` | 打开/关闭角色信息界面（toggle）—— 显示等级、职业、可分配点数、属性分配按钮 |
+| `P` | 打开职业面板 —— 主/副职业双树、职业升级/进阶/副职业操作；按住左键拖动平移画布，打开时自动以当前主职业居中 |
+| `ESC` | 关闭角色信息界面 / 职业面板 |
 
 ---
 
@@ -295,9 +423,14 @@ baseValue
 
 | 文件 | 用途 |
 |------|------|
-| `config/rpgcraftcore/rpg/level_config.json` | 等级经验表 |
-| `config/rpgcraftcore/rpg/mob_attributes.json` | 怪物属性配置（基础值 / 等级缩放 / 攻击类型 / 掉落经验 / 自然刷新权重） |
-| `config/rpgcraftcore/rpg/equipment_attributes.json` | 装备加成配置（稀有度 / 属性加成 / 攻击类型） |
+| `data/rpgcraftcore/rpg/level_config.json` | 等级经验表（上限 300 级） |
+| `data/rpgcraftcore/rpg/mob_attributes.json` | 怪物属性配置（基础值 / 等级缩放 / 攻击类型 / 掉落经验 / 自然刷新权重） |
+| `data/rpgcraftcore/rpg/equipment_attributes.json` | 装备加成配置（稀有度 / 属性加成 / 攻击类型） |
+| `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`） |
+| `data/rpgcraftcore/rpg/professions/*.json` | **具体职业定义**（每个文件一个职业，文件名即职业 ID；含 name/type/prerequisite/bonuses/per_level/exp_table）。详见[职业系统](#-职业系统)章节 |
+| `data/rpgcraftcore/rpg/attribute_points_config.json` | 属性点配置（`allow_decrease`：是否允许回收已分配点数，默认 `true`） |
+
+> 配置文件位于 datapack 命名空间 `rpgcraftcore/rpg/` 下，使用 `/reload` 即时重载，重载后对在线玩家即时推送客户端配置。
 
 ---
 
@@ -313,7 +446,8 @@ baseValue
 | `IDamageCalculator` | 替换伤害公式（通过 `AttributeManager.setDamageCalculator()`） |
 | `ILevelSystem` | 替换等级系统 |
 | `IEquipmentSystem` | 替换装备系统 |
-| `IProfessionSystem` | 替换职业系统 |
+| `IProfessionSystem` | 替换职业系统（职业注册 / 等级 / 进阶 / 副职业） |
+| `IAttributePointSystem` | 替换属性点分配系统 |
 | `ICombatSystem` | 替换战斗系统 |
 | `IClientSystem` | 替换客户端系统 |
 

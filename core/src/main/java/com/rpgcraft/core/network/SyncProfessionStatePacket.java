@@ -1,5 +1,6 @@
 package com.rpgcraft.core.network;
 
+import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.ui.ProfessionStateCache;
 import com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode;
 import com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView;
@@ -78,6 +79,7 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             buf.writeUtf(n.description());
             encodeNullableId(buf, n.prerequisite());
             buf.writeBoolean(n.advanced());
+            buf.writeByte(n.type().ordinal());
         }
     }
 
@@ -107,7 +109,8 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             String desc = buf.readUtf();
             Identifier prereq = decodeNullableId(buf);
             boolean advanced = buf.readBoolean();
-            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced));
+            IProfession.ProfessionType type = IProfession.ProfessionType.values()[buf.readByte()];
+            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type));
         }
         return new SyncProfessionStatePacket(new ProfessionStateView(
                 pool, currentMain, currentSecondary, secondaryActive,

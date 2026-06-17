@@ -61,11 +61,24 @@ public class ProfessionData {
 
     /**
      * 序列化 Codec。除 profession 外全部 optional，兼容旧存档。
+     * <p>
+     * 注意 {@code secondary} 字段的处理：副职业可为空（业务层用 null 表示"无副职业"），
+     * 但 DFU 的 Codec 链路对 null 零容忍——{@code optionalFieldOf("secondary", null)} 会让 null
+     * 默认值进入 {@code DataResult.Success.result()} 的 {@code Optional.of(value)} 触发 NPE
+     * （见堆栈 {@code RecordCodecBuilder$Instance.decode} → {@code DataResult.Success.result}），
+     * 导致整个 {@code player_profession} 附件反序列化失败、数据回到默认值（表现为等级/经验不保存）。
+     * <p>
+     * 正确做法：可空字段在 Codec 链路<b>全程保持 {@code Optional}</b>，绝不出 null——
+     * {@code optionalFieldOf(name)} 字段缺失时返回 {@code Optional.empty()}（安全），
+     * {@code forGetter} 返回 {@code Optional<T>}，只在 {@code apply} 函数体内用
+     * {@code .orElse(null)} 拆包赋给业务字段。这样 RecordCodecBuilder 组合各字段时
+     * 每个 {@code DataResult} 都是非 null 的 {@code Optional}，不会触发 NPE。
      */
     public static final MapCodec<ProfessionData> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
                     Identifier.CODEC.fieldOf("profession").forGetter(ProfessionData::getProfessionId),
-                    Identifier.CODEC.optionalFieldOf("secondary", null).forGetter(ProfessionData::getSecondaryProfessionId),
+                    Identifier.CODEC.optionalFieldOf("secondary")
+                            .forGetter(d -> Optional.ofNullable(d.getSecondaryProfessionId())),
                     Codec.INT.optionalFieldOf("skill_point_pool", 0).forGetter(ProfessionData::getSkillPointPool),
                     Identifier.CODEC.listOf().optionalFieldOf("unlocked", List.of())
                             .forGetter(d -> List.copyOf(d.unlockedProfessions)),
@@ -75,7 +88,7 @@ public class ProfessionData {
             ).apply(instance, (prof, secondary, pool, unlockedList, levelsMap) -> {
                 ProfessionData d = new ProfessionData();
                 d.professionId = prof;
-                d.secondaryProfessionId = secondary;
+                d.secondaryProfessionId = secondary.orElse(null);
                 d.skillPointPool = pool;
                 d.unlockedProfessions = new java.util.LinkedHashSet<>(unlockedList);
                 d.professionLevels = new LinkedHashMap<>(levelsMap);

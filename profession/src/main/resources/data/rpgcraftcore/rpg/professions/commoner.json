@@ -1,0 +1,9 @@
+{
+  "name": "平民",
+  "description": "无特殊加成的普通职业",
+  "type": "primary",
+  "prerequisite": null,
+  "max_level": 20,
+  "bonuses": {},
+  "per_level": {}
+}

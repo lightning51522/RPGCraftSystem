@@ -1,0 +1,14 @@
+{
+  "name": "弓箭手",
+  "description": "敏捷提升，力量降低",
+  "type": "primary",
+  "prerequisite": "commoner",
+  "max_level": 20,
+  "bonuses": {
+    "rpgcraftcore:agile": 5,
+    "rpgcraftcore:strength": -3
+  },
+  "per_level": {
+    "rpgcraftcore:agile": 1
+  }
+}

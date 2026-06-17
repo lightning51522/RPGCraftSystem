@@ -31,6 +31,16 @@ public class ProfessionRegistry implements IProfessionRegistry {
     }
 
     /**
+     * 清空所有已注册职业
+     * <p>
+     * 供 {@link ProfessionDefinitionLoader} 在 {@code /reload} 时重建注册表使用：
+     * 先清空再灌入最新加载结果，保证 datapack 修改后注册表完全反映 JSON 内容。
+     */
+    public void clear() {
+        professions.clear();
+    }
+
+    /**
      * 根据标识符获取职业
      *
      * @param id 职业标识符

@@ -1,0 +1,15 @@
+{
+  "name": "神射手",
+  "description": "极致的敏捷与暴击，进阶自弓箭手",
+  "type": "primary",
+  "prerequisite": "archer",
+  "max_level": 20,
+  "bonuses": {
+    "rpgcraftcore:agile": 6,
+    "rpgcraftcore:critical_rate": 3
+  },
+  "per_level": {
+    "rpgcraftcore:agile": 1,
+    "rpgcraftcore:critical_rate": 1
+  }
+}

@@ -1,6 +1,7 @@
 package com.rpgcraft.core.profession.api;
 
 import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
@@ -11,14 +12,29 @@ import java.util.Map;
  * {@link #getBonusPerLevel(Identifier)}（每级增量）共同决定，任意等级的加成由
  * {@link #getBonusAtLevel(Identifier, int)} 计算：{@code base + perLevel × (level - 1)}。
  * <p>
- * 职业可构成进阶树：{@link #getPrerequisite()} 返回前置职业 ID（为 null 表示起点职业，
- * 如平民）。只有前置职业达到 {@link #getMaxLevel()} 满级才能进阶。
+ * 职业分两类（见 {@link ProfessionType}）：
+ * <ul>
+ *   <li><b>主职业</b>（PRIMARY）：构成进阶树，{@link #getPrerequisite()} 链最终追溯到 {@code commoner}
+ *       （平民，唯一根）。只有前置职业达到 {@link #getMaxLevel()} 满级才能进阶。</li>
+ *   <li><b>副职业</b>（SECONDARY）：独立成树，{@link #getPrerequisite()} 只能指向其他副职业或为 null。
+ *       副职业可被玩家选为"当前副职业"以提供被动加成，但不能做主职业。</li>
+ * </ul>
  * <p>
  * {@link #getBonusMap()} 保留为 {@link #getBaseBonusMap()} 的别名，向后兼容。
  * <p>
- * 子模组可通过 {@link IProfessionProvider} SPI 注册自定义职业。
+ * 子模组可通过 {@link IProfessionProvider} SPI 注册自定义职业，或通过 datapack JSON 定义（见 profession 模块）。
  */
 public interface IProfession {
+
+    /**
+     * 职业类型：决定该职业在职业树中的归属、可否做主/副职业。
+     */
+    enum ProfessionType {
+        /** 主职业：进阶树成员，链根于 commoner；可 advance / switchMain */
+        PRIMARY,
+        /** 副职业：独立成树；可被选为当前副职业，不可做主职业 */
+        SECONDARY
+    }
 
     /**
      * 获取职业的唯一标识符
@@ -42,20 +58,38 @@ public interface IProfession {
     String getDescription();
 
     /**
+     * 获取职业类型（主职业 / 副职业）
+     *
+     * @return 职业类型，默认 {@link ProfessionType#PRIMARY}
+     */
+    default ProfessionType getType() {
+        return ProfessionType.PRIMARY;
+    }
+
+    /**
      * 判断是否为主职业
      * <p>
-     * 主职业返回 {@code true}，副职业返回 {@code false}。
-     * （历史遗留：当前所有内置职业均为 true，副职业通过 ProfessionData.secondaryProfessionId 单独选择。）
+     * 等价于 {@code getType() == ProfessionType.PRIMARY}。
      *
      * @return {@code true} 表示主职业
+     * @deprecated 使用 {@link #getType()} 替代，便于区分主/副职业
      */
-    boolean isPrimary();
+    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
+    default boolean isPrimary() {
+        return getType() == ProfessionType.PRIMARY;
+    }
 
     /**
      * 获取进阶前置职业的标识符
      * <p>
-     * 返回 null 表示该职业是树起点（无前置，如平民）。
-     * 返回非 null 表示进阶自某基础职业（如战士的进阶职业狂战士返回战士 ID）。
+     * 返回 null 表示该职业是树起点（无前置，如主职业树的平民、副职业树的根）。
+     * 返回非 null 表示进阶自某基础职业（如狂战士返回战士 ID）。
+     * <p>
+     * 类型约束（由加载器校验）：
+     * <ul>
+     *   <li>主职业的 prerequisite 链最终必须追溯到 {@code commoner}</li>
+     *   <li>副职业的 prerequisite 只能为 null 或指向其他副职业</li>
+     * </ul>
      * 只有前置职业达到 {@link #getMaxLevel()} 满级才能解锁本职业。
      *
      * @return 前置职业 ID，或 null
@@ -78,6 +112,18 @@ public interface IProfession {
      */
     default int getMaxLevel() {
         return 20;
+    }
+
+    /**
+     * 该职业专属经验表（可选）
+     * <p>
+     * 数组索引 i 对应从 {@code i+1} 级升到 {@code i+2} 级所需经验，长度应为 {@link #getMaxLevel()}-1。
+     * 返回 null 表示使用全局默认公式（见 {@code ProfessionManager}）。
+     *
+     * @return 经验表数组，或 null 表示用全局公式
+     */
+    default int @Nullable [] getExpTable() {
+        return null;
     }
 
     /**

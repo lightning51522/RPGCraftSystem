@@ -69,20 +69,28 @@ public class MobLevelData {
      * {@code "attack_type"} → 攻击类型（可空）,
      * {@code "rating"} → 评级枚举名,
      * {@code "initialized"} → 属性初始化标志
+     * <p>
+     * 注意 {@code attack_type} 可空字段的处理：业务层用 null 表示"未覆盖"，但 DFU Codec 链路
+     * 对 null 零容忍（{@code optionalFieldOf(...,null)} 会触发 NPE，详见 ProfessionData.CODEC 注释）。
+     * 正确做法是在 Codec 链路<b>全程保持 {@code Optional}</b>：{@code optionalFieldOf(name)}
+     * 字段缺失返回 {@code Optional.empty()}，{@code forGetter} 返回 {@code Optional<String>}，
+     * 只在 {@code apply} 函数体内 {@code .orElse(null)} 拆包。
      */
     public static final MapCodec<MobLevelData> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
                     Codec.INT.fieldOf("level").forGetter(MobLevelData::getLevel),
                     Codec.INT.fieldOf("base_exp").forGetter(MobLevelData::getBaseExpOverride),
-                    Codec.STRING.optionalFieldOf("attack_type", null).forGetter(d ->
-                            d.hasAttackTypeOverride() ? d.getAttackTypeOverride().name() : null),
+                    Codec.STRING.optionalFieldOf("attack_type")
+                            .forGetter(d -> java.util.Optional.ofNullable(
+                                    d.hasAttackTypeOverride() ? d.getAttackTypeOverride().name() : null)),
                     Codec.STRING.fieldOf("rating").forGetter(d -> d.getRating().name()),
                     Codec.BOOL.fieldOf("initialized").forGetter(MobLevelData::isInitialized)
             ).apply(instance, (level, baseExp, attackTypeName, ratingName, init) -> {
+                String name = attackTypeName.orElse(null);
                 AttackType at = null;
-                if (attackTypeName != null) {
+                if (name != null) {
                     try {
-                        at = AttackType.valueOf(attackTypeName);
+                        at = AttackType.valueOf(name);
                     } catch (IllegalArgumentException ignored) {
                         // 未知攻击类型，保持 null
                     }

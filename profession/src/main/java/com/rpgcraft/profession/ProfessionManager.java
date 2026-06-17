@@ -12,9 +12,9 @@ import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.registry.IProfessionSystem;
 import com.rpgcraft.core.registry.RPGSystems;
-import com.rpgcraft.core.profession.api.IProfessionProvider;
 import com.rpgcraft.profession.network.SyncPlayerProfessionPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -23,7 +23,6 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -40,7 +39,7 @@ import java.util.function.Supplier;
  */
 public class ProfessionManager {
 
-    /** 全局职业等级上限 */
+    /** 全局职业默认等级上限（职业 JSON 未指定 max_level 时使用；由 ProfessionDefinitionLoader 加载） */
     public static final int LEVEL_CAP = 20;
 
     private static ProfessionRegistry registry;
@@ -52,12 +51,23 @@ public class ProfessionManager {
 
     public static final Identifier COMMONER_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "commoner");
+    /** 占位副职业 ID（当 datapack 未提供任何 secondary 职业时注入，详见 ProfessionDefinitionLoader） */
+    public static final Identifier APPRENTICE_ID =
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "apprentice");
+    /**
+     * @deprecated 具体职业已由 datapack JSON 驱动，这些 ID 常量仅保留供历史代码引用兼容；
+     * 新代码应通过 {@link #getRegistry()} 按需查找。
+     */
+    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
     public static final Identifier WARRIOR_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "warrior");
+    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
     public static final Identifier ARCHER_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "archer");
+    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
     public static final Identifier BERSERKER_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "berserker");
+    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
     public static final Identifier MARKSMAN_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "marksman");
 
@@ -69,6 +79,12 @@ public class ProfessionManager {
 
     /**
      * 初始化职业模块
+     * <p>
+     * 注意：具体职业定义已改为 datapack JSON 驱动（见 {@link ProfessionDefinitionLoader}），
+     * 此处不再注册任何具体职业。具体职业在服务端资源加载（{@code /reload}）时由
+     * {@link ProfessionDefinitionLoader#applyLoaded} 灌入 {@link #registry}。
+     * <p>
+     * 本方法只负责：创建注册表、注册附件类型、注册 SPI/系统门面/状态组装器。
      */
     public static void init() {
         registry = new ProfessionRegistry();
@@ -81,18 +97,6 @@ public class ProfessionManager {
                         .serialize(ProfessionData.CODEC)
                         .build()
         );
-
-        // 注册内置职业（注册顺序决定 UI 树渲染顺序）
-        registry.register(new CommonerProfession());
-        registry.register(new WarriorProfession());
-        registry.register(new BerserkerProfession());
-        registry.register(new ArcherProfession());
-        registry.register(new MarksmanProfession());
-
-        // SPI：发现子模组注册的自定义职业
-        for (IProfessionProvider provider : ServiceLoader.load(IProfessionProvider.class)) {
-            provider.registerProfessions(registry);
-        }
 
         RPGSystems.registerPlayerProfessionAttachment(PLAYER_PROFESSION);
 
@@ -112,7 +116,7 @@ public class ProfessionManager {
         for (IProfession prof : registry.getAllProfessions()) {
             nodes.add(new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode(
                     prof.getId(), prof.getDisplayName(), prof.getDescription(),
-                    prof.getPrerequisite(), prof.isAdvanced()));
+                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType()));
         }
         return new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView(
                 data.getSkillPointPool(),
@@ -123,6 +127,35 @@ public class ProfessionManager {
                 new java.util.LinkedHashSet<>(data.getUnlockedProfessions()),
                 java.util.Collections.unmodifiableList(nodes)
         );
+    }
+
+    /**
+     * 向所有在线玩家推送最新职业状态。
+     * <p>
+     * 由 {@link ProfessionDefinitionLoader} 在 {@code /reload} 重建注册表后调用，
+     * 使客户端职业面板立即反映 datapack 修改。
+     */
+    public static void pushProfessionStateToAllOnline() {
+        MinecraftServer server = currentServer;
+        if (server == null) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            try {
+                syncToClient(player);
+            } catch (Exception e) {
+                ProfessionMod.LOGGER.warn("推送职业状态给 {} 失败: {}", player.getName().getString(), e.getMessage());
+            }
+        }
+    }
+
+    /** 当前服务器实例（由 {@link ProfessionDefinitionLoader} 在 ServerStartedEvent 时注入） */
+    private static volatile MinecraftServer currentServer;
+
+    public static MinecraftServer getCurrentServer() {
+        return currentServer;
+    }
+
+    public static void setCurrentServer(MinecraftServer server) {
+        currentServer = server;
     }
 
     public static ProfessionRegistry getRegistry() {
@@ -150,20 +183,38 @@ public class ProfessionManager {
     // 职业经验与等级
     // ====================================================================
 
-    /** 职业经验表：从 level 升到 level+1 所需经验，公式 round(50 × L^1.5)，L=1..19 */
-    private static final int[] EXP_TABLE = generateExpTable();
+    /** 全局默认经验表：从 level 升到 level+1 所需经验，公式 round(50 × L^1.5)，L=1..LEVEL_CAP-1 */
+    private static final int[] DEFAULT_EXP_TABLE = generateExpTable();
 
     private static int[] generateExpTable() {
-        int[] table = new int[LEVEL_CAP - 1]; // 索引 0 对应 1→2
-        for (int l = 1; l < LEVEL_CAP; l++) {
+        int cap = Math.max(2, ProfessionDefinitionLoader.getDefaultMaxLevel());
+        int[] table = new int[cap - 1]; // 索引 0 对应 1→2
+        for (int l = 1; l < cap; l++) {
             table[l - 1] = (int) Math.round(50 * Math.pow(l, 1.5));
         }
         return table;
     }
 
+    /** 全局默认公式：从 level 升到 level+1 所需经验（不含职业专属表，向后兼容旧接口） */
     public static int getExpForNextLevel(int level) {
-        if (level < 1 || level >= LEVEL_CAP) return Integer.MAX_VALUE;
-        return EXP_TABLE[level - 1];
+        if (level < 1) return Integer.MAX_VALUE;
+        if (level - 1 >= DEFAULT_EXP_TABLE.length) return Integer.MAX_VALUE;
+        return DEFAULT_EXP_TABLE[level - 1];
+    }
+
+    /**
+     * 指定职业升到下一级所需经验。优先用职业专属经验表 {@link IProfession#getExpTable()}，
+     * 缺失则回退到全局默认公式。
+     */
+    public static int getExpForNextLevel(IProfession prof, int level) {
+        if (prof == null || level < 1 || level >= prof.getMaxLevel()) return Integer.MAX_VALUE;
+        int[] table = prof.getExpTable();
+        if (table != null) {
+            int idx = level - 1;
+            if (idx < 0 || idx >= table.length) return Integer.MAX_VALUE;
+            return table[idx];
+        }
+        return getExpForNextLevel(level);
     }
 
     /** 玩家获得经验时把等量经验加进职业经验池（由 PlayerExpGainEvent 监听器调用，与等级经验同步） */
@@ -177,16 +228,19 @@ public class ProfessionManager {
     public static boolean canInvest(ServerPlayer player, Identifier professionId) {
         ProfessionData data = getData(player);
         if (!data.isUnlocked(professionId)) return false;
+        IProfession prof = registry.getProfession(professionId);
+        if (prof == null) return false;
         int level = data.getProfessionLevel(professionId);
-        if (level <= 0 || level >= LEVEL_CAP) return false;
-        return data.getSkillPointPool() >= getExpForNextLevel(level);
+        if (level <= 0 || level >= prof.getMaxLevel()) return false;
+        return data.getSkillPointPool() >= getExpForNextLevel(prof, level);
     }
 
     public static boolean investLevel(ServerPlayer player, Identifier professionId) {
         if (!canInvest(player, professionId)) return false;
         ProfessionData data = getData(player);
+        IProfession prof = registry.getProfession(professionId);
         int level = data.getProfessionLevel(professionId);
-        int cost = getExpForNextLevel(level);
+        int cost = getExpForNextLevel(prof, level);
         data.addSkillPoints(-cost);
         data.setProfessionLevel(professionId, level + 1);
 
@@ -201,17 +255,21 @@ public class ProfessionManager {
     }
 
     // ====================================================================
-    // 进阶
+    // 进阶（仅主职业参与）
     // ====================================================================
 
     public static boolean canAdvance(ServerPlayer player, Identifier professionId) {
         IProfession target = registry.getProfession(professionId);
         if (target == null || target.getPrerequisite() == null) return false;
+        // 仅主职业可进阶
+        if (target.getType() != IProfession.ProfessionType.PRIMARY) return false;
         ProfessionData data = getData(player);
         if (data.isUnlocked(professionId)) return false; // 已进阶
         Identifier prereq = target.getPrerequisite();
         if (!data.isUnlocked(prereq)) return false;
-        return data.getProfessionLevel(prereq) >= LEVEL_CAP;
+        IProfession prereqProf = registry.getProfession(prereq);
+        int cap = prereqProf != null ? prereqProf.getMaxLevel() : LEVEL_CAP;
+        return data.getProfessionLevel(prereq) >= cap;
     }
 
     public static boolean advance(ServerPlayer player, Identifier professionId) {
@@ -242,11 +300,11 @@ public class ProfessionManager {
     /**
      * 是否可切换当前主职业到目标职业
      * <p>
-     * 规则（见 ProfessionConfig.allow_downgrade_switch）：
+     * 规则（见 {@link ProfessionDefinitionLoader#isAllowDowngradeSwitch()}）：
      * <ul>
-     *   <li>目标必须已解锁</li>
+     *   <li>目标必须已解锁，且必须是主职业（{@link IProfession.ProfessionType#PRIMARY}）</li>
      *   <li>目标不能是当前主职业本身</li>
-     *   <li>从进阶职业切回其基础职业：受 allow_downgrade_switch 控制（默认禁止）</li>
+     *   <li>从进阶职业切回其基础职业：受 {@code allow_downgrade_switch} 控制（默认禁止）</li>
      *   <li>其它切换允许（平民↔进阶、进阶叶子之间互切）</li>
      * </ul>
      */
@@ -257,10 +315,12 @@ public class ProfessionManager {
         IProfession target = registry.getProfession(professionId);
         IProfession current = registry.getProfession(data.getProfessionId());
         if (target == null || current == null) return false;
+        // 仅主职业可作为主职业切换目标
+        if (target.getType() != IProfession.ProfessionType.PRIMARY) return false;
 
         // 目标是当前职业的基础职业 → 受切回开关控制
         boolean targetIsPrereqOfCurrent = professionId.equals(current.getPrerequisite());
-        if (targetIsPrereqOfCurrent && !ProfessionConfig.isAllowDowngradeSwitch()) {
+        if (targetIsPrereqOfCurrent && !ProfessionDefinitionLoader.isAllowDowngradeSwitch()) {
             return false;
         }
         return true;
@@ -306,15 +366,18 @@ public class ProfessionManager {
         if (professionId == null) {
             data.setSecondaryProfessionId(null);
         } else {
-            // 副职业必须已解锁，且不能等于当前主职业
-            if (!data.isUnlocked(professionId) || professionId.equals(data.getProfessionId())) {
+            IProfession newProf = registry.getProfession(professionId);
+            // 副职业必须存在、已解锁、不等于当前主职业、且类型为 SECONDARY（严格区分：主职业不能做副职业）
+            if (newProf == null
+                    || newProf.getType() != IProfession.ProfessionType.SECONDARY
+                    || !data.isUnlocked(professionId)
+                    || professionId.equals(data.getProfessionId())) {
                 return;
             }
             data.setSecondaryProfessionId(professionId);
             // 新副职业若开关开启则立即应用
             if (data.isSecondaryActive()) {
-                IProfession newProf = registry.getProfession(professionId);
-                if (newProf != null) applyBonusAtLevel(player, newProf, data.getProfessionLevel(professionId), true);
+                applyBonusAtLevel(player, newProf, data.getProfessionLevel(professionId), true);
             }
         }
         syncToClient(player);
@@ -416,6 +479,11 @@ public class ProfessionManager {
     public static void setProfession(ServerPlayer player, Identifier professionId) {
         IProfession prof = registry.getProfession(professionId);
         if (prof == null) return;
+        // 主职业只能设主职业类型的职业（副职业不能通过此命令设为主职业）
+        if (prof.getType() != IProfession.ProfessionType.PRIMARY) {
+            ProfessionMod.LOGGER.warn("setProfession 拒绝将副职业 {} 设为主职业", professionId);
+            return;
+        }
         ProfessionData data = getData(player);
         // 顺带解锁并设为 1 级（调试场景）
         data.unlock(professionId);

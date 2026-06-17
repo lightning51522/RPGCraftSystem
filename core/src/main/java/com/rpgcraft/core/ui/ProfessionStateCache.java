@@ -1,5 +1,6 @@
 package com.rpgcraft.core.ui;
 
+import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,13 +54,15 @@ public final class ProfessionStateCache {
      * @param description 描述
      * @param prerequisite 前置职业 ID（可为 null）
      * @param advanced    是否进阶职业
+     * @param type        职业类型（主职业 / 副职业），决定节点归属哪棵树
      */
     public record ProfessionNode(
             Identifier id,
             String displayName,
             String description,
             @Nullable Identifier prerequisite,
-            boolean advanced
+            boolean advanced,
+            IProfession.ProfessionType type
     ) {
     }
 
