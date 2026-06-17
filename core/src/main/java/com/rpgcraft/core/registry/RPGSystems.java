@@ -117,6 +117,39 @@ public final class RPGSystems {
         return false;
     }
 
+    /**
+     * 查询系统实现，未注册时抛 {@link IllegalStateException}。消除各 getXxx 方法的 null 检查样板。
+     *
+     * @param name 系统名（用于异常信息）
+     * @param reg  注册条目
+     * @param <T>  系统接口类型
+     * @return 系统实现
+     */
+    private static <T> T requireSystem(String name, Registration<T> reg) {
+        if (reg == null) {
+            throw new IllegalStateException(name + " 未注册，请先调用对应 register 方法");
+        }
+        return reg.implementation();
+    }
+
+    /**
+     * 查询附件 Supplier，未注册时抛 {@link IllegalStateException}，并集中处理 raw {@code Supplier<?>}
+     * 到 {@code Supplier<AttachmentType<T>>} 的泛型强转（消除 3 处 {@code @SuppressWarnings("unchecked")}）。
+     *
+     * @param name 附件名（用于异常信息）
+     * @param raw  原始 raw supplier
+     * @param <T>  附件数据类型
+     * @return 附件类型 Supplier
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> java.util.function.Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>
+            requireAttachment(String name, java.util.function.Supplier<?> raw) {
+        if (raw == null) {
+            throw new IllegalStateException(name + " 未注册，请先由对应模块初始化");
+        }
+        return (java.util.function.Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) raw;
+    }
+
     // ====================================================================
     // 注册方法（各插件模块在 init() 中调用）
     // ====================================================================
@@ -368,10 +401,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static ILevelSystem getLevelSystem() {
-        if (levelSystem == null) {
-            throw new IllegalStateException("ILevelSystem 未注册，请先调用 registerLevelSystem()");
-        }
-        return levelSystem.implementation();
+        return requireSystem("ILevelSystem", levelSystem);
     }
 
     /**
@@ -381,10 +411,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IEquipmentSystem getEquipmentSystem() {
-        if (equipmentSystem == null) {
-            throw new IllegalStateException("IEquipmentSystem 未注册，请先调用 registerEquipmentSystem()");
-        }
-        return equipmentSystem.implementation();
+        return requireSystem("IEquipmentSystem", equipmentSystem);
     }
 
     /**
@@ -403,10 +430,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IProfessionSystem getProfessionSystem() {
-        if (professionSystem == null) {
-            throw new IllegalStateException("IProfessionSystem 未注册，请先调用 registerProfessionSystem()");
-        }
-        return professionSystem.implementation();
+        return requireSystem("IProfessionSystem", professionSystem);
     }
 
     /**
@@ -416,10 +440,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static ICombatSystem getCombatSystem() {
-        if (combatSystem == null) {
-            throw new IllegalStateException("ICombatSystem 未注册，请先调用 registerCombatSystem()");
-        }
-        return combatSystem.implementation();
+        return requireSystem("ICombatSystem", combatSystem);
     }
 
     /**
@@ -429,10 +450,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IAttackTypeResolver getAttackTypeResolver() {
-        if (attackTypeResolver == null) {
-            throw new IllegalStateException("IAttackTypeResolver 未注册，请先调用 registerAttackTypeResolver()");
-        }
-        return attackTypeResolver.implementation();
+        return requireSystem("IAttackTypeResolver", attackTypeResolver);
     }
 
     /**
@@ -442,10 +460,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IMobDataProvider getMobDataProvider() {
-        if (mobDataProvider == null) {
-            throw new IllegalStateException("IMobDataProvider 未注册，请先调用 registerMobDataProvider()");
-        }
-        return mobDataProvider.implementation();
+        return requireSystem("IMobDataProvider", mobDataProvider);
     }
 
     /**
@@ -455,10 +470,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IClientSystem getClientSystem() {
-        if (clientSystem == null) {
-            throw new IllegalStateException("IClientSystem 未注册，请先调用 registerClientSystem()");
-        }
-        return clientSystem.implementation();
+        return requireSystem("IClientSystem", clientSystem);
     }
 
     /**
@@ -481,12 +493,8 @@ public final class RPGSystems {
      * @return 附件类型 Supplier
      * @throws IllegalStateException 未注册时抛出
      */
-    @SuppressWarnings("unchecked")
     public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerLevelAttachment() {
-        if (playerLevelAttachment == null) {
-            throw new IllegalStateException("playerLevelAttachment 未注册，请先由 leveling 模块初始化");
-        }
-        return (Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) playerLevelAttachment;
+        return requireAttachment("playerLevelAttachment", playerLevelAttachment);
     }
 
     /**
@@ -498,12 +506,8 @@ public final class RPGSystems {
      * @return 附件类型 Supplier
      * @throws IllegalStateException 未注册时抛出
      */
-    @SuppressWarnings("unchecked")
     public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerProfessionAttachment() {
-        if (playerProfessionAttachment == null) {
-            throw new IllegalStateException("playerProfessionAttachment 未注册，请先由 profession 模块初始化");
-        }
-        return (Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) playerProfessionAttachment;
+        return requireAttachment("playerProfessionAttachment", playerProfessionAttachment);
     }
 
     /**
@@ -513,10 +517,7 @@ public final class RPGSystems {
      * @throws IllegalStateException 未注册时抛出
      */
     public static IAttributePointSystem getAttributePointSystem() {
-        if (attributePointSystem == null) {
-            throw new IllegalStateException("IAttributePointSystem 未注册，请先调用 registerAttributePointSystem()");
-        }
-        return attributePointSystem.implementation();
+        return requireSystem("IAttributePointSystem", attributePointSystem);
     }
 
     /**
@@ -537,11 +538,7 @@ public final class RPGSystems {
      * @return 附件类型 Supplier
      * @throws IllegalStateException 未注册时抛出
      */
-    @SuppressWarnings("unchecked")
     public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerAttributePointsAttachment() {
-        if (playerAttributePointsAttachment == null) {
-            throw new IllegalStateException("playerAttributePointsAttachment 未注册，请先由 attributepoints 模块初始化");
-        }
-        return (Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) playerAttributePointsAttachment;
+        return requireAttachment("playerAttributePointsAttachment", playerAttributePointsAttachment);
     }
 }

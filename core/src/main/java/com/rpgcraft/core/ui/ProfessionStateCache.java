@@ -55,6 +55,7 @@ public final class ProfessionStateCache {
      * @param prerequisite 前置职业 ID（可为 null）
      * @param advanced    是否进阶职业
      * @param type        职业类型（主职业 / 副职业），决定节点归属哪棵树
+     * @param maxLevel    该职业的等级上限（来自 JSON max_level / 全局 default_max_level）
      */
     public record ProfessionNode(
             Identifier id,
@@ -62,7 +63,8 @@ public final class ProfessionStateCache {
             String description,
             @Nullable Identifier prerequisite,
             boolean advanced,
-            IProfession.ProfessionType type
+            IProfession.ProfessionType type,
+            int maxLevel
     ) {
     }
 

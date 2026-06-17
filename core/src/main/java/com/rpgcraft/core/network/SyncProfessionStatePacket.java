@@ -80,6 +80,7 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             encodeNullableId(buf, n.prerequisite());
             buf.writeBoolean(n.advanced());
             buf.writeByte(n.type().ordinal());
+            buf.writeVarInt(n.maxLevel());
         }
     }
 
@@ -110,7 +111,8 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             Identifier prereq = decodeNullableId(buf);
             boolean advanced = buf.readBoolean();
             IProfession.ProfessionType type = IProfession.ProfessionType.values()[buf.readByte()];
-            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type));
+            int maxLevel = buf.readVarInt();
+            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type, maxLevel));
         }
         return new SyncProfessionStatePacket(new ProfessionStateView(
                 pool, currentMain, currentSecondary, secondaryActive,

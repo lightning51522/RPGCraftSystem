@@ -3,6 +3,7 @@ package com.rpgcraft.leveling;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.rpgcraft.core.level.ExpFormula;
 import com.rpgcraft.core.level.api.ILevelRegistry;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -49,25 +50,10 @@ public class LevelConfig implements ILevelRegistry {
      * 最大等级 = 300。与 {@code data/rpgcraftcore/rpg/level_config.json} 一致。
      * <p>
      * 示例：1→2 需 50；10→11 需 1581；50→51 需 17678；100→101 需 50000；299→300 需 258510。
-     */
-    private static final int[] DEFAULT_EXP_TABLE = generateExpTable(299);
-
-    /**
-     * 按公式 {@code round(50 * L^1.5)} 生成经验表（L=1..length，每项为该等级升到下一级所需经验）
      * <p>
-     * 前期升级快、后期渐慢，符合 RPG 节奏；不会指数爆炸。
-     *
-     * @param length 表长度（= 最大等级 - 1）
-     * @return 经验表数组
+     * 公式由 {@link ExpFormula} 统一提供（与职业等级系统共用，避免多处拷贝漂移）。
      */
-    private static int[] generateExpTable(int length) {
-        int[] table = new int[length];
-        for (int i = 0; i < length; i++) {
-            int level = i + 1; // L = 当前等级（1-based）
-            table[i] = (int) Math.round(50 * Math.pow(level, 1.5));
-        }
-        return table;
-    }
+    private static final int[] DEFAULT_EXP_TABLE = ExpFormula.generateExpTable(300);
 
     /** 经验表快照：expTable[0] = 等级 1 升到 2 所需经验，长度 = 最大等级 - 1 */
     private volatile int[] expTable = DEFAULT_EXP_TABLE.clone();

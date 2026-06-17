@@ -474,7 +474,7 @@ public class RPGProfessionScreen extends Screen {
         boolean isCurrent = node.id().equals(state.currentMain());
         boolean isSecondary = node.id().equals(state.currentSecondary());
         int level = state.levels().getOrDefault(node.id(), 0);
-        int maxLevel = 20;
+        int maxLevel = node.maxLevel(); // 来自服务端 per-profession getMaxLevel()，不再硬编码 20
         int contentW = detailW - 2 * CONTENT_MARGIN;
 
         int cy = y + TITLE_HEIGHT + 4;
@@ -499,7 +499,7 @@ public class RPGProfessionScreen extends Screen {
             graphics.text(this.font, "等级: " + level + " / " + maxLevel, x + CONTENT_MARGIN, cy, COLOR_TEXT, false);
             cy += 12;
             if (level < maxLevel) {
-                int cost = costForNextLevel(level);
+                int cost = costForNextLevel(level, maxLevel);
                 boolean canAfford = state.pool() >= cost;
                 String costText = "下一级: " + cost + (canAfford ? " (可投入)" : " (不足)");
                 graphics.text(this.font, costText, x + CONTENT_MARGIN, cy,
@@ -523,8 +523,9 @@ public class RPGProfessionScreen extends Screen {
         int level = state.levels().getOrDefault(node.id(), 0);
         boolean isPrimaryType = node.type() == IProfession.ProfessionType.PRIMARY;
         boolean isSecondaryType = node.type() == IProfession.ProfessionType.SECONDARY;
+        int maxLevel = node.maxLevel();
 
-        boolean canInvest = unlocked && level < 20 && state.pool() >= costForNextLevel(level);
+        boolean canInvest = unlocked && level < maxLevel && state.pool() >= costForNextLevel(level, maxLevel);
         boolean canAdvance = isPrimaryType && canAdvanceFrom(state, node);
         boolean canSwitchMain = isPrimaryType && !isCurrent && unlocked;
         boolean canSetSecondary = isSecondaryType && unlocked && !isSecondary;
@@ -693,13 +694,15 @@ public class RPGProfessionScreen extends Screen {
         int cy = y + TITLE_HEIGHT + 4 + 12 + 11 + 11 + 13 + 4;
         boolean unlocked = state.unlocked().contains(node.id());
         int level = state.levels().getOrDefault(node.id(), 0);
+        int maxLevel = node.maxLevel();
         if (unlocked) {
-            cy += 12 + (level < 20 ? 12 : 12) + 3;
+            // 等级行(12) + 下一级消耗/已达满级行(12) + 间距(3)
+            cy += 12 + 12 + 3;
         }
         boolean isCurrent = node.id().equals(state.currentMain());
         boolean isPrimaryType = node.type() == IProfession.ProfessionType.PRIMARY;
         boolean isSecondaryType = node.type() == IProfession.ProfessionType.SECONDARY;
-        boolean canInvest = unlocked && level < 20 && state.pool() >= costForNextLevel(level);
+        boolean canInvest = unlocked && level < maxLevel && state.pool() >= costForNextLevel(level, maxLevel);
         boolean canAdvance = isPrimaryType && canAdvanceFrom(state, node);
         boolean canSwitchMain = isPrimaryType && !isCurrent && unlocked;
         boolean canSetSecondary = isSecondaryType && unlocked && !node.id().equals(state.currentSecondary());
@@ -766,16 +769,20 @@ public class RPGProfessionScreen extends Screen {
     // 业务判定（与服务端校验镜像，仅用于 UI 灰显）
     // ====================================================================
 
-    private static int costForNextLevel(int level) {
-        if (level < 1 || level >= 20) return Integer.MAX_VALUE;
-        return (int) Math.round(50 * Math.pow(level, 1.5));
+    /** 升下一级所需经验（与服务端公式镜像，仅用于 UI 显示）。委托 {@link ExpFormula} 统一公式 */
+    private static int costForNextLevel(int level, int maxLevel) {
+        if (level < 1 || level >= maxLevel) return Integer.MAX_VALUE;
+        return com.rpgcraft.core.level.ExpFormula.expForNextLevel(level);
     }
 
     private boolean canAdvanceFrom(ProfessionStateView state, ProfessionNode node) {
         if (node.prerequisite() == null) return false;
         if (state.unlocked().contains(node.id())) return false;
         if (!state.unlocked().contains(node.prerequisite())) return false;
-        return state.levels().getOrDefault(node.prerequisite(), 0) >= 20;
+        // 前置职业需达到其自身满级（每职业 maxLevel 可不同，取前置节点的 maxLevel）
+        ProfessionNode prereqNode = findNode(state, node.prerequisite());
+        int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
+        return state.levels().getOrDefault(node.prerequisite(), 0) >= prereqMax;
     }
 
     private ProfessionNode findNode(ProfessionStateView state, Identifier id) {

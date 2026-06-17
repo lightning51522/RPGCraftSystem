@@ -116,7 +116,7 @@ public class ProfessionManager {
         for (IProfession prof : registry.getAllProfessions()) {
             nodes.add(new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode(
                     prof.getId(), prof.getDisplayName(), prof.getDescription(),
-                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType()));
+                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType(), prof.getMaxLevel()));
         }
         return new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView(
                 data.getSkillPointPool(),
@@ -188,11 +188,8 @@ public class ProfessionManager {
 
     private static int[] generateExpTable() {
         int cap = Math.max(2, ProfessionDefinitionLoader.getDefaultMaxLevel());
-        int[] table = new int[cap - 1]; // 索引 0 对应 1→2
-        for (int l = 1; l < cap; l++) {
-            table[l - 1] = (int) Math.round(50 * Math.pow(l, 1.5));
-        }
-        return table;
+        // 委托 ExpFormula 统一公式（与 leveling 模块共用，避免拷贝漂移）
+        return com.rpgcraft.core.level.ExpFormula.generateExpTable(cap);
     }
 
     /** 全局默认公式：从 level 升到 level+1 所需经验（不含职业专属表，向后兼容旧接口） */
