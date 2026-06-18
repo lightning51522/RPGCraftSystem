@@ -1,0 +1,10 @@
+{
+  "name": "重击",
+  "description": "消耗技能点，对前方敌人造成物理伤害",
+  "resource_cost": 10,
+  "cooldown_ticks": 100,
+  "damage_amount": 30,
+  "attack_type": "PHYSICAL",
+  "animation_id": "rpgcraftskills:heavy_strike",
+  "range": 4.0
+}

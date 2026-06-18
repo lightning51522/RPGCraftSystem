@@ -85,11 +85,19 @@ public class PacketHandler {
         );
 
         // 职业动作请求包（客户端 → 服务端）
-        // 投入经验/进阶/切换主职/设置副职/切换副职开关，服务端权威校验
+        // 投入经验/进阶/切换主职/设置副职/切换副职业开关，服务端权威校验
         registrar.playToServer(
                 ProfessionActionPacket.TYPE,
                 ProfessionActionPacket.STREAM_CODEC,
                 ProfessionActionPacket::handle
+        );
+
+        // 技能释放请求包（客户端 → 服务端）
+        // 客户端按技能快捷键时发送，委托 skills 模块校验（冷却/资源/已学）+ 应用 + 同步
+        registrar.playToServer(
+                CastSkillPacket.TYPE,
+                CastSkillPacket.STREAM_CODEC,
+                CastSkillPacket::handle
         );
 
         // 怪物信息查询/回复包、HUD 开关包由 client 模块自行注册

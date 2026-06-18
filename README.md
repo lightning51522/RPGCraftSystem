@@ -3,7 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.4.2--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.5.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -25,6 +25,7 @@ RPGCraftSystem/
 ├── equipment/        装备加成（修饰符模式） + 装备追踪
 ├── profession/       职业注册 + 职业树 / 进阶 / 副职业 / 职业等级与经验池
 ├── attributepoints/  自由属性点分配系统（升级获点，玩家自行分配到任意属性）
+├── skills/           主动技能系统（PAL 玩家动画 + 资源消耗 + 冷却 + RPG 伤害）
 └── client/           HUD / 角色信息界面 / 职业面板 / Tooltip / UI 插件系统
 ```
 
@@ -36,9 +37,10 @@ RPGCraftSystem/
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
+| skills | `rpgcraftskills` | `SkillsMod` | core + PAL(playeranimator) |
 | client | `rpgcraftclient` | `ClientMod` | core |
 
-> 插件模块**互不依赖**，跨模块通信全部走 core 的 `RPGSystems` 注册门面。
+> 插件模块**互不依赖**，跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。
 
 ---
 
@@ -58,6 +60,7 @@ RPGCraftSystem/
 | `registerAttackTypeResolver()` | equipment | `IAttackTypeResolver` |
 | `registerProfessionSystem()` | profession | `IProfessionSystem` |
 | `registerAttributePointSystem()` | attributepoints | `IAttributePointSystem` |
+| `registerSkillSystem()` | skills | `ISkillSystem` |
 | `registerClientSystem()` | client | `IClientSystem` |
 
 所有 `register` 方法都接受可选的 `priority` 参数，`OVERRIDE_PRIORITY (100) > DEFAULT_PRIORITY (0)`，第三方模组可借此完全覆盖官方实现：
@@ -309,6 +312,57 @@ baseValue
 
 ---
 
+##  技能系统
+
+`skills` 模块提供主动技能系统（MVP）：玩家按键释放 → 校验资源/冷却 → 扣除 `skill_point` →
+启动冷却 → PAL 玩家动画 → 对前方目标造成 RPG 伤害（走 vanilla hurt 由 `CombatEventHandler` 接管）。
+
+> 详细设计见 [core/docs/06-skills.md](core/docs/06-skills.md)
+
+### 技能定义（datapack 驱动）
+
+每个技能一个文件，放在 `data/rpgcraftcore/rpg/skills/`，文件名即技能 ID 的 path：
+
+```jsonc
+// data/rpgcraftcore/rpg/skills/heavy_strike.json
+{
+  "name": "重击",
+  "description": "消耗技能点，对前方敌人造成物理伤害",
+  "resource_cost": 10,        // 释放消耗的 skill_point 量
+  "cooldown_ticks": 100,       // 冷却时长（tick，100 = 5 秒）
+  "damage_amount": 30,         // 单目标伤害值（扁平，进入 RPG 公式）
+  "attack_type": "PHYSICAL",   // PHYSICAL / MAGIC / MIX_TYPE
+  "animation_id": "rpgcraftskills:heavy_strike",  // PAL 动画资源 ID
+  "range": 4.0                 // 命中范围（方块）
+}
+```
+
+内置示范技能 `heavy_strike`（重击）：消耗 10 技能点，冷却 5 秒，造成 30 物理伤害。
+
+### 伤害接入
+
+技能伤害走 vanilla `target.hurt()`，由 `CombatEventHandler` 接管走完整 RPG 公式（暴击/防御/抗性/事件）。
+攻击类型由玩家手持武器解析（与普通近战一致），**零侵入 core 战斗接口**。
+
+### 客户端集成
+
+- **PAL 动画**：`SkillAnimationHandler` 在 `FMLClientSetupEvent` 通过
+  `PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory` 注册动画 layer 工厂，
+  收到 `PlaySkillAnimationPacket` 时取回玩家 layer 的 `PlayerAnimationController` 调 `triggerAnimation(id)` 播放。
+  动画资源放 `assets/<namespace>/player_animations/*.json`（Bedrock 格式），**文件内 `animations` 的键名必须与
+  技能 `animation_id` 的 path 完全一致**（文件名本身不影响 ID 解析）
+- **PAL 为可选依赖**：mods.toml 声明 `type="optional"`，PAL 缺失时技能伤害/冷却正常，仅无动画
+- **按键**：默认数字键 `1` 释放 `heavy_strike`（MVP 固定），发 `CastSkillPacket` 到服务端权威校验
+
+### 当前限制（MVP）
+
+- 技能槽固定（数字键 1 硬编码释放示范技能，无技能栏 UI）
+- 无技能学习系统（所有已注册技能默认可释放）
+- 无 buff/debuff / 状态机 / 精确 raycast
+- 技能 JSON 的 `attack_type` 仅展示用，实际生效由手持武器决定
+
+---
+
 ##  构建与运行
 
 需要 **JDK 25**。项目自带 Gradle Wrapper，使用 `./gradlew` 而非系统 gradle。
@@ -400,6 +454,21 @@ baseValue
 /rpg spawn minecraft:spider 15 {"attack_type":"MAGIC","attributes":{"life":1000,"strength":200}}
 ```
 
+### 技能
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg skills [player]` | 无 | 查看技能信息与冷却状态 |
+| `/rpg skills list` | 无 | 列出所有已注册技能定义 |
+| `/rpg skills cast <技能ID> [player]` | op-2 | 强制释放某技能（仍走完整校验） |
+| `/rpg skills cooldown reset [player]` | op-2 | 重置玩家全部技能冷却 |
+
+```bash
+/rpg skills list
+/rpg skills cast heavy_strike
+/rpg skills cooldown reset
+```
+
 ### 客户端 UI
 
 | 命令 | 权限 | 说明 |
@@ -415,6 +484,7 @@ baseValue
 |------|------|
 | `R` | 打开/关闭角色信息界面（toggle）—— 显示等级、职业、可分配点数、属性分配按钮 |
 | `P` | 打开职业面板 —— 主/副职业双树、职业升级/进阶/副职业操作；按住左键拖动平移画布，打开时自动以当前主职业居中 |
+| `1` | 释放技能 1（MVP 固定释放 `heavy_strike` 重击；后续接入技能栏 UI） |
 | `ESC` | 关闭角色信息界面 / 职业面板 |
 
 ---
@@ -448,6 +518,7 @@ baseValue
 | `IEquipmentSystem` | 替换装备系统 |
 | `IProfessionSystem` | 替换职业系统（职业注册 / 等级 / 进阶 / 副职业） |
 | `IAttributePointSystem` | 替换属性点分配系统 |
+| `ISkillSystem` | 替换技能系统（技能定义 / 释放 / 冷却） |
 | `ICombatSystem` | 替换战斗系统 |
 | `IClientSystem` | 替换客户端系统 |
 
@@ -461,6 +532,7 @@ baseValue
 | `IEquipmentHandler` | 自定义装备加成处理逻辑 |
 | `IEquipmentProvider` | 自定义装备加成数据 |
 | `IProfessionProvider` | 自定义职业 |
+| `ISkillProvider` | 自定义技能（ServiceLoader 追加） |
 
 ### UI 扩展
 

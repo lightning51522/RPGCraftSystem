@@ -23,6 +23,8 @@ subprojects {
     // 如果有全生态共享的仓库，也可以放在这里
     repositories {
         // mavenCentral()
+        // Player Animation Library (PAL) - 玩家动画库
+        maven { url = 'https://repo.redlance.org/public' }
     }
 }
 

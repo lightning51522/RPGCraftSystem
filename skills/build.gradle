@@ -1,0 +1,86 @@
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+def modId = property('mod_id')
+def modName = property('mod_name')
+def modVersion = property('mod_version')
+def modGroupId = property('mod_group_id')
+def modLicense = property('mod_license')
+
+version = modVersion
+group = modGroupId
+
+base {
+    archivesName = modId
+}
+
+sourceSets.main.resources {
+    srcDir('src/generated/resources')
+    exclude("**/*.bbmodel")
+    exclude("src/generated/**/.cache")
+}
+
+neoForge {
+    version = rootProject.property('neo_version')
+
+    mods {
+        "${modId}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    implementation project(':core')
+    // Player Animation Library (PAL) - 玩家动画库（playerAnimator 官方继任者）
+    // 官方推荐配置：https://docs.zigythebird.com/pal/how_to_add_lib_to_mod/
+    //
+    // PAL 1.2.4+mc.26.1 已修复 dev 环境的 LinkageError（PAL issue #128，
+    // 1.2.2/1.2.3 的 MolangLoader 跨类加载器引用 mochafloats 的 bug），
+    // 故恢复为 implementation 正常接线。
+    // mods.toml 中声明为 type="optional"，SkillAnimationHandler 保留反射探测
+    // 作为防御性降级：玩家若未装 PAL，技能伤害/冷却仍正常，仅无动画。
+    //
+    // PAL Core 的 POM 声明了 gson/slf4j/netty/joml 的较新版本，与 NeoForge
+    // 通过 {strictly ...} 锁定的版本冲突。这些库在运行期由 NeoForge/Minecraft
+    // 提供，故在此排除 PAL 的这 4 个传递依赖，避免版本约束冲突。
+    implementation("com.zigythebird.playeranim:PlayerAnimationLibNeo:${rootProject.property('pal_version')}") {
+        exclude group: 'com.google.code.gson', module: 'gson'
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+        exclude group: 'io.netty', module: 'netty-buffer'
+        exclude group: 'io.netty', module: 'netty-common'
+        exclude group: 'org.joml', module: 'joml'
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : rootProject.property('minecraft_version'),
+            minecraft_version_range: rootProject.property('minecraft_version_range'),
+            neo_version            : rootProject.property('neo_version'),
+            pal_version            : rootProject.property('pal_version'),
+            mod_id                 : modId,
+            mod_name               : modName,
+            mod_license            : modLicense,
+            mod_version            : modVersion,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

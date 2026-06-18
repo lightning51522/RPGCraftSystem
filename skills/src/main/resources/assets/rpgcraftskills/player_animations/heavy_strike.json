@@ -1,0 +1,19 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "heavy_strike": {
+      "loop": false,
+      "animation_length": 0.6,
+      "bones": {
+        "rightArm": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.15": [-120, 0, 0],
+            "0.35": [60, 0, 0],
+            "0.6": [0, 0, 0]
+          }
+        }
+      }
+    }
+  }
+}

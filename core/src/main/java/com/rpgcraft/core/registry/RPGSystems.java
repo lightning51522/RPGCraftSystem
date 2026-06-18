@@ -83,6 +83,10 @@ public final class RPGSystems {
     private static Registration<IAttributePointSystem> attributePointSystem;
     private static Supplier<?> playerAttributePointsAttachment;
 
+    // 技能系统
+    private static Registration<ISkillSystem> skillSystem;
+    private static Supplier<?> playerSkillsAttachment;
+
     private RPGSystems() {
         // 禁止实例化
     }
@@ -390,6 +394,38 @@ public final class RPGSystems {
         playerAttributePointsAttachment = supplier;
     }
 
+    /**
+     * 注册技能系统实现（默认优先级）
+     *
+     * @param system 技能系统实例
+     */
+    public static void registerSkillSystem(ISkillSystem system) {
+        registerSkillSystem(system, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册技能系统实现（指定优先级）
+     *
+     * @param system   技能系统实例
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerSkillSystem(ISkillSystem system, int priority) {
+        if (shouldOverride("ISkillSystem", skillSystem, priority)) {
+            skillSystem = new Registration<>(system, priority);
+        }
+    }
+
+    /**
+     * 注册玩家技能附件类型 Supplier
+     * <p>
+     * 由 skills 模块调用，供客户端 UI 通过 {@link #getPlayerSkillsAttachment()} 获取附件类型。
+     *
+     * @param supplier AttachmentType<PlayerSkillData> 的 Supplier
+     */
+    public static void registerPlayerSkillsAttachment(Supplier<?> supplier) {
+        playerSkillsAttachment = supplier;
+    }
+
     // ====================================================================
     // 查询方法（跨模块访问，未注册时抛出 IllegalStateException）
     // ====================================================================
@@ -540,5 +576,37 @@ public final class RPGSystems {
      */
     public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerAttributePointsAttachment() {
         return requireAttachment("playerAttributePointsAttachment", playerAttributePointsAttachment);
+    }
+
+    /**
+     * 获取技能系统
+     *
+     * @return 技能系统实例
+     * @throws IllegalStateException 未注册时抛出
+     */
+    public static ISkillSystem getSkillSystem() {
+        return requireSystem("ISkillSystem", skillSystem);
+    }
+
+    /**
+     * 查询技能系统是否已注册（避免 UI 在模块未加载时空指针）
+     *
+     * @return {@code true} 已注册
+     */
+    public static boolean hasSkillSystem() {
+        return skillSystem != null;
+    }
+
+    /**
+     * 获取玩家技能附件类型 Supplier
+     * <p>
+     * 用于客户端 UI 访问玩家技能数据附件。
+     *
+     * @param <T> 附件数据类型（PlayerSkillData）
+     * @return 附件类型 Supplier
+     * @throws IllegalStateException 未注册时抛出
+     */
+    public static <T> Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>> getPlayerSkillsAttachment() {
+        return requireAttachment("playerSkillsAttachment", playerSkillsAttachment);
     }
 }
