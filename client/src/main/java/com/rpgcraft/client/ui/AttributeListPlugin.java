@@ -65,18 +65,18 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     // 颜色常量（ARGB 格式）
     // ====================================================================
 
-    /** 黄色标题 */
-    private static final int COLOR_TITLE = 0xFFFFFF00;
+    /** 黄色标题（原版强调色） */
+    private static final int COLOR_TITLE = 0xFFFFE000;
     /** 白色文本 */
     private static final int COLOR_TEXT = 0xFFFFFFFF;
-    /** 灰色分隔线 */
-    private static final int COLOR_SEPARATOR = 0xFF555555;
+    /** 灰色分隔线（原版灰阶） */
+    private static final int COLOR_SEPARATOR = 0xFF373737;
     /** 灰色页码文字 */
-    private static final int COLOR_PAGE_TEXT = 0xFFAAAAAA;
+    private static final int COLOR_PAGE_TEXT = 0xFFA0A0A0;
     /** 翻页箭头 */
     private static final int COLOR_ARROW = 0xFFFFFFFF;
-    /** 翻页箭头悬停 */
-    private static final int COLOR_ARROW_HOVER = 0xFFFFFF00;
+    /** 翻页箭头悬停（原版强调色） */
+    private static final int COLOR_ARROW_HOVER = 0xFFFFE000;
     /** 暴击率中档（橙色，101-200%） */
     private static final int COLOR_CRIT_MID = 0xFFFFA500;
     /** 暴击率高档（红色，>200%） */

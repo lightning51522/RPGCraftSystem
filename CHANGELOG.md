@@ -4,6 +4,51 @@
 
 ---
 
+## [0.5.2-alpha] - 2026-06-22
+
+### 新增
+
+#### 原版风格 UI（职业面板 + 角色界面）
+把 RPG 自定义 UI 全面改为原版 Minecraft 视觉风格。关键技术：MC 26.1.2 的 `GuiGraphicsExtractor`
+已内置 `blitSprite(RenderPipelines.GUI_TEXTURED, spriteId, x, y, w, h, color)`（9-slice/stretch 自动分发），
+可直接复用原版 GUI 精灵；`Screen.extractMenuBackgroundTexture(...)` 平铺 `menu_background.png` 泥土纹理。
+
+- **面板背景**：职业窗 + 角色左右面板改用 `Screen.extractMenuBackgroundTexture` 平铺原版泥土纹理
+  （取代纯色 fill / 自定义 9-slice 贴图）
+- **经典斜面边框**：新增 `drawContainerBorder` —— 1px 黑外框 + 上左白高光 `0xFFFFFFFF` +
+  下右深灰阴影 `0xFF555555`，配色解码自 `textures/gui/container/inventory.png`（原版边框是画在每张
+  容器 PNG 里的，无独立可复用精灵，故用 fill 复刻）
+- **可读性**：`menu_background` 本身仅 25% 黑（每像素 `rgba(0,0,0,64)`），叠一层 `0x80000000`
+  （50% 黑）覆盖提高文字可读性
+- **节点框**：职业节点改用原版 `advancements/task_frame_obtained`/`_unobtained`（26×26 正好等于
+  `NODE_SIZE`，1:1 无缩放，原版为「方形节点+图标+状态」专门设计的资产）
+- **节点图标**：`graphics.fakeItem(ItemStack, x+5, y+5)` 渲染原版物品图标（居中偏移 `(26-16)/2=5`），
+  新增 `NODE_ITEM_ICONS` 映射：warrior→铁剑、berserker→钻石斧、archer→弓、marksman→弩、
+  commoner→木锄、apprentice→书；无映射时回退中文字符
+- **按钮**：`+`/最大化/属性 `+`/`-` 按钮改用原版 `widget/button`/`widget/button_highlighted`/
+  `widget/button_disabled` 9-slice 精灵；文字垂直居中用原版公式 `(height-9)/2+1`（lineHeight=9）
+- **滚动条**：角色面板滚动条改用原版 `widget/scroller` + `widget/scroller_background` 精灵
+- **标题分隔线**：标题栏底部画原版 `HEADER_SEPARATOR`（32×2 水平平铺）
+- **节点下行**：等级与升级合并到节点正下方单个加宽按钮「Lv.N +」（canInvest 高亮可点，
+  经验不足显禁用态；满级显「Lv.MAX」无按钮）—— 取代旧的「上方徽章 + 下方按钮」分离布局，
+  避免上方徽章遮挡上一节点
+- **属性按钮**：去方括号（`[+]`→`+`、`[-]`→`-`），符号原版公式垂直居中
+
+### 变更
+
+- 调色板统一原版灰阶（标题黄 `0xFFFFE000`、分隔线 `0xFF373737`、提示灰 `0xFFA0A0A0`）
+- 删除上一版的自定义面板贴图（`panel/profession.png` 等 6 文件）—— 改用原版泥土平铺后不再需要
+- `RPGProfessionScreen`/`RPGCharacterScreen` 删除 `fillRounded`（八角形伪圆角）—— 原版面板无圆角
+- 全模块版本号统一升级 `0.5.1-alpha` → `0.5.2-alpha`
+
+### 已知限制
+
+- 实机视觉验证未做（无头环境无 `runClient`）。所有验证为编译期 + 原版精灵/像素解码的静态确认。
+  `menu_background` 平铺、9-slice 按钮缩放、`fakeItem` 图标、斜面边框配色均依据 MC 26.1.2
+  反编译源码与 PNG 像素解码确认正确，但实际渲染效果建议 `runClient` 复核
+
+---
+
 ## [0.5.1-alpha] - 2026-06-22
 
 ### 重构

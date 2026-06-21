@@ -8,6 +8,7 @@ import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.ui.AttributePointClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.attachment.AttachmentType;
 
@@ -50,11 +51,11 @@ import java.util.function.Supplier;
 public class AttributePointPanel {
 
     // 布局常量
-    private static final int LINE_HEIGHT = 12;
+    private static final int LINE_HEIGHT = 14;
     private static final int HEADER_HEIGHT = 20;
     private static final int CONTENT_MARGIN = 6;
-    /** 单个按钮 [+] 或 [-] 占用的宽度 */
-    private static final int BUTTON_WIDTH = 12;
+    /** 单个按钮 [+] 或 [-] 占用的宽度 —— 适配原版按钮 9-slice（≥14） */
+    private static final int BUTTON_WIDTH = 14;
     /** 两个按钮之间的间距 */
     private static final int BUTTON_GAP = 2;
     /** 按钮区（[+] + 间距 + [-]）的总宽度 */
@@ -62,15 +63,20 @@ public class AttributePointPanel {
     /** 已分配点数文本与按钮区之间保留的间距 */
     private static final int TEXT_BUTTON_GAP = 6;
 
-    // 颜色（ARGB）
-    private static final int COLOR_TITLE = 0xFFFFFF00;
+    /** 原版按钮精灵（9-slice 200×20，自动缩放到任意尺寸） */
+    private static final Identifier BUTTON_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button");
+    private static final Identifier BUTTON_HIGHLIGHTED_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button_highlighted");
+    private static final Identifier BUTTON_DISABLED_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button_disabled");
+
+    // 颜色（ARGB）—— 原版风格灰阶
+    private static final int COLOR_TITLE = 0xFFFFE000;
     private static final int COLOR_TEXT = 0xFFFFFFFF;
     private static final int COLOR_AVAILABLE = 0xFF55FF55;
-    private static final int COLOR_ALLOCATED = 0xFFAAAAFF;
-    private static final int COLOR_BUTTON = 0xFF55FF55;
-    private static final int COLOR_BUTTON_HOVER = 0xFFFFFF00;
-    private static final int COLOR_BUTTON_DISABLED = 0xFF555555;
-    private static final int COLOR_HINT = 0xFFAAAAAA;
+    private static final int COLOR_ALLOCATED = 0xFFAAAACC;
+    private static final int COLOR_HINT = 0xFFA0A0A0;
 
     /**
      * 渲染属性点面板
@@ -166,35 +172,40 @@ public class AttributePointPanel {
         int allocColor = allocated > 0 ? COLOR_ALLOCATED : COLOR_HINT;
         graphics.text(mc.font, allocStr, allocRight - mc.font.width(allocStr), rowY, allocColor, false);
 
-        // [-] 按钮（仅 allow_decrease=true 时渲染）
+        // [-] 按钮（仅 allow_decrease=true 时渲染）—— 无方括号，仅符号
         if (allowDecrease) {
-            renderButton(graphics, mc, "[-]", minusX, rowY, mouseX, mouseY,
-                    canDecrement, COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_BUTTON_DISABLED);
+            renderButton(graphics, mc, "-", minusX, rowY, mouseX, mouseY, canDecrement);
         }
-        // [+] 按钮
-        renderButton(graphics, mc, "[+]", plusX, rowY, mouseX, mouseY,
-                available > 0, COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_BUTTON_DISABLED);
+        // [+] 按钮 —— 无方括号，仅符号
+        renderButton(graphics, mc, "+", plusX, rowY, mouseX, mouseY, available > 0);
     }
 
     /**
-     * 渲染单个按钮（含 hover 高亮 + 禁用态）
+     * 渲染单个按钮（原版 9-slice 按钮贴图 + 居中符号，含 hover 高亮 + 禁用态）
+     * <p>
+     * 符号垂直居中用原版公式 {@code (top + bottom - 9) / 2 + 1}（lineHeight=9）。
      */
     private static void renderButton(GuiGraphicsExtractor graphics, Minecraft mc,
                                      String text, int btnX, int rowY,
-                                     int mouseX, int mouseY, boolean enabled,
-                                     int colorNormal, int colorHover, int colorDisabled) {
+                                     int mouseX, int mouseY, boolean enabled) {
         int btnY = rowY - 1;
         boolean hover = enabled && isHover(mouseX, mouseY, btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT);
-        int color;
+        // 原版按钮精灵背景（disabled 用 button_disabled，hover 用 highlighted）
+        Identifier sprite;
         if (!enabled) {
-            color = colorDisabled;
+            sprite = BUTTON_DISABLED_SPRITE;
         } else if (hover) {
-            color = colorHover;
+            sprite = BUTTON_HIGHLIGHTED_SPRITE;
         } else {
-            color = colorNormal;
+            sprite = BUTTON_SPRITE;
         }
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
+                btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT, -1);
+        int textColor = enabled ? COLOR_TEXT : COLOR_HINT;
         int textWidth = mc.font.width(text);
-        graphics.text(mc.font, text, btnX + (BUTTON_WIDTH - textWidth) / 2, rowY, color, false);
+        // 水平居中 + 原版垂直居中公式
+        graphics.text(mc.font, text, btnX + (BUTTON_WIDTH - textWidth) / 2,
+                btnY + (LINE_HEIGHT - 9) / 2 + 1, textColor, false);
     }
 
     /**

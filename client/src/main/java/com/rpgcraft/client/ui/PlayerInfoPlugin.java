@@ -48,16 +48,16 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     // 颜色常量（ARGB 格式）
     // ====================================================================
 
-    /** 黄色标题 */
-    private static final int COLOR_TITLE = 0xFFFFFF00;
+    /** 黄色标题（原版强调色） */
+    private static final int COLOR_TITLE = 0xFFFFE000;
     /** 白色文本 */
     private static final int COLOR_TEXT = 0xFFFFFFFF;
-    /** 灰色分隔线 */
-    private static final int COLOR_SEPARATOR = 0xFF555555;
+    /** 灰色分隔线（原版灰阶） */
+    private static final int COLOR_SEPARATOR = 0xFF373737;
     /** 绿色高亮（有可分配点数时） */
     private static final int COLOR_HIGHLIGHT = 0xFF55FF55;
     /** 灰色提示（无可分配点数时） */
-    private static final int COLOR_HINT = 0xFFAAAAAA;
+    private static final int COLOR_HINT = 0xFFA0A0A0;
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
