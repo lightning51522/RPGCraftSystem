@@ -4,6 +4,31 @@
 
 ---
 
+## [0.5.3-alpha] - 2026-06-22
+
+### 修复
+
+#### 角色界面职业等级显示错误（`SyncPlayerProfessionPacket`）
+角色面板（`PlayerInfoPlugin`）职业名显示正确，但等级恒显示 Lv.1、已激活副职业行不显示。
+
+- **根因**：`SyncPlayerProfessionPacket`（服务端→客户端单向同步包）只同步了 `professionId`
+  （当前主职业 ID），**未同步等级表、已激活副职业集合、经验池**。`PlayerInfoPlugin` 直接读
+  客户端附件 → `getProfessionLevel(id)` 返回 0（`Math.max(1,0)=1` 恒 Lv.1）、
+  `getActiveSecondaryProfessions()` 返回空集（副职业行不显示）。
+  注：职业面板 `RPGProfessionScreen` 走另一个包 `SyncProfessionStatePacket`（本就同步完整状态到
+  `ProfessionStateCache`），所以面板里等级是对的 —— 这就是为什么只有属性界面错、职业面板对。
+- **修复**：`SyncPlayerProfessionPacket` 从「只同步 ID」扩展为「同步完整状态」：
+  - record 新增 `levels`（职业→等级）、`activeSecondary`（已激活副职业集合）、`skillPointPool`（经验池）
+  - `sendToClient` 发送完整数据
+  - `handle` 写入客户端附件（先清空激活集再逐个设回，不调用服务端权威方法、不触发加成重算）
+  - StreamCodec 手写 encode/decode（参考 `SyncProfessionStatePacket` 模式）
+
+### 变更
+
+- 全模块版本号统一升级 `0.5.2-alpha` → `0.5.3-alpha`
+
+---
+
 ## [0.5.2-alpha] - 2026-06-22
 
 ### 新增
