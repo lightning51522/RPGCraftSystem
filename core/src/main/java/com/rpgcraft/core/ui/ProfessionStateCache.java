@@ -29,8 +29,7 @@ public final class ProfessionStateCache {
      *
      * @param pool             可分配职业经验池
      * @param currentMain      当前主职业 ID
-     * @param currentSecondary 当前副职业 ID（可为 null）
-     * @param secondaryActive  副职业加成开关
+     * @param activeSecondary  已激活副职业集合（每个独立激活，加成共存）
      * @param levels           职业 ID → 等级
      * @param unlocked         已解锁职业集合
      * @param nodes            职业树节点元数据（用于渲染，与玩家无关）
@@ -38,8 +37,7 @@ public final class ProfessionStateCache {
     public record ProfessionStateView(
             int pool,
             Identifier currentMain,
-            @Nullable Identifier currentSecondary,
-            boolean secondaryActive,
+            Set<Identifier> activeSecondary,
             Map<Identifier, Integer> levels,
             Set<Identifier> unlocked,
             List<ProfessionNode> nodes

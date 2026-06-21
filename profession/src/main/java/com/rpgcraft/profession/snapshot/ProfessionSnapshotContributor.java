@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * 职业快照贡献者
  * <p>
- * 捕获和恢复玩家的完整职业数据（主/副职业、职业经验池、各职业等级、已解锁集合、副职业开关），
+ * 捕获和恢复玩家的完整职业数据（主职业、已激活副职业集合、职业经验池、各职业等级、已解锁集合），
  * 并重新应用职业属性加成（按等级线性计算的 ADDITION 修饰符）。
  * <p>
  * <b>重生时必须重新应用职业加成修饰符</b>：{@link net.neoforged.neoforge.event.player.PlayerEvent.Clone}
@@ -37,11 +37,10 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
      */
     record ProfSnapshot(
             Identifier professionId,
-            Identifier secondaryProfessionId,
+            Set<Identifier> activeSecondaryProfessions,
             int skillPointPool,
             Map<Identifier, Integer> professionLevels,
-            Set<Identifier> unlockedProfessions,
-            boolean secondaryActive
+            Set<Identifier> unlockedProfessions
     ) {}
 
     @Override
@@ -54,11 +53,10 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
         ProfessionData data = player.getData(ProfessionManager.PLAYER_PROFESSION);
         return new ProfSnapshot(
                 data.getProfessionId(),
-                data.getSecondaryProfessionId(),
+                new LinkedHashSet<>(data.getActiveSecondaryProfessions()),
                 data.getSkillPointPool(),
                 new LinkedHashMap<>(data.getProfessionLevels()),
-                new LinkedHashSet<>(data.getUnlockedProfessions()),
-                data.isSecondaryActive()
+                new LinkedHashSet<>(data.getUnlockedProfessions())
         );
     }
 
@@ -67,7 +65,6 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
         ProfSnapshot snap = (ProfSnapshot) data;
         ProfessionData newData = newPlayer.getData(ProfessionManager.PLAYER_PROFESSION);
         newData.setProfessionId(snap.professionId());
-        newData.setSecondaryProfessionId(snap.secondaryProfessionId());
         newData.setSkillPointPool(snap.skillPointPool());
         // 逐项恢复等级与解锁状态
         for (Map.Entry<Identifier, Integer> e : snap.professionLevels().entrySet()) {
@@ -76,7 +73,13 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
         for (Identifier id : snap.unlockedProfessions()) {
             newData.unlock(id);
         }
-        newData.setSecondaryActive(snap.secondaryActive());
+        // 恢复已激活副职业集合（先清空再逐个设回）
+        for (Identifier id : newData.getActiveSecondaryProfessions()) {
+            newData.setSecondaryActive(id, false);
+        }
+        for (Identifier id : snap.activeSecondaryProfessions()) {
+            newData.setSecondaryActive(id, true);
+        }
         // 重生（PlayerEvent.Clone）创建的是全新实体，职业加成修饰符需重新应用
         ProfessionManager.reapplyAllBonuses(newPlayer);
     }

@@ -44,9 +44,6 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     /** 分隔线上下方间距 */
     private static final int SEPARATOR_GAP = 2;
 
-    /** 插件总高度（标题 + 等级 + 职业 + 可分配点数 + 分隔线间距 + 1px 分隔线） */
-    private static final int PLUGIN_HEIGHT = TITLE_HEIGHT + LINE_HEIGHT * 5 + SEPARATOR_GAP * 2 + 1;
-
     // ====================================================================
     // 颜色常量（ARGB 格式）
     // ====================================================================
@@ -66,13 +63,23 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final StringBuilder SB = new StringBuilder(64);
 
     /**
-     * 获取插件高度（固定值）
-     *
-     * @return {@value PLUGIN_HEIGHT} 像素
+     * 插件总高度（标题 + 等级 + 主职业 + 各已激活副职业行 + 可分配点数 + 分隔线间距 + 1px 分隔线）。
+     * <p>
+     * 高度随当前已激活副职业数量动态变化（多副职业共存模型）。
+     * 主职业经验池行仅当 {@code pool > 0} 时显示，故其高度也动态。
      */
     @Override
     public int getHeight() {
-        return PLUGIN_HEIGHT;
+        Minecraft mc = Minecraft.getInstance();
+        Player player = mc.player;
+        int extraLines = 0;
+        if (player != null) {
+            ProfessionData profData = player.getData(
+                    RPGSystems.<ProfessionData>getPlayerProfessionAttachment().get());
+            extraLines += profData.getActiveSecondaryProfessions().size();
+            if (profData.getSkillPointPool() > 0) extraLines += 1;
+        }
+        return TITLE_HEIGHT + LINE_HEIGHT * (4 + extraLines) + SEPARATOR_GAP * 2 + 1;
     }
 
     /**
@@ -127,14 +134,12 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
                 + " Lv." + Math.max(1, profLevel);
         graphics.text(mc.font, profText, x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
-        // 副职业
-        net.minecraft.resources.Identifier secId = profData.getSecondaryProfessionId();
-        if (secId != null) {
+        // 副职业（多副职业独立激活，加成共存）—— 每个已激活副职业一行
+        for (net.minecraft.resources.Identifier secId : profData.getActiveSecondaryProfessions()) {
             IProfession secProf = RPGSystems.getProfessionSystem().getProfessionById(secId);
             int secLevel = profData.getProfessionLevel(secId);
             String secText = "  副: " + (secProf != null ? secProf.getDisplayName() : "未知")
-                    + " Lv." + Math.max(1, secLevel)
-                    + (profData.isSecondaryActive() ? "(开)" : "(关)");
+                    + " Lv." + Math.max(1, secLevel);
             graphics.text(mc.font, secText, x, currentY, COLOR_HINT, false);
             currentY += LINE_HEIGHT;
         }

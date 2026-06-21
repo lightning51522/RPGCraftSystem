@@ -23,7 +23,7 @@ import java.util.Set;
 /**
  * 职业状态同步包 —— 服务端到客户端
  * <p>
- * 携带完整职业状态（可分配经验池、当前主/副职业、副职业开关、各职业等级、已解锁集合、
+ * 携带完整职业状态（可分配经验池、当前主职业、已激活副职业集合、各职业等级、已解锁集合、
  * 职业树节点元数据）。客户端收到后缓存到 {@link ProfessionStateCache} 供职业面板渲染。
  * <p>
  * StreamCodec 手写 encode/decode（参考 {@link SyncAttributeSnapshotPacket}）。
@@ -57,8 +57,12 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
         ProfessionStateView v = pkt.view();
         buf.writeVarInt(v.pool());
         encodeNullableId(buf, v.currentMain());
-        encodeNullableId(buf, v.currentSecondary());
-        buf.writeBoolean(v.secondaryActive());
+
+        // activeSecondary 集合
+        buf.writeVarInt(v.activeSecondary().size());
+        for (Identifier id : v.activeSecondary()) {
+            Identifier.STREAM_CODEC.encode(buf, id);
+        }
 
         // levels map
         buf.writeVarInt(v.levels().size());
@@ -87,8 +91,12 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
     private static SyncProfessionStatePacket decode(RegistryFriendlyByteBuf buf) {
         int pool = buf.readVarInt();
         Identifier currentMain = decodeNullableId(buf);
-        Identifier currentSecondary = decodeNullableId(buf);
-        boolean secondaryActive = buf.readBoolean();
+
+        int activeSize = buf.readVarInt();
+        Set<Identifier> activeSecondary = new LinkedHashSet<>();
+        for (int i = 0; i < activeSize; i++) {
+            activeSecondary.add(Identifier.STREAM_CODEC.decode(buf));
+        }
 
         int levelSize = buf.readVarInt();
         Map<Identifier, Integer> levels = new LinkedHashMap<>();
@@ -115,7 +123,7 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type, maxLevel));
         }
         return new SyncProfessionStatePacket(new ProfessionStateView(
-                pool, currentMain, currentSecondary, secondaryActive,
+                pool, currentMain, activeSecondary,
                 levels, unlocked, nodes));
     }
 
