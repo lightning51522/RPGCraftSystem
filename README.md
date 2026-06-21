@@ -3,7 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.5.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.5.1--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)

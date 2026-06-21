@@ -121,8 +121,7 @@ public class ProfessionManager {
         return new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView(
                 data.getSkillPointPool(),
                 data.getProfessionId(),
-                data.getSecondaryProfessionId(),
-                data.isSecondaryActive(),
+                new java.util.LinkedHashSet<>(data.getActiveSecondaryProfessions()),
                 new java.util.LinkedHashMap<>(data.getProfessionLevels()),
                 new java.util.LinkedHashSet<>(data.getUnlockedProfessions()),
                 java.util.Collections.unmodifiableList(nodes)
@@ -241,11 +240,11 @@ public class ProfessionManager {
         data.addSkillPoints(-cost);
         data.setProfessionLevel(professionId, level + 1);
 
-        // 若投入的是当前主职业或激活的副职业，重算加成
+        // 若投入的是当前主职业，或某个已激活的副职业，重算其加成
         if (professionId.equals(data.getProfessionId())) {
             reapplyMainBonuses(player);
-        } else if (data.isSecondaryActive() && professionId.equals(data.getSecondaryProfessionId())) {
-            reapplySecondaryBonuses(player);
+        } else if (data.isSecondaryActive(professionId)) {
+            reapplySecondaryBonus(player, professionId);
         }
         syncToClient(player);
         return true;
@@ -337,64 +336,43 @@ public class ProfessionManager {
         ProfessionData data = getData(player);
         IProfession oldProf = registry.getProfession(data.getProfessionId());
         IProfession newProf = registry.getProfession(professionId);
-        if (oldProf != null) applyBonusAtLevel(player, oldProf, data.getProfessionLevel(oldProf.getId()), false);
+        if (oldProf != null) applyBonusAtLevel(player, oldProf, data.getProfessionLevel(oldProf.getId()), false, false);
         data.setProfessionId(professionId);
-        if (newProf != null) applyBonusAtLevel(player, newProf, data.getProfessionLevel(professionId), true);
+        if (newProf != null) applyBonusAtLevel(player, newProf, data.getProfessionLevel(professionId), true, false);
         syncToClient(player);
         if (oldProf != null && newProf != null) syncAffectedAttributes(player, oldProf, newProf);
     }
 
     // ====================================================================
-    // 副职业
+    // 副职业（多副职业独立激活，加成共存）
     // ====================================================================
 
-    public static Identifier getSecondary(ServerPlayer player) {
-        return getData(player).getSecondaryProfessionId();
+    /**
+     * 获取已激活的副职业集合（不可变视图）。
+     */
+    public static Set<Identifier> getActiveSecondary(ServerPlayer player) {
+        return getData(player).getActiveSecondaryProfessions();
     }
 
-    public static void setSecondary(ServerPlayer player, Identifier professionId) {
+    public static boolean isSecondaryActive(ServerPlayer player, Identifier professionId) {
+        return getData(player).isSecondaryActive(professionId);
+    }
+
+    /**
+     * 设置某副职业的激活状态。
+     * <p>
+     * 服务端权威校验：目标必须存在、是 SECONDARY 类型、已解锁、且不等于当前主职业。
+     * 通过校验后写入附件数据，并立即应用/移除该副职业的属性加成，最后同步到客户端。
+     */
+    public static void setSecondaryActive(ServerPlayer player, Identifier professionId, boolean active) {
         ProfessionData data = getData(player);
-        // 清除旧副职业加成
-        Identifier oldSec = data.getSecondaryProfessionId();
-        if (oldSec != null && data.isSecondaryActive()) {
-            IProfession oldProf = registry.getProfession(oldSec);
-            if (oldProf != null) applyBonusAtLevel(player, oldProf, data.getProfessionLevel(oldSec), false);
-        }
-        if (professionId == null) {
-            data.setSecondaryProfessionId(null);
-        } else {
-            IProfession newProf = registry.getProfession(professionId);
-            // 副职业必须存在、已解锁、不等于当前主职业、且类型为 SECONDARY（严格区分：主职业不能做副职业）
-            if (newProf == null
-                    || newProf.getType() != IProfession.ProfessionType.SECONDARY
-                    || !data.isUnlocked(professionId)
-                    || professionId.equals(data.getProfessionId())) {
-                return;
-            }
-            data.setSecondaryProfessionId(professionId);
-            // 新副职业若开关开启则立即应用
-            if (data.isSecondaryActive()) {
-                applyBonusAtLevel(player, newProf, data.getProfessionLevel(professionId), true);
-            }
-        }
-        syncToClient(player);
-    }
-
-    public static boolean isSecondaryActive(ServerPlayer player) {
-        return getData(player).isSecondaryActive();
-    }
-
-    public static void setSecondaryActive(ServerPlayer player, boolean active) {
-        ProfessionData data = getData(player);
-        if (data.isSecondaryActive() == active) return;
-        data.setSecondaryActive(active);
-        Identifier sec = data.getSecondaryProfessionId();
-        if (sec != null) {
-            IProfession secProf = registry.getProfession(sec);
-            if (secProf != null) {
-                applyBonusAtLevel(player, secProf, data.getProfessionLevel(sec), active);
-            }
-        }
+        IProfession prof = registry.getProfession(professionId);
+        if (prof == null || prof.getType() != IProfession.ProfessionType.SECONDARY) return;
+        if (!data.isUnlocked(professionId)) return;
+        if (professionId.equals(data.getProfessionId())) return;
+        if (active == data.isSecondaryActive(professionId)) return;
+        data.setSecondaryActive(professionId, active);
+        applyBonusAtLevel(player, prof, data.getProfessionLevel(professionId), active, true);
         syncToClient(player);
     }
 
@@ -414,12 +392,15 @@ public class ProfessionManager {
     }
 
     /**
-     * 按指定等级应用或移除某职业的全部属性加成
+     * 按指定等级应用或移除某职业的全部属性加成。
+     *
+     * @param secondary true 时用副职业前缀的修饰符 sourceId，false 时用主职业前缀。
+     *                  （由调用方显式传入，不再从 {@code currentSecondary} 推断 ——
+     *                  多副职业共存后某职业是否"副职业"需由调用上下文决定）
      */
-    private static void applyBonusAtLevel(ServerPlayer player, IProfession prof, int level, boolean add) {
+    private static void applyBonusAtLevel(ServerPlayer player, IProfession prof, int level, boolean add,
+                                          boolean secondary) {
         if (level < 1) level = 1;
-        boolean secondary = !prof.getId().equals(getData(player).getProfessionId())
-                && prof.getId().equals(getData(player).getSecondaryProfessionId());
         for (Map.Entry<Identifier, Integer> entry : prof.getBaseBonusMap().entrySet()) {
             Identifier attrId = entry.getKey();
             IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(attrId);
@@ -443,22 +424,33 @@ public class ProfessionManager {
         IProfession prof = registry.getProfession(data.getProfessionId());
         if (prof == null) return;
         // 移除（用任意等级，remove 只看 sourceId）
-        applyBonusAtLevel(player, prof, 1, false);
-        applyBonusAtLevel(player, prof, data.getProfessionLevel(prof.getId()), true);
+        applyBonusAtLevel(player, prof, 1, false, false);
+        applyBonusAtLevel(player, prof, data.getProfessionLevel(prof.getId()), true, false);
     }
 
     /**
-     * 重新应用副职业加成（仅当开关开启）。
+     * 重新应用指定副职业的加成（先移除再添加）。用于该副职业等级变化。
+     */
+    public static void reapplySecondaryBonus(ServerPlayer player, Identifier secondaryId) {
+        ProfessionData data = getData(player);
+        if (!data.isSecondaryActive(secondaryId)) return;
+        IProfession prof = registry.getProfession(secondaryId);
+        if (prof == null) return;
+        applyBonusAtLevel(player, prof, 1, false, true);
+        applyBonusAtLevel(player, prof, data.getProfessionLevel(secondaryId), true, true);
+    }
+
+    /**
+     * 重新应用所有已激活副职业的加成。用于登录/重生重建（所有修饰符都已重置）。
      */
     public static void reapplySecondaryBonuses(ServerPlayer player) {
         ProfessionData data = getData(player);
-        if (!data.isSecondaryActive()) return;
-        Identifier sec = data.getSecondaryProfessionId();
-        if (sec == null) return;
-        IProfession prof = registry.getProfession(sec);
-        if (prof == null) return;
-        applyBonusAtLevel(player, prof, 1, false);
-        applyBonusAtLevel(player, prof, data.getProfessionLevel(sec), true);
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession prof = registry.getProfession(secId);
+            if (prof == null) continue;
+            applyBonusAtLevel(player, prof, 1, false, true);
+            applyBonusAtLevel(player, prof, data.getProfessionLevel(secId), true, true);
+        }
     }
 
     /** 登录/重生时重新应用所有生效加成 */
@@ -495,7 +487,7 @@ public class ProfessionManager {
     public static void removeProfessionBonuses(ServerPlayer player) {
         ProfessionData data = getData(player);
         IProfession prof = registry.getProfession(data.getProfessionId());
-        if (prof != null) applyBonusAtLevel(player, prof, 1, false);
+        if (prof != null) applyBonusAtLevel(player, prof, 1, false, false);
     }
 
     // ====================================================================
@@ -550,9 +542,8 @@ public class ProfessionManager {
         @Override public boolean canSwitchMain(ServerPlayer p, Identifier id) { return ProfessionManager.canSwitchMain(p, id); }
         @Override public boolean switchMain(ServerPlayer p, Identifier id) { return ProfessionManager.switchMain(p, id); }
 
-        @Override public Identifier getSecondary(ServerPlayer p) { return ProfessionManager.getSecondary(p); }
-        @Override public void setSecondary(ServerPlayer p, Identifier id) { ProfessionManager.setSecondary(p, id); }
-        @Override public boolean isSecondaryActive(ServerPlayer p) { return ProfessionManager.isSecondaryActive(p); }
-        @Override public void setSecondaryActive(ServerPlayer p, boolean a) { ProfessionManager.setSecondaryActive(p, a); }
+        @Override public Set<Identifier> getActiveSecondary(ServerPlayer p) { return ProfessionManager.getActiveSecondary(p); }
+        @Override public boolean isSecondaryActive(ServerPlayer p, Identifier id) { return ProfessionManager.isSecondaryActive(p, id); }
+        @Override public void setSecondaryActive(ServerPlayer p, Identifier id, boolean a) { ProfessionManager.setSecondaryActive(p, id, a); }
     }
 }

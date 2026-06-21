@@ -7,6 +7,7 @@ import com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode;
 import com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -23,17 +24,28 @@ import java.util.Map;
 /**
  * 职业面板（独立 Screen）
  * <p>
- * 按快捷键 P（默认）打开。布局由<b>三个独立区域</b>组成：
+ * 按快捷键 P（默认）打开。布局由<b>两个可拖动浮窗</b>组成：
  * <ul>
- *   <li><b>主职业窗</b>（可拖动浮窗）：横向显示主职业树（PRIMARY，根在左、子向右）</li>
- *   <li><b>副职业窗</b>（可拖动浮窗）：横向显示副职业树（SECONDARY，独立成树）</li>
- *   <li><b>详情区</b>（固定右侧）：显示选中职业的等级、经验、加成与操作按钮</li>
+ *   <li><b>主职业窗</b>：横向显示主职业树（PRIMARY，根在左、子向右）</li>
+ *   <li><b>副职业窗</b>：横向显示副职业树（SECONDARY，独立成树）</li>
  * </ul>
+ * 取消了固定详情面板。职业信息改为<b>悬停节点时的气泡提示</b>；操作改为<b>节点下方 + 按钮与双击</b>。
+ * <p>
  * 交互：
  * <ul>
+ *   <li><b>悬停节点</b> → 鼠标位置显示职业气泡（名称/类型/状态/描述/等级/下一级消耗）</li>
+ *   <li><b>节点下 + 按钮</b> → 仅在「可投入一级」的已解锁职业下显示，点击投入一级</li>
+ *   <li><b>双击节点</b>：
+ *     <ul>
+ *       <li>已解锁、非当前主职业 → 直接切换为主职业</li>
+ *       <li>可进阶、未解锁的主职业 → 弹确认框 → 进阶并切换</li>
+ *       <li>已解锁副职业 → 切换激活状态（激活/取消，加成共存）</li>
+ *     </ul>
+ *   </li>
+ *   <li><b>激活的副职业</b> → 节点外显示蓝色外框</li>
+ *   <li><b>标题栏右上角 □/⊟ 按钮</b> → 最大化/还原该窗（铺满全屏，隐藏另一窗）</li>
  *   <li>拖动窗口<b>标题栏</b> → 移动该窗口位置（主/副窗各自独立）</li>
  *   <li>拖动窗口<b>内空白</b> → 平移该窗口内的画布（查看超出窗口的树节点）</li>
- *   <li>点击节点 → 选中（详情区显示）；详情按钮触发服务端权威操作</li>
  *   <li>打开时自动以「当前主职业」节点居中到主职业窗</li>
  * </ul>
  * 数据来源 {@link ProfessionStateCache}，操作通过 {@link ProfessionActionPacket} 发服务端权威处理。
@@ -49,8 +61,6 @@ public class RPGProfessionScreen extends Screen {
 
     /** 树窗口最大宽度 */
     private static final int TREE_WIN_MAX_WIDTH = 360;
-    /** 详情面板宽度 */
-    private static final int DETAIL_PANEL_WIDTH = 150;
     /** 树窗口最小宽度 */
     private static final int TREE_WIN_MIN_WIDTH = 200;
     /** 屏幕两侧/区域间安全边距 */
@@ -77,10 +87,24 @@ public class RPGProfessionScreen extends Screen {
     private static final int SIBLING_GAP_Y = 40;
     /** 当前主职业金色框的额外外扩（每边） */
     private static final int GOLD_BORDER_PAD = 2;
+    /** 激活副职业蓝色框的额外外扩（每边，与金色一致） */
+    private static final int SECONDARY_BORDER_PAD = 2;
 
-    /** 详情面板内部行高相关 */
-    private static final int TITLE_HEIGHT = 20;
-    private static final int BUTTON_HEIGHT = 14;
+    /** 节点下方 +（投入一级）按钮尺寸 */
+    private static final int PLUS_BUTTON_SIZE = 12;
+    /** 节点下 + 按钮与节点的垂直间距 */
+    private static final int PLUS_BUTTON_GAP = 2;
+    /** 标题栏右上角最大化按钮尺寸 */
+    private static final int MAX_BUTTON_SIZE = 12;
+    /** 节点上方等级徽章高度 */
+    private static final int BADGE_HEIGHT = 9;
+    /** 等级徽章文字 Y 偏移（相对徽章顶部） */
+    private static final int BADGE_TEXT_OFFSET_Y = 1;
+    /** 等级徽章左右内边距 */
+    private static final int BADGE_PADDING_X = 2;
+
+    /** 双击判定时间窗口（毫秒） */
+    private static final long DOUBLE_CLICK_MS = 300;
 
     // ====================================================================
     // 颜色（ARGB）
@@ -99,17 +123,16 @@ public class RPGProfessionScreen extends Screen {
     private static final int COLOR_NODE_LOCKED = 0xFF3A2A2A;
     /** 节点底色：副职业 */
     private static final int COLOR_NODE_SECONDARY = 0xFF4A2A4A;
-    /** 节点选中高亮 */
-    private static final int COLOR_NODE_SELECTED = 0xFF666688;
     /** 连接线 */
     private static final int COLOR_LINE_UNLOCKED = 0xFF888888;
     private static final int COLOR_LINE_LOCKED = 0xFF444444;
     /** 当前主职业金色框 */
     private static final int COLOR_GOLD = 0xFFFFD700;
+    /** 激活副职业蓝色框 */
+    private static final int COLOR_SECONDARY_ACTIVE = 0xFF3A7BFF;
     /** 按钮 */
     private static final int COLOR_BUTTON = 0xFF5555AA;
     private static final int COLOR_BUTTON_HOVER = 0xFFFFFF00;
-    private static final int COLOR_BUTTON_DISABLED = 0xFF555555;
 
     /** 每个职业的图标字符 */
     private static final Map<Identifier, String> NODE_ICONS = new HashMap<>();
@@ -123,9 +146,6 @@ public class RPGProfessionScreen extends Screen {
         NODE_ICONS.put(id("rpgcraftcore", "apprentice"), "徒");
     }
 
-    /** 当前选中的职业节点 ID（null 表示未选中；主/副窗共享此详情） */
-    private Identifier selectedNodeId = null;
-
     // ----------------------------------------------------------------
     // 两个可拖动浮窗
     // ----------------------------------------------------------------
@@ -133,13 +153,19 @@ public class RPGProfessionScreen extends Screen {
     private FloatingWindow mainWindow;
     /** 副职业窗（显示 SECONDARY 树） */
     private FloatingWindow secondaryWindow;
-    /** 详情区矩形（固定右侧） */
-    private int detailX, detailY, detailW, detailH;
     /** 是否已完成首次初始化（窗口尺寸/位置 + 居中） */
     private boolean inited = false;
+    /** 标记：是否已完成"以当前主职业居中"（避免每次刷新跳回） */
+    private boolean centeredOnMain = false;
+
+    /** 双击判定：上次点击时间与节点 ID */
+    private long lastClickTime = 0L;
+    private Identifier lastClickNodeId = null;
+    /** 双击判定：本次点击是否已被识别为双击（避免重复触发） */
+    private boolean lastClickWasDouble = false;
 
     /**
-     * 一个可拖动浮窗的状态：窗口屏幕矩形 + 窗内画布平移 + 两级拖动模式。
+     * 一个可拖动浮窗的状态：窗口屏幕矩形 + 窗内画布平移 + 两级拖动模式 + 最大化标志。
      * <p>
      * 两级拖动靠鼠标按下位置区分：
      * <ul>
@@ -147,6 +173,9 @@ public class RPGProfessionScreen extends Screen {
      *   <li>按在窗内空白 → {@link #draggingCanvas}，平移 panX/panY</li>
      * </ul>
      * 同一时刻至多一个 dragging 标志为 true。
+     * <p>
+     * {@code maximized} 为 true 时，{@link #applyMaximizedLayout()} 会把该窗铺满全屏、隐藏另一窗。
+     * 切回 false 时由 {@link #initWindows()} 恢复双窗布局。
      */
     private static final class FloatingWindow {
         int x, y, w, h;
@@ -155,6 +184,8 @@ public class RPGProfessionScreen extends Screen {
         double dragStartMouseX, dragStartMouseY;
         int dragStartWinX, dragStartWinY;
         boolean draggingCanvas;
+        /** 是否处于最大化状态 */
+        boolean maximized = false;
 
         FloatingWindow(int x, int y, int w, int h) {
             this.x = x; this.y = y; this.w = w; this.h = h;
@@ -174,6 +205,9 @@ public class RPGProfessionScreen extends Screen {
         boolean isInTitleBar(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + TITLE_BAR_HEIGHT;
         }
+        /** 最大化按钮的屏幕矩形（标题栏右上角） */
+        int maxButtonX() { return x + w - CONTENT_MARGIN - MAX_BUTTON_SIZE; }
+        int maxButtonY() { return y + (TITLE_BAR_HEIGHT - MAX_BUTTON_SIZE) / 2; }
     }
 
     public RPGProfessionScreen() {
@@ -185,7 +219,9 @@ public class RPGProfessionScreen extends Screen {
         mainWindow = null;
         secondaryWindow = null;
         inited = false;
-        selectedNodeId = null;
+        centeredOnMain = false;
+        lastClickTime = 0L;
+        lastClickNodeId = null;
         ProfessionStateCache.clear();
         super.removed();
     }
@@ -195,42 +231,86 @@ public class RPGProfessionScreen extends Screen {
     // ====================================================================
 
     /**
-     * 计算并设置两个浮窗的初始矩形 + 详情区矩形。
-     * <p>
-     * 布局：左侧上下两个树窗（主上、副下），右侧详情区。
+     * 计算并设置两个浮窗的初始矩形（水平居中、上下排列：主上、副下）。
      * <pre>
-     * ┌─ 主职业 ──────┐  ┌─ 详情 ─┐
-     * │              │  │        │
-     * └──────────────┘  │        │
-     * ┌─ 副职业 ──────┐  │        │
-     * │              │  │        │
-     * └──────────────┘  └────────┘
+     *         ┌─ 主职业 ────────┐
+     *         │                │
+     *         └────────────────┘
+     *         ┌─ 副职业 ────────┐
+     *         │                │
+     *         └────────────────┘
      * </pre>
      */
     private void initWindows() {
+        int[] mainRect = defaultMainRect();
+        int[] secRect = defaultSecondaryRect();
+        mainWindow = new FloatingWindow(mainRect[0], mainRect[1], mainRect[2], mainRect[3]);
+        secondaryWindow = new FloatingWindow(secRect[0], secRect[1], secRect[2], secRect[3]);
+    }
+
+    /** 主职业窗默认矩形 [x, y, w, h]（水平居中、上 55%） */
+    private int[] defaultMainRect() {
         int availWidth = this.width - 2 * MARGIN;
         int availHeight = this.height - TOP_PADDING - BOTTOM_PADDING;
-        // 详情区宽度固定，树窗占剩余宽度（上限 TREE_WIN_MAX_WIDTH）
-        int detailW = DETAIL_PANEL_WIDTH;
-        // 树窗区域总宽 = 可用宽 - 详情宽 - GAP
-        int treeAreaW = Math.max(TREE_WIN_MIN_WIDTH, availWidth - detailW - GAP);
-        int treeW = Math.min(TREE_WIN_MAX_WIDTH, treeAreaW);
-        // 树窗与详情并排：树窗左侧、详情右侧
-        int treeX = MARGIN;
-        detailX = this.width - MARGIN - detailW;
-        detailY = TOP_PADDING;
-        detailH = availHeight;
-        this.detailW = detailW;
-        this.detailH = detailH;
-        // 两个树窗上下排列：主窗占上 55%、副窗占下 40%，留 GAP
-        int treeAreaH = availHeight;
-        int gap2 = GAP * 2; // 两个窗之间的间距
-        int mainH = (treeAreaH - gap2) * 55 / 100;
-        int secH = (treeAreaH - gap2) - mainH;
-        int mainY = TOP_PADDING;
-        int secY = mainY + mainH + gap2;
-        mainWindow = new FloatingWindow(treeX, mainY, treeW, mainH);
-        secondaryWindow = new FloatingWindow(treeX, secY, treeW, secH);
+        int treeW = treeWindowWidth();
+        int treeX = (this.width - treeW) / 2;
+        int gap2 = GAP * 2;
+        int mainH = (availHeight - gap2) * 55 / 100;
+        return new int[]{treeX, TOP_PADDING, treeW, mainH};
+    }
+
+    /** 副职业窗默认矩形 [x, y, w, h]（水平居中、下 40%） */
+    private int[] defaultSecondaryRect() {
+        int availHeight = this.height - TOP_PADDING - BOTTOM_PADDING;
+        int treeW = treeWindowWidth();
+        int treeX = (this.width - treeW) / 2;
+        int gap2 = GAP * 2;
+        int mainH = (availHeight - gap2) * 55 / 100;
+        int secH = (availHeight - gap2) - mainH;
+        int secY = TOP_PADDING + mainH + gap2;
+        return new int[]{treeX, secY, treeW, secH};
+    }
+
+    /** 树窗宽度：不超过 TREE_WIN_MAX_WIDTH，不小于 TREE_WIN_MIN_WIDTH */
+    private int treeWindowWidth() {
+        int availWidth = this.width - 2 * MARGIN;
+        return Math.min(TREE_WIN_MAX_WIDTH, Math.max(TREE_WIN_MIN_WIDTH, availWidth));
+    }
+
+    /**
+     * 每帧根据当前 {@code maximized} 状态重算两个窗的矩形：
+     * <ul>
+     *   <li>最大化的窗 → 铺满全屏可用区</li>
+     *   <li>非最大化的窗 → 恢复双窗默认布局（水平居中）</li>
+     * </ul>
+     * 这样点「还原」(maximized: true→false) 后，下一帧自动恢复双窗布局。
+     */
+    private void applyMaximizedLayout() {
+        int maxH = this.height - TOP_PADDING - BOTTOM_PADDING;
+        if (mainWindow != null) {
+            if (mainWindow.maximized) {
+                int w = Math.min(TREE_WIN_MAX_WIDTH, this.width - 2 * MARGIN);
+                mainWindow.x = (this.width - w) / 2;
+                mainWindow.y = TOP_PADDING;
+                mainWindow.w = w;
+                mainWindow.h = maxH;
+            } else {
+                int[] r = defaultMainRect();
+                mainWindow.x = r[0]; mainWindow.y = r[1]; mainWindow.w = r[2]; mainWindow.h = r[3];
+            }
+        }
+        if (secondaryWindow != null) {
+            if (secondaryWindow.maximized) {
+                int w = Math.min(TREE_WIN_MAX_WIDTH, this.width - 2 * MARGIN);
+                secondaryWindow.x = (this.width - w) / 2;
+                secondaryWindow.y = TOP_PADDING;
+                secondaryWindow.w = w;
+                secondaryWindow.h = maxH;
+            } else {
+                int[] r = defaultSecondaryRect();
+                secondaryWindow.x = r[0]; secondaryWindow.y = r[1]; secondaryWindow.w = r[2]; secondaryWindow.h = r[3];
+            }
+        }
     }
 
     // ====================================================================
@@ -243,31 +323,41 @@ public class RPGProfessionScreen extends Screen {
         if (!inited) {
             initWindows();
             inited = true;
-            // 首次拿到 state 后居中（若此时 state 还没到，会在下方 state!=null 分支里补做）
         }
+        applyMaximizedLayout();
 
-        // 渲染主职业窗
-        renderTreeWindow(graphics, state, mainWindow, "主职业",
-                IProfession.ProfessionType.PRIMARY, mouseX, mouseY);
-        // 渲染副职业窗
-        renderTreeWindow(graphics, state, secondaryWindow, "副职业",
-                IProfession.ProfessionType.SECONDARY, mouseX, mouseY);
+        // 根据最大化状态决定渲染哪些窗：
+        // 任一窗最大化 → 只渲染该最大化窗；否则两个窗都渲染
+        boolean mainMax = mainWindow != null && mainWindow.maximized;
+        boolean secMax = secondaryWindow != null && secondaryWindow.maximized;
+
+        if (mainMax && mainWindow != null) {
+            renderTreeWindow(graphics, state, mainWindow, "主职业",
+                    IProfession.ProfessionType.PRIMARY, mouseX, mouseY);
+        } else if (secMax && secondaryWindow != null) {
+            renderTreeWindow(graphics, state, secondaryWindow, "副职业",
+                    IProfession.ProfessionType.SECONDARY, mouseX, mouseY);
+        } else {
+            if (mainWindow != null) {
+                renderTreeWindow(graphics, state, mainWindow, "主职业",
+                        IProfession.ProfessionType.PRIMARY, mouseX, mouseY);
+            }
+            if (secondaryWindow != null) {
+                renderTreeWindow(graphics, state, secondaryWindow, "副职业",
+                        IProfession.ProfessionType.SECONDARY, mouseX, mouseY);
+            }
+        }
 
         // 首次拿到非空 state 时，以当前主职业居中
         if (state != null && !centeredOnMain) {
             centerOnCurrentMain(state);
             centeredOnMain = true;
         }
-
-        // 右侧详情区
-        renderDetailPanel(graphics, state, detailX, detailY, detailH, mouseX, mouseY);
     }
 
-    /** 标记：是否已完成"以当前主职业居中"（避免每次刷新跳回） */
-    private boolean centeredOnMain = false;
-
     /**
-     * 渲染一个职业树窗口：标题栏（可拖动） + 经验池行 + 窗内画布（scissor + pose 平移 + 横向树）。
+     * 渲染一个职业树窗口：标题栏（可拖动 + 最大化按钮） + 经验池行 +
+     * 窗内画布（scissor + pose 平移 + 横向树 + 节点下 + 按钮 + 悬停气泡）。
      *
      * @param win    目标窗口
      * @param title  标题栏文字（"主职业"/"副职业"）
@@ -279,11 +369,10 @@ public class RPGProfessionScreen extends Screen {
         // 窗口背景
         fillRounded(graphics, win.x - 1, win.y - 1, win.w + 2, win.h + 2, CORNER_RADIUS + 1, COLOR_BORDER);
         fillRounded(graphics, win.x, win.y, win.w, win.h, CORNER_RADIUS, COLOR_BG);
-        // 标题栏（略亮背景 + 标题文字 + 拖动提示）
+        // 标题栏（略亮背景 + 标题文字 + 最大化按钮）
         fillRounded(graphics, win.x, win.y, win.w, TITLE_BAR_HEIGHT, CORNER_RADIUS, COLOR_TITLE_BAR);
         graphics.text(this.font, title, win.x + CONTENT_MARGIN, win.y + 4, COLOR_TITLE, true);
-        graphics.text(this.font, "≡", win.x + win.w - CONTENT_MARGIN - this.font.width("≡"),
-                win.y + 4, COLOR_HINT, false);
+        renderMaxButton(graphics, win, mouseX, mouseY);
 
         // 经验池行（仅主职业窗显示；副窗显示类型说明）
         String poolText;
@@ -293,7 +382,7 @@ public class RPGProfessionScreen extends Screen {
             poolText = "可分配职业经验: " + pool;
             poolColor = pool > 0 ? COLOR_TITLE : COLOR_HINT;
         } else {
-            poolText = "（副职业独立成树，可设为副职业）";
+            poolText = "（副职业独立成树，双击激活/取消，加成共存）";
             poolColor = COLOR_HINT;
         }
         graphics.text(this.font, poolText, win.x + CONTENT_MARGIN,
@@ -327,13 +416,15 @@ public class RPGProfessionScreen extends Screen {
             graphics.fill(midX, Math.min(y1, y2), midX + 1, Math.max(y1, y2) + 1, color);
             graphics.fill(midX, y2, x2 + 1, y2 + 1, color);
         }
-        // 节点（仅该类型）
+        // 节点（仅该类型）+ 节点下 + 按钮
+        ProfessionNode hoveredNode = null;
         if (state != null) {
             for (ProfessionNode n : state.nodes()) {
                 if (n.type() != type) continue;
                 int[] p = pos.get(n.id());
                 if (p == null) continue;
-                renderNode(graphics, state, n, p[0], p[1], win, mouseX, mouseY);
+                boolean isHovered = renderNode(graphics, state, n, p[0], p[1], win, mouseX, mouseY);
+                if (isHovered) hoveredNode = n;
             }
         } else {
             // state 未到，显示加载提示
@@ -343,6 +434,12 @@ public class RPGProfessionScreen extends Screen {
 
         graphics.pose().popMatrix();
         graphics.disableScissor();
+
+        // 悬停气泡：在 scissor 结束后触发，让 tooltip 由 vanilla 在顶层渲染（不被窗内裁剪）
+        if (hoveredNode != null && state != null) {
+            graphics.setComponentTooltipForNextFrame(this.font,
+                    buildProfessionTooltip(hoveredNode, state), mouseX, mouseY);
+        }
     }
 
     // --------------------------------------------------------------------
@@ -417,28 +514,44 @@ public class RPGProfessionScreen extends Screen {
         return sum;
     }
 
-    /** 渲染单个方形节点。hover 检测需用窗口的 panX/panY 把节点逻辑坐标转屏幕坐标 */
-    private void renderNode(GuiGraphicsExtractor graphics, ProfessionStateView state,
-                            ProfessionNode node, int x, int y,
-                            FloatingWindow win, int mouseX, int mouseY) {
+    /**
+     * 渲染单个方形节点 + 节点下 + 按钮。
+     * <p>
+     * <b>坐标系统</b>：本方法在 {@code pose().translate(panX, panY)} 上下文内调用，
+     * 节点的逻辑坐标 {@code x/y} 已被 pose 平移。因此：
+     * <ul>
+     *   <li><b>渲染</b>（fill/text）必须用逻辑坐标 {@code x/y}，靠 pose 平移 —— 不能再加 panX/panY</li>
+     *   <li><b>命中检测</b>用屏幕坐标 {@code sx/sy}（= x + panX），因为 mouseX/mouseY 是屏幕坐标</li>
+     * </ul>
+     *
+     * @return 该节点当前是否处于鼠标悬停状态（用于触发气泡）
+     */
+    private boolean renderNode(GuiGraphicsExtractor graphics, ProfessionStateView state,
+                               ProfessionNode node, int x, int y,
+                               FloatingWindow win, int mouseX, int mouseY) {
         boolean unlocked = state.unlocked().contains(node.id());
         boolean isCurrent = node.id().equals(state.currentMain());
-        boolean isSecondary = node.id().equals(state.currentSecondary());
-        boolean selected = node.id().equals(selectedNodeId);
-        // 节点 x/y 是逻辑坐标（已被 pose 平移），命中检测需加 panX/panY
-        boolean hover = isHover(mouseX, mouseY,
-                x + (int) win.panX, y + (int) win.panY, NODE_SIZE, NODE_SIZE);
+        boolean isSecondaryActive = state.activeSecondary().contains(node.id());
+        // 屏幕坐标仅用于 hover 检测（mouseX/Y 是屏幕坐标）
+        int sx = x + (int) win.panX;
+        int sy = y + (int) win.panY;
+        boolean hover = isHover(mouseX, mouseY, sx, sy, NODE_SIZE, NODE_SIZE);
 
-        if (isCurrent) {
+        // 外框：激活副职业（蓝）优先于当前主职业（金）—— 渲染用逻辑坐标 x/y
+        if (isSecondaryActive) {
+            graphics.fill(x - SECONDARY_BORDER_PAD - 1, y - SECONDARY_BORDER_PAD - 1,
+                    x + NODE_SIZE + SECONDARY_BORDER_PAD + 1, y + NODE_SIZE + SECONDARY_BORDER_PAD + 1,
+                    COLOR_SECONDARY_ACTIVE);
+        } else if (isCurrent) {
             graphics.fill(x - GOLD_BORDER_PAD - 1, y - GOLD_BORDER_PAD - 1,
                     x + NODE_SIZE + GOLD_BORDER_PAD + 1, y + NODE_SIZE + GOLD_BORDER_PAD + 1, COLOR_GOLD);
         }
         int color;
-        if (isSecondary) color = COLOR_NODE_SECONDARY;
+        if (node.type() == IProfession.ProfessionType.SECONDARY) color = COLOR_NODE_SECONDARY;
         else if (unlocked) color = COLOR_NODE_UNLOCKED;
         else color = COLOR_NODE_LOCKED;
         graphics.fill(x, y, x + NODE_SIZE, y + NODE_SIZE, color);
-        int frame = selected ? COLOR_NODE_SELECTED : (hover ? COLOR_HINT : COLOR_BORDER);
+        int frame = hover ? COLOR_TITLE : COLOR_BORDER;
         graphics.fill(x, y, x + NODE_SIZE, y + 1, frame);
         graphics.fill(x, y + NODE_SIZE - 1, x + NODE_SIZE, y + NODE_SIZE, frame);
         graphics.fill(x, y, x + 1, y + NODE_SIZE, frame);
@@ -447,114 +560,134 @@ public class RPGProfessionScreen extends Screen {
         int iconColor = unlocked ? COLOR_TEXT : COLOR_HINT;
         graphics.text(this.font, icon, x + (NODE_SIZE - this.font.width(icon)) / 2,
                 y + ICON_TEXT_OFFSET_Y, iconColor, false);
+
+        // 节点上方等级徽章：仅已解锁职业显示当前等级
+        if (unlocked) {
+            renderLevelBadge(graphics, x, y, node, state);
+        }
+
+        // 节点下 + 按钮：仅在 canInvest 时显示
+        // 渲染用逻辑坐标（节点下方），hover 检测用屏幕坐标
+        if (canInvest(state, node)) {
+            renderPlusButton(graphics, x, y, sx, sy, mouseX, mouseY);
+        }
+        return hover;
+    }
+
+    /**
+     * 在节点正上方绘制等级徽章（蓝底白字数字）。
+     * <p>
+     * 渲染用逻辑坐标 {@code nodeX/nodeY}（与节点本体一致，靠 pose 平移）。
+     * 徽章底部紧贴节点顶边，水平居中于节点。
+     */
+    private void renderLevelBadge(GuiGraphicsExtractor graphics, int nodeX, int nodeY,
+                                  ProfessionNode node, ProfessionStateView state) {
+        int level = state.levels().getOrDefault(node.id(), 0);
+        String text = String.valueOf(level);
+        int badgeW = this.font.width(text) + 2 * BADGE_PADDING_X;
+        int badgeX = nodeX + (NODE_SIZE - badgeW) / 2;
+        int badgeY = nodeY - BADGE_HEIGHT;
+        graphics.fill(badgeX, badgeY, badgeX + badgeW, badgeY + BADGE_HEIGHT, COLOR_BUTTON);
+        graphics.text(this.font, text, badgeX + (badgeW - this.font.width(text)) / 2,
+                badgeY + BADGE_TEXT_OFFSET_Y, COLOR_TEXT, false);
+    }
+
+    /**
+     * 节点下方居中的小 + 按钮（投入一级）。
+     *
+     * @param nodeLx  节点逻辑坐标 X（渲染用，靠 pose 平移）
+     * @param nodeLy  节点逻辑坐标 Y（渲染用）
+     * @param nodeSx  节点屏幕坐标 X（hover 检测用）
+     * @param nodeSy  节点屏幕坐标 Y（hover 检测用）
+     */
+    private void renderPlusButton(GuiGraphicsExtractor graphics, int nodeLx, int nodeLy,
+                                  int nodeSx, int nodeSy, int mouseX, int mouseY) {
+        // 渲染矩形（逻辑坐标）
+        int lx = nodeLx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
+        int ly = nodeLy + NODE_SIZE + PLUS_BUTTON_GAP;
+        // 命中矩形（屏幕坐标）
+        int hx = nodeSx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
+        int hy = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;
+        boolean hover = isHover(mouseX, mouseY, hx, hy, PLUS_BUTTON_SIZE, PLUS_BUTTON_SIZE);
+        int color = hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON;
+        graphics.fill(lx, ly, lx + PLUS_BUTTON_SIZE, ly + PLUS_BUTTON_SIZE, color);
+        graphics.text(this.font, "+", lx + (PLUS_BUTTON_SIZE - this.font.width("+")) / 2,
+                ly + 1, COLOR_TEXT, false);
+    }
+
+    /** 标题栏右上角最大化/还原按钮（□ 未最大化 / ⊟ 已最大化） */
+    private void renderMaxButton(GuiGraphicsExtractor graphics, FloatingWindow win, int mouseX, int mouseY) {
+        int bx = win.maxButtonX();
+        int by = win.maxButtonY();
+        boolean hover = isHover(mouseX, mouseY, bx, by, MAX_BUTTON_SIZE, MAX_BUTTON_SIZE);
+        int color = hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON;
+        graphics.fill(bx, by, bx + MAX_BUTTON_SIZE, by + MAX_BUTTON_SIZE, color);
+        String glyph = win.maximized ? "⊟" : "□";
+        graphics.text(this.font, glyph, bx + (MAX_BUTTON_SIZE - this.font.width(glyph)) / 2,
+                by + 1, COLOR_TEXT, false);
+    }
+
+    /** 节点下 + 按钮的屏幕矩形（命中检测用） */
+    private int[] plusButtonScreenRect(int nodeSx, int nodeSy) {
+        int bx = nodeSx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
+        int by = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;
+        return new int[]{bx, by, PLUS_BUTTON_SIZE, PLUS_BUTTON_SIZE};
     }
 
     // --------------------------------------------------------------------
-    // 右侧详情区（固定，沿用旧实现）
+    // 悬停气泡构造
     // --------------------------------------------------------------------
 
-    private void renderDetailPanel(GuiGraphicsExtractor graphics, ProfessionStateView state,
-                                   int x, int y, int panelHeight, int mouseX, int mouseY) {
-        fillRounded(graphics, x - 1, y - 1, detailW + 2, panelHeight + 2, CORNER_RADIUS + 1, COLOR_BORDER);
-        fillRounded(graphics, x, y, detailW, panelHeight, CORNER_RADIUS, COLOR_BG);
-        drawCentered(graphics, "职业详情", x, detailW, y + 6, COLOR_TITLE, true);
-
-        if (state == null) {
-            graphics.text(this.font, "正在加载...", x + CONTENT_MARGIN, y + TITLE_HEIGHT, COLOR_HINT, false);
-            return;
-        }
-        if (selectedNodeId == null) {
-            graphics.text(this.font, "点击节点选择职业", x + CONTENT_MARGIN, y + TITLE_HEIGHT, COLOR_HINT, false);
-            return;
-        }
-        ProfessionNode node = findNode(state, selectedNodeId);
-        if (node == null) return;
-
+    /**
+     * 构造节点悬停气泡的文本行（参考 {@code AttributeListPlugin.getTooltip} 的多行拼装风格）。
+     * 行序：名称（白） / 类型标签（灰） / 状态标签（灰） / 描述（灰） / 等级（白） / 下一级消耗（灰/黄）
+     */
+    private List<Component> buildProfessionTooltip(ProfessionNode node, ProfessionStateView state) {
+        List<Component> lines = new ArrayList<>();
         boolean unlocked = state.unlocked().contains(node.id());
         boolean isCurrent = node.id().equals(state.currentMain());
-        boolean isSecondary = node.id().equals(state.currentSecondary());
+        boolean isSecondaryActive = state.activeSecondary().contains(node.id());
         int level = state.levels().getOrDefault(node.id(), 0);
-        int maxLevel = node.maxLevel(); // 来自服务端 per-profession getMaxLevel()，不再硬编码 20
-        int contentW = detailW - 2 * CONTENT_MARGIN;
+        int maxLevel = node.maxLevel();
 
-        int cy = y + TITLE_HEIGHT + 4;
-        graphics.text(this.font, node.displayName(), x + CONTENT_MARGIN, cy, COLOR_TEXT, true);
-        cy += 12;
+        lines.add(Component.literal(node.displayName()).withStyle(s -> s.withColor(0xFFFFFF)));
         String typeLabel = node.type() == IProfession.ProfessionType.SECONDARY ? "[副职业]" : "[主职业]";
-        graphics.text(this.font, typeLabel, x + CONTENT_MARGIN, cy, COLOR_HINT, false);
-        cy += 11;
+        lines.add(Component.literal(typeLabel).withStyle(s -> s.withColor(0xAAAAAA)));
+
         String status;
-        if (isCurrent) status = "[当前主职业]";
-        else if (isSecondary) status = "[副职业" + (state.secondaryActive() ? "·已激活]" : "]");
-        else if (unlocked) status = "[已解锁]";
-        else status = "[未解锁]";
-        graphics.text(this.font, status, x + CONTENT_MARGIN, cy, COLOR_HINT, false);
-        cy += 11;
-        graphics.text(this.font, node.description(), x + CONTENT_MARGIN, cy, COLOR_HINT, false);
-        cy += 13;
-        graphics.fill(x + CONTENT_MARGIN, cy, x + detailW - CONTENT_MARGIN, cy + 1, COLOR_BORDER);
-        cy += 4;
+        int statusColor;
+        if (isCurrent) { status = "[当前主职业]"; statusColor = 0xFFD700; }
+        else if (isSecondaryActive) { status = "[副职业·已激活]"; statusColor = 0x3A7BFF; }
+        else if (unlocked) { status = "[已解锁]"; statusColor = 0x55FF55; }
+        else { status = "[未解锁]"; statusColor = 0xAAAAAA; }
+        final int statusColorFinal = statusColor;
+        lines.add(Component.literal(status).withStyle(s -> s.withColor(statusColorFinal)));
+
+        // 描述可能含换行，按行拆分
+        String desc = node.description();
+        if (desc != null && !desc.isEmpty()) {
+            for (String line : desc.split("\n")) {
+                lines.add(Component.literal(line).withStyle(s -> s.withColor(0xAAAAAA)));
+            }
+        }
 
         if (unlocked) {
-            graphics.text(this.font, "等级: " + level + " / " + maxLevel, x + CONTENT_MARGIN, cy, COLOR_TEXT, false);
-            cy += 12;
+            lines.add(Component.literal("等级: " + level + " / " + maxLevel)
+                    .withStyle(s -> s.withColor(0xFFFFFF)));
             if (level < maxLevel) {
                 int cost = costForNextLevel(level, maxLevel);
                 boolean canAfford = state.pool() >= cost;
                 String costText = "下一级: " + cost + (canAfford ? " (可投入)" : " (不足)");
-                graphics.text(this.font, costText, x + CONTENT_MARGIN, cy,
-                        canAfford ? COLOR_TITLE : COLOR_HINT, false);
-                cy += 12;
+                lines.add(Component.literal(costText).withStyle(s -> s.withColor(canAfford ? 0xFFFF00 : 0xAAAAAA)));
             } else {
-                graphics.text(this.font, "已达满级", x + CONTENT_MARGIN, cy, COLOR_TITLE, false);
-                cy += 12;
+                lines.add(Component.literal("已达满级").withStyle(s -> s.withColor(0xFFFF00)));
             }
-            cy += 3;
         }
-        int btnX = x + CONTENT_MARGIN;
-        renderActionButtons(graphics, state, node, btnX, cy, contentW, mouseX, mouseY);
-    }
-
-    private void renderActionButtons(GuiGraphicsExtractor graphics, ProfessionStateView state,
-                                     ProfessionNode node, int x, int y, int w, int mouseX, int mouseY) {
-        boolean unlocked = state.unlocked().contains(node.id());
-        boolean isCurrent = node.id().equals(state.currentMain());
-        boolean isSecondary = node.id().equals(state.currentSecondary());
-        int level = state.levels().getOrDefault(node.id(), 0);
-        boolean isPrimaryType = node.type() == IProfession.ProfessionType.PRIMARY;
-        boolean isSecondaryType = node.type() == IProfession.ProfessionType.SECONDARY;
-        int maxLevel = node.maxLevel();
-
-        boolean canInvest = unlocked && level < maxLevel && state.pool() >= costForNextLevel(level, maxLevel);
-        boolean canAdvance = isPrimaryType && canAdvanceFrom(state, node);
-        boolean canSwitchMain = isPrimaryType && !isCurrent && unlocked;
-        boolean canSetSecondary = isSecondaryType && unlocked && !isSecondary;
-        boolean hasSecondary = state.currentSecondary() != null;
-
-        y += renderButton(graphics, mouseX, mouseY, x, y, w, "投入一级", canInvest);
-        y += 2;
-        y += renderButton(graphics, mouseX, mouseY, x, y, w, "进阶到此职业", canAdvance);
-        y += 2;
-        y += renderButton(graphics, mouseX, mouseY, x, y, w, "切换为主职业", canSwitchMain);
-        y += 2;
-        y += renderButton(graphics, mouseX, mouseY, x, y, w, "设为副职业", canSetSecondary);
-        y += 2;
-        String toggleLabel = state.secondaryActive() ? "关闭副职业加成" : "开启副职业加成";
-        renderButton(graphics, mouseX, mouseY, x, y, w, toggleLabel, hasSecondary);
-    }
-
-    private int renderButton(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
-                             int x, int y, int w, String label, boolean enabled) {
-        boolean hover = enabled && isHover(mouseX, mouseY, x, y, w, BUTTON_HEIGHT);
-        int color = !enabled ? COLOR_BUTTON_DISABLED : (hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON);
-        graphics.fill(x, y, x + w, y + BUTTON_HEIGHT, color);
-        graphics.text(this.font, label, x + (w - this.font.width(label)) / 2,
-                y + 3, enabled ? COLOR_TEXT : COLOR_HINT, false);
-        return BUTTON_HEIGHT;
+        return lines;
     }
 
     // ====================================================================
-    // 交互（两级拖动 + 节点选中 + 详情按钮）
+    // 交互
     // ====================================================================
 
     @Override
@@ -563,51 +696,144 @@ public class RPGProfessionScreen extends Screen {
         double mx = event.x();
         double my = event.y();
         ProfessionStateView state = ProfessionStateCache.get();
+        long now = System.currentTimeMillis();
 
-        // 优先级：主窗标题栏 → 副窗标题栏 → 详情按钮 → 节点 → 窗内空白(拖画布)
-        // 1. 主窗标题栏（拖动窗口）
-        if (mainWindow != null && mainWindow.isInTitleBar(mx, my)) {
-            startDragWindow(mainWindow, mx, my);
-            return true;
-        }
-        // 2. 副窗标题栏
-        if (secondaryWindow != null && secondaryWindow.isInTitleBar(mx, my)) {
-            startDragWindow(secondaryWindow, mx, my);
-            return true;
-        }
-        // 3. 详情按钮
-        if (state != null && selectedNodeId != null
-                && mx >= detailX && mx < detailX + detailW) {
-            ProfessionNode node = findNode(state, selectedNodeId);
-            if (node != null) {
-                String action = hitDetailButton(state, node, detailX, detailY, mx, my);
-                if (action != null) {
-                    sendAction(action, node.id());
+        // 可见窗列表（顺序 = 处理优先级）：
+        // 任一窗最大化 → 只剩该最大化窗；否则两个窗都在（主窗在前）
+        for (FloatingWindow win : visibleWindows()) {
+            IProfession.ProfessionType type = (win == mainWindow)
+                    ? IProfession.ProfessionType.PRIMARY
+                    : IProfession.ProfessionType.SECONDARY;
+
+            // 1. 最大化/还原按钮（标题栏右上角）
+            if (isHover(mx, my, win.maxButtonX(), win.maxButtonY(), MAX_BUTTON_SIZE, MAX_BUTTON_SIZE)) {
+                toggleMaximize(win);
+                return true;
+            }
+            // 2. + 按钮（投入一级）
+            if (state != null) {
+                Identifier investId = hitPlusButtonInWindow(state, win, type, mx, my);
+                if (investId != null) {
+                    sendAction("invest", investId);
                     return true;
                 }
             }
-        }
-        // 4. 节点命中（先主窗后副窗）
-        if (state != null && mainWindow != null) {
-            Identifier hit = hitNodeInWindow(state, mainWindow,
-                    IProfession.ProfessionType.PRIMARY, mx, my);
-            if (hit != null) { selectedNodeId = hit; return true; }
-        }
-        if (state != null && secondaryWindow != null) {
-            Identifier hit = hitNodeInWindow(state, secondaryWindow,
-                    IProfession.ProfessionType.SECONDARY, mx, my);
-            if (hit != null) { selectedNodeId = hit; return true; }
-        }
-        // 5. 窗内空白（拖动画布）：落在窗内但非标题栏、非节点
-        if (mainWindow != null && mainWindow.contains(mx, my)) {
-            startDragCanvas(mainWindow);
-            return true;
-        }
-        if (secondaryWindow != null && secondaryWindow.contains(mx, my)) {
-            startDragCanvas(secondaryWindow);
-            return true;
+            // 3. 节点点击（单/双击判定）
+            if (state != null) {
+                Identifier hit = hitNodeInWindow(state, win, type, mx, my);
+                if (hit != null) {
+                    handleNodeClick(hit, state, now);
+                    return true;
+                }
+            }
+            // 4. 标题栏拖动
+            if (win.isInTitleBar(mx, my)) {
+                startDragWindow(win, mx, my);
+                return true;
+            }
+            // 5. 窗内空白 → 拖动画布
+            if (win.contains(mx, my)) {
+                startDragCanvas(win);
+                return true;
+            }
         }
         return super.mouseClicked(event, isPick);
+    }
+
+    /**
+     * 当前可见、应响应点击的窗口列表（已按优先级排序）。
+     * <p>
+     * 任一窗最大化 → 只返回该最大化窗；否则返回 [主窗, 副窗]。
+     */
+    private List<FloatingWindow> visibleWindows() {
+        List<FloatingWindow> out = new ArrayList<>(2);
+        if (mainWindow != null && mainWindow.maximized) {
+            out.add(mainWindow);
+            return out;
+        }
+        if (secondaryWindow != null && secondaryWindow.maximized) {
+            out.add(secondaryWindow);
+            return out;
+        }
+        if (mainWindow != null) out.add(mainWindow);
+        if (secondaryWindow != null) out.add(secondaryWindow);
+        return out;
+    }
+
+    /**
+     * 处理节点点击：单/双击判定。
+     * <p>
+     * 同一节点在 {@link #DOUBLE_CLICK_MS} 内的第二次点击 = 双击 → 触发操作；
+     * 否则仅记录单击时间，等待可能的第二次点击。
+     */
+    private void handleNodeClick(Identifier nodeId, ProfessionStateView state, long now) {
+        boolean isDouble = lastClickNodeId != null
+                && nodeId.equals(lastClickNodeId)
+                && (now - lastClickTime) < DOUBLE_CLICK_MS
+                && !lastClickWasDouble;
+        if (isDouble) {
+            lastClickWasDouble = true;
+            handleDoubleClick(nodeId, state);
+        } else {
+            lastClickWasDouble = false;
+        }
+        lastClickNodeId = nodeId;
+        lastClickTime = now;
+    }
+
+    /** 双击节点 → 按节点类型/状态 dispatch 操作 */
+    private void handleDoubleClick(Identifier nodeId, ProfessionStateView state) {
+        ProfessionNode node = findNode(state, nodeId);
+        if (node == null) return;
+        boolean unlocked = state.unlocked().contains(nodeId);
+        boolean isCurrent = nodeId.equals(state.currentMain());
+
+        if (node.type() == IProfession.ProfessionType.PRIMARY) {
+            if (!unlocked) {
+                // 可进阶、未解锁 → 弹确认框
+                if (canAdvanceFrom(state, node)) {
+                    openAdvanceConfirm(node);
+                }
+            } else if (!isCurrent) {
+                // 已解锁、非当前 → 直接切换为主职业
+                sendAction("switch_main", nodeId);
+            }
+            // 已解锁且是当前 → 无操作
+        } else {
+            // 副职业：已解锁 → 切换激活状态
+            if (unlocked) {
+                sendAction("toggle_secondary", nodeId);
+            }
+        }
+    }
+
+    /** 打开进阶确认对话框 */
+    private void openAdvanceConfirm(ProfessionNode node) {
+        Minecraft mc = Minecraft.getInstance();
+        Screen parent = this;
+        ConfirmScreen confirm = new ConfirmScreen(
+                confirmed -> {
+                    if (confirmed) {
+                        sendAction("advance", node.id());
+                    }
+                    mc.setScreen(parent);
+                },
+                Component.literal("进阶到 " + node.displayName() + "?"),
+                Component.literal("进阶后将切换当前主职业，此操作不可撤销"),
+                Component.literal("进阶"),
+                Component.literal("取消")
+        );
+        mc.setScreen(confirm);
+    }
+
+    private void toggleMaximize(FloatingWindow win) {
+        win.maximized = !win.maximized;
+        // 互斥：最大化一个窗时取消另一个的最大化
+        if (win.maximized) {
+            if (win == mainWindow && secondaryWindow != null) secondaryWindow.maximized = false;
+            if (win == secondaryWindow && mainWindow != null) mainWindow.maximized = false;
+        }
+        applyMaximizedLayout();
     }
 
     private void startDragWindow(FloatingWindow win, double mx, double my) {
@@ -686,34 +912,24 @@ public class RPGProfessionScreen extends Screen {
         return null;
     }
 
-    /** 命中详情按钮，返回 action 名或 null */
-    private String hitDetailButton(ProfessionStateView state, ProfessionNode node,
-                                   int x, int y, double mx, double my) {
-        int btnX = x + CONTENT_MARGIN;
-        int btnW = detailW - 2 * CONTENT_MARGIN;
-        int cy = y + TITLE_HEIGHT + 4 + 12 + 11 + 11 + 13 + 4;
-        boolean unlocked = state.unlocked().contains(node.id());
-        int level = state.levels().getOrDefault(node.id(), 0);
-        int maxLevel = node.maxLevel();
-        if (unlocked) {
-            // 等级行(12) + 下一级消耗/已达满级行(12) + 间距(3)
-            cy += 12 + 12 + 3;
-        }
-        boolean isCurrent = node.id().equals(state.currentMain());
-        boolean isPrimaryType = node.type() == IProfession.ProfessionType.PRIMARY;
-        boolean isSecondaryType = node.type() == IProfession.ProfessionType.SECONDARY;
-        boolean canInvest = unlocked && level < maxLevel && state.pool() >= costForNextLevel(level, maxLevel);
-        boolean canAdvance = isPrimaryType && canAdvanceFrom(state, node);
-        boolean canSwitchMain = isPrimaryType && !isCurrent && unlocked;
-        boolean canSetSecondary = isSecondaryType && unlocked && !node.id().equals(state.currentSecondary());
-        boolean hasSecondary = state.currentSecondary() != null;
-        String[] actions = {"invest", "advance", "switch_main", "set_secondary", "toggle_secondary"};
-        boolean[] enabled = {canInvest, canAdvance, canSwitchMain, canSetSecondary, hasSecondary};
-        for (int i = 0; i < actions.length; i++) {
-            if (enabled[i] && isHover(mx, my, btnX, cy, btnW, BUTTON_HEIGHT)) {
-                return actions[i];
+    /**
+     * 命中某窗口内节点下方的 + 按钮，返回该节点 ID（仅 canInvest 的节点才画 + 按钮）。
+     * 鼠标坐标需减去该窗口 panX/panY 转逻辑坐标，再比较 + 按钮屏幕矩形。
+     */
+    private Identifier hitPlusButtonInWindow(ProfessionStateView state, FloatingWindow win,
+                                             IProfession.ProfessionType type, double mx, double my) {
+        Map<Identifier, int[]> pos = computeLayoutForType(state, type,
+                win.contentOriginX(), win.contentOriginY());
+        for (Map.Entry<Identifier, int[]> e : pos.entrySet()) {
+            ProfessionNode node = findNode(state, e.getKey());
+            if (node == null || !canInvest(state, node)) continue;
+            // 节点屏幕坐标 = 逻辑坐标 + panX/panY
+            int nodeSx = e.getValue()[0] + (int) win.panX;
+            int nodeSy = e.getValue()[1] + (int) win.panY;
+            int[] r = plusButtonScreenRect(nodeSx, nodeSy);
+            if (isHover(mx, my, r[0], r[1], r[2], r[3])) {
+                return e.getKey();
             }
-            cy += BUTTON_HEIGHT + 2;
         }
         return null;
     }
@@ -723,7 +939,6 @@ public class RPGProfessionScreen extends Screen {
             case "invest" -> ProfessionActionPacket.Action.INVEST;
             case "advance" -> ProfessionActionPacket.Action.ADVANCE;
             case "switch_main" -> ProfessionActionPacket.Action.SWITCH_MAIN;
-            case "set_secondary" -> ProfessionActionPacket.Action.SET_SECONDARY;
             case "toggle_secondary" -> ProfessionActionPacket.Action.TOGGLE_SECONDARY;
             default -> null;
         };
@@ -766,8 +981,16 @@ public class RPGProfessionScreen extends Screen {
     }
 
     // ====================================================================
-    // 业务判定（与服务端校验镜像，仅用于 UI 灰显）
+    // 业务判定（与服务端校验镜像，仅用于 UI 灰显/显隐）
     // ====================================================================
+
+    /** 节点是否可投入一级（已解锁、未满级、池足够） */
+    private boolean canInvest(ProfessionStateView state, ProfessionNode node) {
+        if (!state.unlocked().contains(node.id())) return false;
+        int level = state.levels().getOrDefault(node.id(), 0);
+        if (level < 1 || level >= node.maxLevel()) return false;
+        return state.pool() >= costForNextLevel(level, node.maxLevel());
+    }
 
     /** 升下一级所需经验（与服务端公式镜像，仅用于 UI 显示）。委托 {@link ExpFormula} 统一公式 */
     private static int costForNextLevel(int level, int maxLevel) {
@@ -802,11 +1025,6 @@ public class RPGProfessionScreen extends Screen {
 
     private static int clamp(int v, int min, int max) {
         return Math.max(min, Math.min(max, v));
-    }
-
-    private void drawCentered(GuiGraphicsExtractor graphics, String text, int panelX, int panelWidth,
-                              int y, int color, boolean shadow) {
-        graphics.text(this.font, text, panelX + (panelWidth - this.font.width(text)) / 2, y, color, shadow);
     }
 
     private static boolean isHover(double mouseX, double mouseY, int x, int y, int w, int h) {

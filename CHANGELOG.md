@@ -4,6 +4,61 @@
 
 ---
 
+## [0.5.1-alpha] - 2026-06-22
+
+### 重构
+
+#### 职业面板 UI 重设计（取消固定详情页）
+取消右侧固定职业详情面板，改为悬停气泡 + 节点交互。布局从「双窗 + 详情」三栏简化为「双窗居中」。
+
+- **悬停气泡**：鼠标悬停节点时在光标处显示职业信息（名称/类型/状态/描述/等级/下一级消耗），
+  复用 vanilla `setComponentTooltipForNextFrame`，在 scissor 之外触发避免被窗内裁剪
+- **节点下 `+` 按钮**：仅在「可投入一级」的已解锁职业（已解锁、未满级、经验池够）下方显示 12×12 小按钮，
+  点击投入一级；命中检测用屏幕坐标，渲染用逻辑坐标
+- **双击交互**（300ms 内同节点二次点击）：
+  - 已解锁、非当前主职业 → 直接切换为主职业
+  - 可进阶、未解锁的主职业 → 弹 `ConfirmScreen` 确认 → 进阶并切换
+  - 已解锁副职业 → 切换该副职业的激活状态
+- **激活副职业蓝色外框**：激活的副职业节点外加蓝色框（`COLOR_SECONDARY_ACTIVE`），优先于当前主职业金框
+- **节点上方等级徽章**：已解锁职业节点顶部显示蓝底白字等级数字
+- **标题栏最大化按钮**：主/副窗右上角 `□`/`⊟` 按钮，点击最大化铺满全屏（水平居中）、隐藏另一窗；
+  再点还原自动恢复双窗默认布局（提取 `defaultMainRect/defaultSecondaryRect` 每帧重算）
+- **窗口水平居中**：双窗与最大化窗均水平居中（旧版详情面板取消后右侧不再留白）
+- **坐标系统澄清**：节点渲染用逻辑坐标（靠 `pose().translate(panX/panY)` 平移），命中检测用屏幕坐标
+
+#### 副职业模型重构：多副职业独立激活（加成共存）
+从「单一当前副职业 + 全局开关」改为「多个副职业各自独立激活、加成共存」。跨 core / profession / client 三层。
+
+- **`ProfessionData`**：删除 `secondaryProfessionId` + `secondaryActive`，新增
+  `Set<Identifier> activeSecondaryProfessions`；CODEC 字段改为 `active_secondary` 列表（`Optional` 防 null）
+- **`IProfessionSystem` SPI**：删除 `getSecondary`/`setSecondary(id)`/`isSecondaryActive()`/`setSecondaryActive(bool)`，
+  新增 `getActiveSecondary()`/`isSecondaryActive(id)`/`setSecondaryActive(id, bool)`
+- **`ProfessionActionPacket`**：删除 `SET_SECONDARY`/`CLEAR_SECONDARY`，`TOGGLE_SECONDARY` 语义改为
+  「针对 `professionId` 指定的副职业切换激活」
+- **`ProfessionManager`**：`setSecondaryActive(player, id, active)` 严格校验后写入 + 立即应用/移除该副职业加成；
+  `applyBonusAtLevel` 的 `secondary` 改为显式参数（不再从单副职业推断）；`investLevel`/`reapplySecondaryBonuses`
+  遍历激活集合逐个重算
+- **`SyncProfessionStatePacket`**：序列化改为 `active_secondary` 集合（`currentSecondary + secondaryActive` 两字段合一）
+- **`ProfessionStateView`**：`currentSecondary + secondaryActive` → `Set<Identifier> activeSecondary`
+- **`ProfessionLoginEventHandler`**：登录修复改为遍历激活集合剔除「失效/类型违规/等于主职业」的项
+- **`ProfessionSnapshotContributor`**：死亡快照改为捕获/恢复激活集合
+- **`PlayerInfoPlugin`**：角色面板副职业显示改为遍历激活集合每行一个；`getHeight()` 改为动态（随激活副职业数变化）
+
+### 变更
+
+- `ICharacterScreenPlugin.getHeight()` Javadoc 放宽为「确需随玩家状态变化时同一帧内查询须一致」
+  （原约束「会话内稳定」不再适用多副职业场景）
+- 全模块版本号统一升级 `0.5.0-alpha` → `0.5.1-alpha`
+
+### 已知限制 / 迁移注意
+
+- **旧存档副职业数据丢失**：旧存档的 `secondary`（单一副职业）字段将被忽略，
+  玩家需重新双击激活副职业。模组仍是 alpha 阶段，可接受
+- **最大化→还原会重置窗口位置**：用户拖动过的窗口在最大化→还原后被重置为默认居中布局
+  （原位置在最大化时已被覆盖，未持久化拖动位置）
+
+---
+
 ## [0.5.0-alpha] - 2026-06-19
 
 ### 新增

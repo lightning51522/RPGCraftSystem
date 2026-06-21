@@ -3,9 +3,9 @@ package com.rpgcraft.core.registry;
 import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * 职业系统接口
@@ -131,27 +131,24 @@ public interface IProfessionSystem {
     boolean switchMain(ServerPlayer player, Identifier professionId);
 
     // ====================================================================
-    // 副职业（仅提供被动加成，不可作为当前主职业）
+    // 副职业（多副职业独立激活，加成共存）
     // ====================================================================
 
     /**
-     * 获取当前副职业 ID（null 表示无）
+     * 获取已激活的副职业集合（不可变视图）。每个副职业独立激活，激活后加成共存。
      */
-    @Nullable
-    Identifier getSecondary(ServerPlayer player);
+    Set<Identifier> getActiveSecondary(ServerPlayer player);
 
     /**
-     * 设置副职业（需已解锁；传 null 清除副职业）
+     * 指定副职业是否已激活
      */
-    void setSecondary(ServerPlayer player, @Nullable Identifier professionId);
+    boolean isSecondaryActive(ServerPlayer player, Identifier professionId);
 
     /**
-     * 副职业加成开关
+     * 设置某副职业的激活状态。
+     *
+     * @param professionId 目标副职业（必须已解锁、SECONDARY 类型、非当前主职业，否则服务端忽略）
+     * @param active       true 激活（加成应用），false 取消（加成移除）
      */
-    boolean isSecondaryActive(ServerPlayer player);
-
-    /**
-     * 设置副职业加成开关
-     */
-    void setSecondaryActive(ServerPlayer player, boolean active);
+    void setSecondaryActive(ServerPlayer player, Identifier professionId, boolean active);
 }
