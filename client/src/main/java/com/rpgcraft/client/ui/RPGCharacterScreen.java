@@ -9,7 +9,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
@@ -71,26 +73,34 @@ public class RPGCharacterScreen extends Screen {
     /** 内容区域内边距 */
     private static final int CONTENT_MARGIN = 6;
 
-    /** 圆角半径 */
-    private static final int CORNER_RADIUS = 3;
-
     /** 每次滚动的像素距离 */
     private static final int SCROLL_STEP = 15;
 
+    /** 滚动条宽度 */
+    private static final int SCROLLBAR_WIDTH = 12;
+
     // ====================================================================
-    // 颜色常量（ARGB 格式）
+    // 精灵贴图（原版 + 自定义）
     // ====================================================================
 
-    /** 半透明黑色背景 */
-    private static final int COLOR_BG = 0xC0000000;
-    /** 灰色边框 */
-    private static final int COLOR_BORDER = 0xFF555555;
-    /** 黄色标题 */
-    private static final int COLOR_TITLE = 0xFFFFFF00;
+    /** 原版滚动条滑块 */
+    private static final Identifier SCROLLER_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/scroller");
+    /** 原版滚动条背景 */
+    private static final Identifier SCROLLER_BACKGROUND_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/scroller_background");
+    /** 原版标题分隔线（32×2，水平平铺） */
+    private static final Identifier HEADER_SEPARATOR =
+            Identifier.fromNamespaceAndPath("minecraft", "textures/gui/header_separator.png");
+
+    // ====================================================================
+    // 颜色常量（ARGB 格式）—— 原版风格灰阶
+    // ====================================================================
+
+    /** 黄色标题（原版强调色） */
+    private static final int COLOR_TITLE = 0xFFFFE000;
     /** 灰色提示文本（加载中/无数据） */
-    private static final int COLOR_HINT = 0xFFAAAAAA;
-    /** 灰色滚动条 */
-    private static final int COLOR_SCROLLBAR = 0xFF555555;
+    private static final int COLOR_HINT = 0xFFA0A0A0;
 
     // ====================================================================
     // 状态
@@ -138,17 +148,20 @@ public class RPGCharacterScreen extends Screen {
         int panelY = TOP_PADDING;
         int panelHeight = this.height - TOP_PADDING - BOTTOM_PADDING;
 
-        // 3. 绘制面板背景（圆角矩形 + 边框）
-        fillRounded(graphics, panelX - 1, panelY - 1, PANEL_WIDTH + 2, panelHeight + 2,
-                CORNER_RADIUS + 1, COLOR_BORDER);
-        fillRounded(graphics, panelX, panelY, PANEL_WIDTH, panelHeight,
-                CORNER_RADIUS, COLOR_BG);
+        // 3. 绘制面板背景（原版 menu_background 泥土纹理平铺 + 深色覆盖 + 斜面边框）
+        Screen.extractMenuBackgroundTexture(graphics, Screen.MENU_BACKGROUND,
+                panelX, panelY, 0.0F, 0.0F, PANEL_WIDTH, panelHeight);
+        // menu_background 仅 25% 黑，叠一层 50% 黑提高可读性
+        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, 0x80000000);
+        drawContainerBorder(graphics, panelX, panelY, PANEL_WIDTH, panelHeight);
 
-        // 4. 绘制标题
+        // 4. 绘制标题 + 标题下原版分隔线
         String title = "角色信息";
         int titleWidth = this.font.width(title);
         graphics.text(this.font, title, panelX + (PANEL_WIDTH - titleWidth) / 2,
                 panelY + 6, COLOR_TITLE, true);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, HEADER_SEPARATOR,
+                panelX, panelY + TITLE_HEIGHT - 2, 0.0F, 0.0F, PANEL_WIDTH, 2, 32, 2);
 
         // 5. 获取快照和插件
         AttributeSnapshot snapshot = UISnapshotCache.get();
@@ -222,7 +235,7 @@ public class RPGCharacterScreen extends Screen {
             graphics.setComponentTooltipForNextFrame(this.font, hoverTooltip, mouseX, mouseY);
         }
 
-        // 10. 绘制滚动条指示器（内容超出可见区域时显示）
+        // 10. 绘制滚动条指示器（内容超出可见区域时显示）—— 原版 scroller 精灵
         if (maxScroll > 0) {
             int scrollbarTrackHeight = maxVisibleHeight;
             int scrollbarThumbHeight = Math.max(20,
@@ -231,20 +244,22 @@ public class RPGCharacterScreen extends Screen {
                     (maxScroll > 0
                             ? (int) ((double) this.scrollOffset / maxScroll * (scrollbarTrackHeight - scrollbarThumbHeight))
                             : 0);
-            graphics.fill(
-                    panelX + PANEL_WIDTH - 4, scrollbarY,
-                    panelX + PANEL_WIDTH - 2, scrollbarY + scrollbarThumbHeight,
-                    COLOR_SCROLLBAR
-            );
+            int scrollbarX = panelX + PANEL_WIDTH - SCROLLBAR_WIDTH - 2;
+            // 背景轨道（全高）
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_BACKGROUND_SPRITE,
+                    scrollbarX, contentStartY, SCROLLBAR_WIDTH, maxVisibleHeight, -1);
+            // 滑块
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_SPRITE,
+                    scrollbarX, scrollbarY, SCROLLBAR_WIDTH, scrollbarThumbHeight, -1);
         }
 
         // 11. 渲染右侧属性点面板（屏幕足够宽时显示）
         if (showRightPanel) {
             int rightX = panelX + PANEL_WIDTH + PANEL_GAP;
-            fillRounded(graphics, rightX - 1, panelY - 1, RIGHT_PANEL_WIDTH + 2, panelHeight + 2,
-                    CORNER_RADIUS + 1, COLOR_BORDER);
-            fillRounded(graphics, rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight,
-                    CORNER_RADIUS, COLOR_BG);
+            Screen.extractMenuBackgroundTexture(graphics, Screen.MENU_BACKGROUND,
+                    rightX, panelY, 0.0F, 0.0F, RIGHT_PANEL_WIDTH, panelHeight);
+            graphics.fill(rightX, panelY, rightX + RIGHT_PANEL_WIDTH, panelY + panelHeight, 0x80000000);
+            drawContainerBorder(graphics, rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight);
             AttributePointPanel.render(graphics, rightX, panelY, RIGHT_PANEL_WIDTH, panelHeight,
                     mouseX, mouseY);
         }
@@ -407,31 +422,23 @@ public class RPGCharacterScreen extends Screen {
     }
 
     /**
-     * 绘制圆角矩形填充
+     * 经典原版容器斜面边框：1px 黑外框 + 上左白高光 + 下右深灰阴影。
      * <p>
-     * 使用圆角矩形填充算法：
-     * 三条矩形（中间通栏 + 左右窄条）+ 四角方块补丁。
-     *
-     * @param g     图形上下文
-     * @param x     左上角 X
-     * @param y     左上角 Y
-     * @param w     宽度
-     * @param h     高度
-     * @param r     圆角半径
-     * @param color ARGB 颜色
+     * 配色解码自 {@code textures/gui/container/inventory.png}（黑 0x000000、白 0xFFFFFF、
+     * 深灰 0x555555）。在面板背景之上、内容之下绘制。
      */
-    private static void fillRounded(GuiGraphicsExtractor g, int x, int y, int w, int h,
-                                    int r, int color) {
-        // 中间通栏
-        g.fill(x + r, y, x + w - r, y + h, color);
-        // 左侧窄条
-        g.fill(x, y + r, x + r, y + h - r, color);
-        // 右侧窄条
-        g.fill(x + w - r, y + r, x + w, y + h - r, color);
-        // 四角补丁
-        g.fill(x + 1, y + 1, x + r, y + r, color);
-        g.fill(x + w - r, y + 1, x + w - 1, y + r, color);
-        g.fill(x + 1, y + h - r, x + r, y + h - 1, color);
-        g.fill(x + w - r, y + h - r, x + w - 1, y + h - 1, color);
+    private static void drawContainerBorder(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        int x1 = x + w, y1 = y + h;
+        // 1px 黑外框（4 边）
+        g.fill(x, y, x1, y + 1, 0xFF000000);
+        g.fill(x, y1 - 1, x1, y1, 0xFF000000);
+        g.fill(x, y + 1, x + 1, y1 - 1, 0xFF000000);
+        g.fill(x1 - 1, y + 1, x1, y1 - 1, 0xFF000000);
+        // 1px 白高光（顶 + 左，黑框内侧）
+        g.fill(x + 1, y + 1, x1 - 1, y + 2, 0xFFFFFFFF);
+        g.fill(x + 1, y + 1, x + 2, y1 - 1, 0xFFFFFFFF);
+        // 1px 深灰阴影（底 + 右，黑框内侧）
+        g.fill(x + 1, y1 - 2, x1 - 1, y1 - 1, 0xFF555555);
+        g.fill(x1 - 2, y + 1, x1 - 1, y1 - 1, 0xFF555555);
     }
 }

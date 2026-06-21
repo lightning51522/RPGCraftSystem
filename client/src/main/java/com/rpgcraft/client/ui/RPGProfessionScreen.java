@@ -11,8 +11,11 @@ import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -70,7 +73,6 @@ public class RPGProfessionScreen extends Screen {
     private static final int TOP_PADDING = 20;
     private static final int BOTTOM_PADDING = 10;
     private static final int CONTENT_MARGIN = 6;
-    private static final int CORNER_RADIUS = 3;
 
     /** 窗口标题栏高度（可拖动区域） */
     private static final int TITLE_BAR_HEIGHT = 16;
@@ -81,6 +83,10 @@ public class RPGProfessionScreen extends Screen {
     private static final int NODE_SIZE = 26;
     /** 节点图标字符 Y 偏移 */
     private static final int ICON_TEXT_OFFSET_Y = 9;
+    /** 物品图标在节点内的 X 偏移（物品 16px，在 26px 节点内居中 = (26-16)/2 = 5） */
+    private static final int NODE_ICON_ITEM_X = 5;
+    /** 物品图标在节点内的 Y 偏移（同上，居中 = 5） */
+    private static final int NODE_ICON_ITEM_Y = 5;
     /** 横向树：层级间距（X 方向，父→子） */
     private static final int LEVEL_GAP_X = 90;
     /** 横向树：同层兄弟节点间距（Y 方向） */
@@ -90,52 +96,61 @@ public class RPGProfessionScreen extends Screen {
     /** 激活副职业蓝色框的额外外扩（每边，与金色一致） */
     private static final int SECONDARY_BORDER_PAD = 2;
 
-    /** 节点下方 +（投入一级）按钮尺寸 */
-    private static final int PLUS_BUTTON_SIZE = 12;
-    /** 节点下 + 按钮与节点的垂直间距 */
-    private static final int PLUS_BUTTON_GAP = 2;
+    /** 节点下方 +（投入一级）按钮尺寸 —— 适配原版按钮 9-slice（3px 边框，14 仍可接受） */
+    private static final int PLUS_BUTTON_SIZE = 14;
+    /** 节点下升级按钮行与节点的垂直间距 */
+    private static final int PLUS_BUTTON_GAP = 1;
     /** 标题栏右上角最大化按钮尺寸 */
     private static final int MAX_BUTTON_SIZE = 12;
-    /** 节点上方等级徽章高度 */
-    private static final int BADGE_HEIGHT = 9;
-    /** 等级徽章文字 Y 偏移（相对徽章顶部） */
-    private static final int BADGE_TEXT_OFFSET_Y = 1;
-    /** 等级徽章左右内边距 */
-    private static final int BADGE_PADDING_X = 2;
 
     /** 双击判定时间窗口（毫秒） */
     private static final long DOUBLE_CLICK_MS = 300;
 
     // ====================================================================
-    // 颜色（ARGB）
+    // 精灵贴图（原版）—— 主窗口用 menu_background 泥土平铺，标题用 HEADER_SEPARATOR 分隔线
     // ====================================================================
 
-    private static final int COLOR_BG = 0xC0000000;
-    private static final int COLOR_BORDER = 0xFF555555;
-    private static final int COLOR_TITLE = 0xFFFFFF00;
+    /** 原版按钮精灵（9-slice 200×20，自动缩放到任意尺寸） */
+    private static final Identifier BUTTON_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button");
+    private static final Identifier BUTTON_HIGHLIGHTED_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button_highlighted");
+    /** 原版按钮禁用态精灵（经验不足时） */
+    private static final Identifier BUTTON_DISABLED_SPRITE =
+            Identifier.fromNamespaceAndPath("minecraft", "widget/button_disabled");
+    /** 原版 advancement 节点框（26×26 stretch，正好等于 NODE_SIZE，1:1 无缩放） */
+    private static final Identifier TASK_FRAME_OBTAINED =
+            Identifier.fromNamespaceAndPath("minecraft", "advancements/task_frame_obtained");
+    private static final Identifier TASK_FRAME_UNOBTAINED =
+            Identifier.fromNamespaceAndPath("minecraft", "advancements/task_frame_unobtained");
+    /** 原版标题分隔线（32×2，水平平铺） */
+    private static final Identifier HEADER_SEPARATOR =
+            Identifier.fromNamespaceAndPath("minecraft", "textures/gui/header_separator.png");
+
+    // ====================================================================
+    // 颜色（ARGB）—— 原版风格灰阶调色板
+    // ====================================================================
+
     private static final int COLOR_TEXT = 0xFFFFFFFF;
-    private static final int COLOR_HINT = 0xFFAAAAAA;
-    /** 标题栏背景（略亮于窗口体） */
-    private static final int COLOR_TITLE_BAR = 0xFF333355;
-    /** 节点底色：已解锁 */
-    private static final int COLOR_NODE_UNLOCKED = 0xFF2F4F2F;
-    /** 节点底色：未解锁 */
-    private static final int COLOR_NODE_LOCKED = 0xFF3A2A2A;
-    /** 节点底色：副职业 */
-    private static final int COLOR_NODE_SECONDARY = 0xFF4A2A4A;
+    private static final int COLOR_HINT = 0xFFA0A0A0;
+    /** 强调色（原版黄） */
+    private static final int COLOR_TITLE = 0xFFFFE000;
     /** 连接线 */
-    private static final int COLOR_LINE_UNLOCKED = 0xFF888888;
-    private static final int COLOR_LINE_LOCKED = 0xFF444444;
+    private static final int COLOR_LINE_UNLOCKED = 0xFF555555;
+    private static final int COLOR_LINE_LOCKED = 0xFF373737;
     /** 当前主职业金色框 */
     private static final int COLOR_GOLD = 0xFFFFD700;
     /** 激活副职业蓝色框 */
     private static final int COLOR_SECONDARY_ACTIVE = 0xFF3A7BFF;
-    /** 按钮 */
-    private static final int COLOR_BUTTON = 0xFF5555AA;
-    private static final int COLOR_BUTTON_HOVER = 0xFFFFFF00;
 
-    /** 每个职业的图标字符 */
+    /** 每个职业的图标字符（fallback，优先用 {@link #NODE_ITEM_ICONS} 的物品图标） */
     private static final Map<Identifier, String> NODE_ICONS = new HashMap<>();
+
+    /**
+     * 每个职业的物品图标（原版 advancement 节点风格）。优先用 fakeItem 渲染；
+     * 未映射的职业回退到 {@link #NODE_ICONS} 的中文字符。
+     */
+    private static final Map<Identifier, ItemStack> NODE_ITEM_ICONS = new HashMap<>();
 
     static {
         NODE_ICONS.put(id("rpgcraftcore", "commoner"), "民");
@@ -144,6 +159,13 @@ public class RPGProfessionScreen extends Screen {
         NODE_ICONS.put(id("rpgcraftcore", "archer"), "弓");
         NODE_ICONS.put(id("rpgcraftcore", "marksman"), "神");
         NODE_ICONS.put(id("rpgcraftcore", "apprentice"), "徒");
+
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "commoner"), new ItemStack(Items.WOODEN_HOE));
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "warrior"), new ItemStack(Items.IRON_SWORD));
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "berserker"), new ItemStack(Items.DIAMOND_AXE));
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "archer"), new ItemStack(Items.BOW));
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "marksman"), new ItemStack(Items.CROSSBOW));
+        NODE_ITEM_ICONS.put(id("rpgcraftcore", "apprentice"), new ItemStack(Items.BOOK));
     }
 
     // ----------------------------------------------------------------
@@ -366,12 +388,18 @@ public class RPGProfessionScreen extends Screen {
     private void renderTreeWindow(GuiGraphicsExtractor graphics, ProfessionStateView state,
                                   FloatingWindow win, String title,
                                   IProfession.ProfessionType type, int mouseX, int mouseY) {
-        // 窗口背景
-        fillRounded(graphics, win.x - 1, win.y - 1, win.w + 2, win.h + 2, CORNER_RADIUS + 1, COLOR_BORDER);
-        fillRounded(graphics, win.x, win.y, win.w, win.h, CORNER_RADIUS, COLOR_BG);
-        // 标题栏（略亮背景 + 标题文字 + 最大化按钮）
-        fillRounded(graphics, win.x, win.y, win.w, TITLE_BAR_HEIGHT, CORNER_RADIUS, COLOR_TITLE_BAR);
+        // 窗口背景：原版 menu_background 泥土纹理平铺（INWORLD_MENU_BACKGROUND 是 private，
+        // 用公开的 MENU_BACKGROUND；视觉差异仅模糊度，可接受）
+        Screen.extractMenuBackgroundTexture(graphics, Screen.MENU_BACKGROUND,
+                win.x, win.y, 0.0F, 0.0F, win.w, win.h);
+        // 深色覆盖：menu_background 仅 25% 黑，叠一层 50% 黑提高可读性
+        graphics.fill(win.x, win.y, win.x + win.w, win.y + win.h, 0x80000000);
+        // 经典原版容器斜面边框
+        drawContainerBorder(graphics, win.x, win.y, win.w, win.h);
+        // 标题文字 + 标题栏底部原版分隔线（2px）
         graphics.text(this.font, title, win.x + CONTENT_MARGIN, win.y + 4, COLOR_TITLE, true);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, HEADER_SEPARATOR,
+                win.x, win.y + TITLE_BAR_HEIGHT - 2, 0.0F, 0.0F, win.w, 2, 32, 2);
         renderMaxButton(graphics, win, mouseX, mouseY);
 
         // 经验池行（仅主职业窗显示；副窗显示类型说明）
@@ -546,92 +574,107 @@ public class RPGProfessionScreen extends Screen {
             graphics.fill(x - GOLD_BORDER_PAD - 1, y - GOLD_BORDER_PAD - 1,
                     x + NODE_SIZE + GOLD_BORDER_PAD + 1, y + NODE_SIZE + GOLD_BORDER_PAD + 1, COLOR_GOLD);
         }
-        int color;
-        if (node.type() == IProfession.ProfessionType.SECONDARY) color = COLOR_NODE_SECONDARY;
-        else if (unlocked) color = COLOR_NODE_UNLOCKED;
-        else color = COLOR_NODE_LOCKED;
-        graphics.fill(x, y, x + NODE_SIZE, y + NODE_SIZE, color);
-        int frame = hover ? COLOR_TITLE : COLOR_BORDER;
-        graphics.fill(x, y, x + NODE_SIZE, y + 1, frame);
-        graphics.fill(x, y + NODE_SIZE - 1, x + NODE_SIZE, y + NODE_SIZE, frame);
-        graphics.fill(x, y, x + 1, y + NODE_SIZE, frame);
-        graphics.fill(x + NODE_SIZE - 1, y, x + NODE_SIZE, y + NODE_SIZE, frame);
-        String icon = NODE_ICONS.getOrDefault(node.id(), "?");
-        int iconColor = unlocked ? COLOR_TEXT : COLOR_HINT;
-        graphics.text(this.font, icon, x + (NODE_SIZE - this.font.width(icon)) / 2,
-                y + ICON_TEXT_OFFSET_Y, iconColor, false);
-
-        // 节点上方等级徽章：仅已解锁职业显示当前等级
-        if (unlocked) {
-            renderLevelBadge(graphics, x, y, node, state);
+        // 节点框：原版 advancement task_frame（26×26，1:1 无缩放）
+        // obtained = 已解锁/当前/激活副职业（亮框）；unobtained = 未解锁（暗框）
+        boolean obtained = unlocked || isCurrent || isSecondaryActive;
+        Identifier frameSprite = obtained ? TASK_FRAME_OBTAINED : TASK_FRAME_UNOBTAINED;
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, frameSprite, x, y, NODE_SIZE, NODE_SIZE);
+        // 图标：优先物品图标（fakeItem，原版 advancement 节点偏移 +8,+5），否则回退中文字符
+        ItemStack itemIcon = NODE_ITEM_ICONS.get(node.id());
+        if (itemIcon != null && !itemIcon.isEmpty()) {
+            graphics.fakeItem(itemIcon, x + NODE_ICON_ITEM_X, y + NODE_ICON_ITEM_Y);
+        } else {
+            String icon = NODE_ICONS.getOrDefault(node.id(), "?");
+            int iconColor = unlocked ? COLOR_TEXT : COLOR_HINT;
+            graphics.text(this.font, icon, x + (NODE_SIZE - this.font.width(icon)) / 2,
+                    y + ICON_TEXT_OFFSET_Y, iconColor, false);
         }
 
-        // 节点下 + 按钮：仅在 canInvest 时显示
-        // 渲染用逻辑坐标（节点下方），hover 检测用屏幕坐标
-        if (canInvest(state, node)) {
-            renderPlusButton(graphics, x, y, sx, sy, mouseX, mouseY);
-        }
+        // 节点下行：等级数字 + 升级按钮（同一行，避免上方徽章遮挡下一行节点）
+        renderNodeFooter(graphics, x, y, sx, sy, node, state, mouseX, mouseY);
         return hover;
     }
 
     /**
-     * 在节点正上方绘制等级徽章（蓝底白字数字）。
+     * 节点正下方一行：显示等级 + 升级按钮。
      * <p>
-     * 渲染用逻辑坐标 {@code nodeX/nodeY}（与节点本体一致，靠 pose 平移）。
-     * 徽章底部紧贴节点顶边，水平居中于节点。
+     * 取代旧的「节点上方徽章 + 节点下方按钮」分离布局 —— 同一行避免上方徽章遮挡上一节点。
+     * <ul>
+     *   <li><b>可投入时</b>：一个加宽到节点宽度的按钮，内显「Lv.N +」（等级与升级同按钮，避免互相遮挡）</li>
+     *   <li><b>满级时</b>：仅显示「Lv.MAX」文本（无按钮）</li>
+     *   <li>仅已解锁职业显示；未解锁无此行</li>
+     * </ul>
+     * 渲染用逻辑坐标 {@code nodeLx/nodeLy}（靠 pose 平移）；命中检测用屏幕坐标 {@code nodeSx/nodeSy}。
      */
-    private void renderLevelBadge(GuiGraphicsExtractor graphics, int nodeX, int nodeY,
-                                  ProfessionNode node, ProfessionStateView state) {
+    private void renderNodeFooter(GuiGraphicsExtractor graphics,
+                                  int nodeLx, int nodeLy, int nodeSx, int nodeSy,
+                                  ProfessionNode node, ProfessionStateView state,
+                                  int mouseX, int mouseY) {
+        boolean unlocked = state.unlocked().contains(node.id());
+        if (!unlocked) return;
         int level = state.levels().getOrDefault(node.id(), 0);
-        String text = String.valueOf(level);
-        int badgeW = this.font.width(text) + 2 * BADGE_PADDING_X;
-        int badgeX = nodeX + (NODE_SIZE - badgeW) / 2;
-        int badgeY = nodeY - BADGE_HEIGHT;
-        graphics.fill(badgeX, badgeY, badgeX + badgeW, badgeY + BADGE_HEIGHT, COLOR_BUTTON);
-        graphics.text(this.font, text, badgeX + (badgeW - this.font.width(text)) / 2,
-                badgeY + BADGE_TEXT_OFFSET_Y, COLOR_TEXT, false);
+        int maxLevel = node.maxLevel();
+        boolean atMax = level >= maxLevel;
+
+        int rowY = nodeLy + NODE_SIZE + PLUS_BUTTON_GAP;        // 逻辑行 Y
+        int rowSY = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;       // 屏幕行 Y
+
+        if (!atMax) {
+            // 可升级：加宽按钮（节点宽度）显示「Lv.N +」
+            // canInvest 时高亮可点；经验不足时禁用态（button_disabled），仍显示等级
+            boolean canInvest = canInvest(state, node);
+            int btnW = NODE_SIZE;
+            int lx = nodeLx;                                     // 逻辑 X（左对齐到节点）
+            int hx = nodeSx;                                     // 屏幕 X
+            boolean hover = canInvest && isHover(mouseX, mouseY, hx, rowSY, btnW, PLUS_BUTTON_SIZE);
+            Identifier sprite = !canInvest ? BUTTON_DISABLED_SPRITE
+                    : (hover ? BUTTON_HIGHLIGHTED_SPRITE : BUTTON_SPRITE);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, lx, rowY, btnW, PLUS_BUTTON_SIZE, -1);
+            // 文本「Lv.N +」整体水平居中于按钮
+            String label = "Lv." + level + " +";
+            graphics.text(this.font, label, lx + (btnW - this.font.width(label)) / 2,
+                    rowY + centeredGlyphY(PLUS_BUTTON_SIZE),
+                    canInvest ? COLOR_TEXT : COLOR_HINT, false);
+        } else {
+            // 满级：仅文本「Lv.MAX」，水平居中于节点
+            String label = "Lv.MAX";
+            graphics.text(this.font, label, nodeLx + (NODE_SIZE - this.font.width(label)) / 2,
+                    rowY + centeredGlyphY(PLUS_BUTTON_SIZE), COLOR_TITLE, false);
+        }
     }
 
-    /**
-     * 节点下方居中的小 + 按钮（投入一级）。
-     *
-     * @param nodeLx  节点逻辑坐标 X（渲染用，靠 pose 平移）
-     * @param nodeLy  节点逻辑坐标 Y（渲染用）
-     * @param nodeSx  节点屏幕坐标 X（hover 检测用）
-     * @param nodeSy  节点屏幕坐标 Y（hover 检测用）
-     */
-    private void renderPlusButton(GuiGraphicsExtractor graphics, int nodeLx, int nodeLy,
-                                  int nodeSx, int nodeSy, int mouseX, int mouseY) {
-        // 渲染矩形（逻辑坐标）
-        int lx = nodeLx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
-        int ly = nodeLy + NODE_SIZE + PLUS_BUTTON_GAP;
-        // 命中矩形（屏幕坐标）
-        int hx = nodeSx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
-        int hy = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;
-        boolean hover = isHover(mouseX, mouseY, hx, hy, PLUS_BUTTON_SIZE, PLUS_BUTTON_SIZE);
-        int color = hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON;
-        graphics.fill(lx, ly, lx + PLUS_BUTTON_SIZE, ly + PLUS_BUTTON_SIZE, color);
-        graphics.text(this.font, "+", lx + (PLUS_BUTTON_SIZE - this.font.width("+")) / 2,
-                ly + 1, COLOR_TEXT, false);
-    }
-
-    /** 标题栏右上角最大化/还原按钮（□ 未最大化 / ⊟ 已最大化） */
+    /** 标题栏右上角最大化/还原按钮（□ 未最大化 / ⊟ 已最大化）—— 原版按钮精灵 */
     private void renderMaxButton(GuiGraphicsExtractor graphics, FloatingWindow win, int mouseX, int mouseY) {
         int bx = win.maxButtonX();
         int by = win.maxButtonY();
         boolean hover = isHover(mouseX, mouseY, bx, by, MAX_BUTTON_SIZE, MAX_BUTTON_SIZE);
-        int color = hover ? COLOR_BUTTON_HOVER : COLOR_BUTTON;
-        graphics.fill(bx, by, bx + MAX_BUTTON_SIZE, by + MAX_BUTTON_SIZE, color);
+        blitButton(graphics, bx, by, MAX_BUTTON_SIZE, MAX_BUTTON_SIZE, hover);
         String glyph = win.maximized ? "⊟" : "□";
         graphics.text(this.font, glyph, bx + (MAX_BUTTON_SIZE - this.font.width(glyph)) / 2,
-                by + 1, COLOR_TEXT, false);
+                by + centeredGlyphY(MAX_BUTTON_SIZE), COLOR_TEXT, false);
     }
 
-    /** 节点下 + 按钮的屏幕矩形（命中检测用） */
+    /** 绘制原版 9-slice 按钮：hover 时用高亮态精灵 */
+    private void blitButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, boolean hover) {
+        Identifier sprite = hover ? BUTTON_HIGHLIGHTED_SPRITE : BUTTON_SPRITE;
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, w, h, -1);
+    }
+
+    /**
+     * 原版文字垂直居中公式：textY 偏移（相对矩形顶部）。
+     * <p>
+     * 原版用 {@code (top + bottom - lineHeight) / 2 + 1}，lineHeight = 9。
+     * 简化为 {@code (height - 9) / 2 + 1}。
+     */
+    private static int centeredGlyphY(int height) {
+        return (height - 9) / 2 + 1;
+    }
+
+    /** 节点下升级按钮的屏幕矩形（节点宽度，命中检测用） */
     private int[] plusButtonScreenRect(int nodeSx, int nodeSy) {
-        int bx = nodeSx + (NODE_SIZE - PLUS_BUTTON_SIZE) / 2;
+        int bx = nodeSx;
         int by = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;
-        return new int[]{bx, by, PLUS_BUTTON_SIZE, PLUS_BUTTON_SIZE};
+        return new int[]{bx, by, NODE_SIZE, PLUS_BUTTON_SIZE};
     }
 
     // --------------------------------------------------------------------
@@ -913,8 +956,10 @@ public class RPGProfessionScreen extends Screen {
     }
 
     /**
-     * 命中某窗口内节点下方的 + 按钮，返回该节点 ID（仅 canInvest 的节点才画 + 按钮）。
-     * 鼠标坐标需减去该窗口 panX/panY 转逻辑坐标，再比较 + 按钮屏幕矩形。
+     * 命中某窗口内节点下方的升级按钮，返回该节点 ID。
+     * <p>
+     * 按钮宽度 = 节点宽度，命中矩形覆盖整个按钮行。仅 {@code canInvest} 的节点会触发投入
+     *（经验不足时按钮显示禁用态但不响应点击）。
      */
     private Identifier hitPlusButtonInWindow(ProfessionStateView state, FloatingWindow win,
                                              IProfession.ProfessionType type, double mx, double my) {
@@ -1031,13 +1076,24 @@ public class RPGProfessionScreen extends Screen {
         return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
     }
 
-    private static void fillRounded(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
-        g.fill(x + r, y, x + w - r, y + h, color);
-        g.fill(x, y + r, x + r, y + h - r, color);
-        g.fill(x + w - r, y + r, x + w, y + h - r, color);
-        g.fill(x + 1, y + 1, x + r, y + r, color);
-        g.fill(x + w - r, y + 1, x + w - 1, y + r, color);
-        g.fill(x + 1, y + h - r, x + r, y + h - 1, color);
-        g.fill(x + w - r, y + h - r, x + w - 1, y + h - 1, color);
+    /**
+     * 经典原版容器斜面边框：1px 黑外框 + 上左白高光 + 下右深灰阴影。
+     * <p>
+     * 配色解码自 {@code textures/gui/container/inventory.png}（黑 0x000000、白 0xFFFFFF、
+     * 深灰 0x555555）。在面板背景之上、内容之下绘制。
+     */
+    private static void drawContainerBorder(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        int x1 = x + w, y1 = y + h;
+        // 1px 黑外框（4 边）
+        g.fill(x, y, x1, y + 1, 0xFF000000);
+        g.fill(x, y1 - 1, x1, y1, 0xFF000000);
+        g.fill(x, y + 1, x + 1, y1 - 1, 0xFF000000);
+        g.fill(x1 - 1, y + 1, x1, y1 - 1, 0xFF000000);
+        // 1px 白高光（顶 + 左，黑框内侧）
+        g.fill(x + 1, y + 1, x1 - 1, y + 2, 0xFFFFFFFF);
+        g.fill(x + 1, y + 1, x + 2, y1 - 1, 0xFFFFFFFF);
+        // 1px 深灰阴影（底 + 右，黑框内侧）
+        g.fill(x + 1, y1 - 2, x1 - 1, y1 - 1, 0xFF555555);
+        g.fill(x1 - 2, y + 1, x1 - 1, y1 - 1, 0xFF555555);
     }
 }
