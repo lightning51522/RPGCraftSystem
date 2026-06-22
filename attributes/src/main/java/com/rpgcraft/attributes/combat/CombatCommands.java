@@ -202,8 +202,8 @@ public class CombatCommands {
 
     /** 合法的 JSON 属性字段名（不含 attack_type，它单独解析） */
     private static final Set<String> VALID_ATTRIBUTE_FIELDS = Set.of(
-            "life", "strength", "defense", "resistance",
-            "critical_rate", "critical_ratio",
+            "life", "strength", "intelligence", "agile", "precision",
+            "resistance", "critical_rate", "critical_ratio",
             "physical_penetrate", "magical_penetrate",
             "base_exp"
     );

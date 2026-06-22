@@ -241,6 +241,9 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
      * <p>
      * 从快照中按页获取属性，每行渲染两个属性。
      * 暴击率属性使用特殊着色。
+     * <p>
+     * 仅渲染注册的真实属性（能力型 + 资源型）。综合属性（攻击力/防御力）由独立的
+     * {@link CompositeAttributePlugin} 展示，不在此列表中。
      */
     private void renderAttributes(GuiGraphicsExtractor graphics, int x, int y,
                                    int width, Minecraft mc, AttributeSnapshot snapshot) {

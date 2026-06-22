@@ -198,9 +198,8 @@ public class CombatEventHandler {
         int scaledStrength = applyRating(overrides.containsKey("strength")
                 ? overrides.get("strength")
                 : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.STRENGTH_ID), targetLevel, "strength"), ratingMult);
-        int scaledDefense = applyRating(overrides.containsKey("defense")
-                ? overrides.get("defense")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.DEFENSE_ID), targetLevel, "defense"), ratingMult);
+        // 注：defense 已改为综合属性（= 力量×2，由 DefaultDamageCalculator 动态计算），
+        // 怪物不再独立配置 defense。mob_attributes.json 中残留的 defense 字段会被忽略。
         int scaledResistance = applyRating(overrides.containsKey("resistance")
                 ? overrides.get("resistance")
                 : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
@@ -226,7 +225,7 @@ public class CombatEventHandler {
 
         // 写入实体属性附件（固有基础值，供快照管理器通过 MobSnapshotBuilder 读取）
         // 非玩家实体的属性计算路径：EntityAttributeAttachment → GatherAttributeEvent → AttributePipeline → 快照
-        writeIntrinsicBases(entity, scaledLife, scaledStrength, scaledDefense,
+        writeIntrinsicBases(entity, scaledLife, scaledStrength,
                 scaledResistance, scaledCritRate, scaledCritRatio,
                 scaledPhysicalPenetrate, scaledMagicalPenetrate);
 
@@ -259,7 +258,6 @@ public class CombatEventHandler {
      * @param entity              目标实体
      * @param life                生命值
      * @param strength            力量
-     * @param defense             防御
      * @param resistance          法抗
      * @param criticalRate        暴击率
      * @param criticalRatio       暴击伤害
@@ -267,13 +265,12 @@ public class CombatEventHandler {
      * @param magicalPenetrate    法术穿透
      */
     private static void writeIntrinsicBases(LivingEntity entity,
-                                             int life, int strength, int defense,
+                                             int life, int strength,
                                              int resistance, int criticalRate, int criticalRatio,
                                              int physicalPenetrate, int magicalPenetrate) {
         EntityAttributeAttachment attachment = entity.getData(AttributeManager.ENTITY_ATTRIBUTE_ATTACHMENT);
         attachment.setIntrinsicBase(AttributeManager.LIFE_ID, life);
         attachment.setIntrinsicBase(DefaultAttributes.STRENGTH_ID, strength);
-        attachment.setIntrinsicBase(DefaultAttributes.DEFENSE_ID, defense);
         attachment.setIntrinsicBase(DefaultAttributes.RESISTANCE_ID, resistance);
         attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATE_ID, criticalRate);
         attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATIO_ID, criticalRatio);

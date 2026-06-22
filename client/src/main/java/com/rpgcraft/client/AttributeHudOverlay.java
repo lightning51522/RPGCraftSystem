@@ -26,7 +26,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * 负责两项渲染任务：
  * <ol>
  *   <li>自定义生命条 —— 替换原版心形血条，以进度条方式显示自定义生命值</li>
- *   <li>目标属性面板 —— 准星指向怪物时在左上角显示生命、力量、法力、防御、法抗</li>
+ *   <li>目标属性面板 —— 准星指向怪物时在左上角显示生命、力量、防御（=力量×2）、法抗</li>
  * </ol>
  * <p>
  * 使用 NeoForge 26.1 的 {@link GuiLayer} 图层系统：
@@ -395,8 +395,8 @@ public class AttributeHudOverlay {
         String headerLine = HUD_BUILDER.toString();
 
         // 预计算所有行以确定面板尺寸
-        // 行内容：标题、生命、力量、法力、防御、法抗
-        int totalLines = 6;
+        // 行内容：标题、生命、力量、防御（=力量×2 综合属性）、法抗
+        int totalLines = 5;
         int maxWidth = mc.font.width(headerLine);
         String[] lines = new String[totalLines];
         lines[0] = headerLine;
@@ -413,23 +413,17 @@ public class AttributeHudOverlay {
         lines[2] = HUD_BUILDER.toString();
         maxWidth = Math.max(maxWidth, mc.font.width(lines[2]));
 
-        // 4. 法力行
+        // 4. 防御行（综合属性 = 力量×2，由客户端动态计算）
         HUD_BUILDER.setLength(0);
-        HUD_BUILDER.append("法力: ").append(cachedMobMana);
+        HUD_BUILDER.append("防御: ").append(cachedMobStrength * 2);
         lines[3] = HUD_BUILDER.toString();
         maxWidth = Math.max(maxWidth, mc.font.width(lines[3]));
 
-        // 5. 防御行
-        HUD_BUILDER.setLength(0);
-        HUD_BUILDER.append("防御: ").append(cachedMobDefense);
-        lines[4] = HUD_BUILDER.toString();
-        maxWidth = Math.max(maxWidth, mc.font.width(lines[4]));
-
-        // 6. 法抗行
+        // 5. 法抗行
         HUD_BUILDER.setLength(0);
         HUD_BUILDER.append("法抗: ").append(cachedMobResistance);
-        lines[5] = HUD_BUILDER.toString();
-        maxWidth = Math.max(maxWidth, mc.font.width(lines[5]));
+        lines[4] = HUD_BUILDER.toString();
+        maxWidth = Math.max(maxWidth, mc.font.width(lines[4]));
 
         // 绘制半透明背景面板
         int panelW = maxWidth + PANEL_PADDING * 2;

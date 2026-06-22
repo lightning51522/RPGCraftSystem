@@ -25,7 +25,7 @@ import java.util.*;
  * RPGEventBus.register(GatherAttributeEvent.class, event -> {
  *     LivingEntity entity = event.getEntity();
  *     if (isInAuraRange(entity)) {
- *         event.addModifier(DEFENSE_ID,
+ *         event.addModifier(STRENGTH_ID,
  *             new SimpleAttributeModifier(AURA_SOURCE_ID, Operation.ADDITION, 10));
  *     }
  * }, RPGEvent.PRIORITY_NORMAL);
@@ -70,7 +70,7 @@ public class GatherAttributeEvent extends RPGEvent {
      * 模块在事件回调中调用此方法注入修饰符。
      * 相同 attrId 的修饰符会累加到同一列表中。
      *
-     * @param attrId   属性标识符（如 {@code Identifier.fromNamespaceAndPath("rpgcraftcore", "defense")}）
+     * @param attrId   属性标识符（如 {@code Identifier.fromNamespaceAndPath("rpgcraftcore", "strength")}）
      * @param modifier 属性修饰符
      */
     public void addModifier(Identifier attrId, IAttributeModifier modifier) {

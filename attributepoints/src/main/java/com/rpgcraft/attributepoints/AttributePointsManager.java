@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * <p>
  * <h3>可分配属性</h3>
  * 动态从 {@link AttributeManager#getRegistry()} 遍历，过滤 {@code shouldResetOnRespawn() == false}。
- * 这自动排除 life/skill_point/magic_point（资源型），并自动接纳第三方新增的非资源型属性，
+ * 这自动排除 life/skill_point（资源型），并自动接纳第三方新增的非资源型属性，
  * 满足"适应属性增减"的需求。
  * <p>
  * <h3>修饰符生命周期</h3>
@@ -128,7 +128,7 @@ public class AttributePointsManager {
     /**
      * 获取所有可分配属性（动态计算，适应属性注册变化）
      * <p>
-     * 过滤条件：{@code !shouldResetOnRespawn()} —— 排除 life/skill_point/magic_point。
+     * 过滤条件：{@code !shouldResetOnRespawn()} —— 排除 life/skill_point。
      *
      * @return 可分配属性条目列表
      */

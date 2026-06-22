@@ -3,7 +3,7 @@ package com.rpgcraft.attributes.module;
 import net.minecraft.resources.Identifier;
 
 /**
- * 默认属性词汇表（除生命外的 13 个游戏属性标识符）
+ * 默认属性词汇表（除生命外的游戏属性标识符）
  * <p>
  * 本类是默认游戏属性集的<b>唯一真相源</b>。生命属性（LIFE）由 core 直接提供
  * （{@code com.rpgcraft.core.attribute.AttributeManager#LIFE_ID}），不在此处，
@@ -14,23 +14,39 @@ import net.minecraft.resources.Identifier;
  * <p>
  * 消费这些属性的默认规则集模块（combat/profession/client）各自声明本地常量引用同一字面量，
  * 形成松耦合契约，不依赖本类（遵循插件互不依赖铁律）。
+ * <p>
+ * <b>综合属性（攻击力/防御力）不在本表</b> —— 它们不作为真实属性注册，由伤害公式
+ * 在计算时根据力量/智力等一般属性动态派生（详见 {@code DefaultDamageCalculator}）。
+ *
+ * <h3>历史变更</h3>
+ * <ul>
+ *   <li>v0.6.0-alpha：移除 magic_point（资源法力）、mana（能力魔力）、defense（改为综合属性）；
+ *       新增 intelligence（智力）</li>
+ * </ul>
  */
 public final class DefaultAttributes {
 
     private DefaultAttributes() {
     }
 
+    // === 资源型属性 ===
     public static final Identifier SKILL_POINT_ID           = Identifier.fromNamespaceAndPath("rpgcraftcore", "skill_point");
-    public static final Identifier MAGIC_POINT_ID           = Identifier.fromNamespaceAndPath("rpgcraftcore", "magic_point");
+
+    // === 能力型属性（可加点） ===
     public static final Identifier STRENGTH_ID              = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    public static final Identifier MANA_ID                  = Identifier.fromNamespaceAndPath("rpgcraftcore", "mana");
+    public static final Identifier INTELLIGENCE_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
     public static final Identifier AGILE_ID                 = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
     public static final Identifier PRECISION_ID             = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
-    public static final Identifier DEFENSE_ID               = Identifier.fromNamespaceAndPath("rpgcraftcore", "defense");
     public static final Identifier RESISTANCE_ID            = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
     public static final Identifier CRITICAL_RATE_ID         = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
     public static final Identifier CRITICAL_RATIO_ID        = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
     public static final Identifier FIXED_DAMAGE_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
     public static final Identifier PHYSICAL_PENETRATE_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
     public static final Identifier MAGICAL_PENETRATE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
+
+    // === 综合属性 ID（仅用于 UI 展示标识，不注册为真实属性，由公式动态计算） ===
+    /** 物理攻击力综合属性 ID（仅用于 UI 标识，伤害公式动态计算） */
+    public static final Identifier ATTACK_POWER_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "attack_power");
+    /** 防御力综合属性 ID（仅用于 UI 标识，伤害公式动态计算） */
+    public static final Identifier DEFENSE_POWER_ID         = Identifier.fromNamespaceAndPath("rpgcraftcore", "defense_power");
 }

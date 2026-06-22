@@ -23,27 +23,45 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li>玩家：快照管理器透传 {@code EntityAttribute}（自带管线缓存），无额外开销</li>
  * </ul>
  * <p>
- * 本类所引用的游戏属性 ID（DEFENSE/RESISTANCE/STRENGTH/MANA/CRITICAL_RATE/CRITICAL_RATIO/FIXED_DAMAGE/PHYSICAL_PENETRATE/MAGICAL_PENETRATE）
+ * 本类所引用的游戏属性 ID（STRENGTH/INTELLIGENCE/AGILE/PRECISION/RESISTANCE/CRITICAL_RATE/CRITICAL_RATIO/
+ * FIXED_DAMAGE/PHYSICAL_PENETRATE/MAGICAL_PENETRATE）
  * 为 {@link DefaultAttributes} 常量，与属性注册同属一个模块；
  * 对应属性未注册时读取值为 0，公式自动降级（不减免/不暴击/不穿透）。
  *
+ * <h3>综合属性（攻击力 / 防御力）</h3>
+ * 攻击力和防御力<b>不作为真实属性存储</b>，由本类在计算伤害时根据一般属性动态派生：
+ * <ul>
+ *   <li><b>物理攻击力</b> = {@code 力量×2 + 智力}</li>
+ *   <li><b>魔法攻击力</b> = {@code 智力×2 + 力量}</li>
+ *   <li><b>物理防御力</b> = {@code 力量×2}（目标的力量值；魔法防御力仅来自装备，无法从属性获得）</li>
+ * </ul>
+ * 装备对一般属性（力量/智力等）的加成会自动通过属性管线计入上式（读取的是管线最终值）。
+ *
  * <h3>伤害减免公式（Incoming）</h3>
  * <ul>
- *   <li><b>物理减免：</b>{@code max(0, 原始伤害 - max(0, 防御力 - 物理穿透))}
- *     <br>示例：攻击力 30，防御力 10，物理穿透 3 → 有效防御 = 7，最终伤害 = 23</li>
+ *   <li><b>物理减免：</b>{@code max(0, 原始伤害 - max(0, 物理防御力 - 物理穿透))}
+ *     <br>其中物理防御力 = 目标力量×2（+装备对力量的加成）</li>
  *   <li><b>法术减免：</b>{@code (int)(原始伤害 × (1 - max(0, 法抗 - 法术穿透)/100.0))}
- *     <br>示例：法术伤害 40，法抗 25，法术穿透 10 → 有效法抗 = 15，最终伤害 = (int)(40 × 0.85) = 34</li>
+ *     <br>魔法防御力仅来自装备（无属性派生），故魔法路径不读取防御力</li>
  * </ul>
  *
  * <h3>伤害输出公式（Outgoing）</h3>
  * <ul>
- *   <li><b>物理输出：</b>基础伤害 = 力量值</li>
- *   <li><b>法术输出：</b>基础伤害 = 魔力值</li>
- *   <li><b>多层暴击判定：</b>暴击率上限 300%，每 100% 保底增加一层暴击伤害，
- *       超出部分作为下一层的触发概率。
- *     <br>暴击率 120% → 保底 1 层 + 20% 概率第 2 层
- *     <br>暴击率 300% → 保底 3 层暴击</li>
+ *   <li><b>物理输出：</b>基础伤害 = 力量×2 + 智力，乘暴击倍率后加固定伤害</li>
+ *   <li><b>法术输出：</b>基础伤害 = 智力×2 + 力量，乘暴击倍率后加固定伤害</li>
+ *   <li><b>混合输出：</b>物理部分（力量×2 + 智力）的一半 + 魔法部分（智力×2 + 力量）的一半</li>
  * </ul>
+ *
+ * <h3>暴击派生（敏捷 / 精准）</h3>
+ * 暴击率/暴击伤害本身是可加点的一般属性，同时额外从敏捷/精准获得派生加成：
+ * <ul>
+ *   <li><b>有效暴击率</b> = {@code 暴击率 + 敏捷/5}（每 5 点敏捷 +1 暴击率）</li>
+ *   <li><b>有效暴击伤害</b> = {@code 暴击伤害 + (精准/5)×2}（每 5 点精准 +2 暴击伤害）</li>
+ * </ul>
+ *
+ * <h3>多层暴击判定</h3>
+ * 暴击率每 100% 保底增加一层暴击伤害，超出部分作为下一层的触发概率。
+ * 每层暴击将伤害乘以 {@code (1 + 有效暴击伤害/100.0)}，多层为幂次叠加。
  */
 public class DefaultDamageCalculator implements IDamageCalculator {
 
@@ -64,13 +82,14 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
         return switch (type) {
             case PHYSICAL -> {
-                // 物理减免：防御力被物理穿透降低后，再从原始伤害中扣除
-                int defense = getAttributeValue(target, DefaultAttributes.DEFENSE_ID);
+                // 物理防御力 = 目标力量×2（综合属性，动态计算）
+                int defense = computePhysicalDefense(target);
                 int effectiveDefense = Math.max(0, defense - physicalPenetrate);
                 yield Math.max(0, originalDamage - effectiveDefense);
             }
             case MAGIC -> {
                 // 法术减免：法抗被法术穿透降低后，按百分比减免
+                // 魔法防御力仅来自装备（无属性派生），故此处不读取防御力
                 int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
                 yield (int) Math.max(0, originalDamage * (1.0 - effectiveResistance / 100.0));
@@ -78,7 +97,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
             case MIX_TYPE -> {
                 // 混合减免：物理部分受物理穿透，魔法部分受法术穿透
                 int half = originalDamage / 2;
-                int defense = getAttributeValue(target, DefaultAttributes.DEFENSE_ID);
+                int defense = computePhysicalDefense(target);
                 int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
                 int effectiveDefense = Math.max(0, defense - physicalPenetrate);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
@@ -92,19 +111,19 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
     @Override
     public int calculateOutgoingDamage(LivingEntity entity, AttackType type) {
-        // 混合伤害：分别取力量和魔力的一半，统一暴击后相加
+        // 混合伤害：物理部分（力量×2+智力）的一半 + 魔法部分（智力×2+力量）的一半，统一暴击后相加
         if (type == AttackType.MIX_TYPE) {
-            int strHalf = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID) / 2;
-            int manaHalf = getAttributeValue(entity, DefaultAttributes.MANA_ID) / 2;
+            int physBase = computePhysicalAttack(entity) / 2;
+            int magicBase = computeMagicalAttack(entity) / 2;
             double multiplier = rollCriticalMultiplier(entity);
             int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
-            return (int) (strHalf * multiplier) + (int) (manaHalf * multiplier) + fixedDmg;
+            return (int) (physBase * multiplier) + (int) (magicBase * multiplier) + fixedDmg;
         }
 
-        // 根据攻击类型确定基础伤害
+        // 根据攻击类型确定基础伤害（综合属性，动态计算）
         int baseDamage = switch (type) {
-            case PHYSICAL -> getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
-            case MAGIC -> getAttributeValue(entity, DefaultAttributes.MANA_ID);
+            case PHYSICAL -> computePhysicalAttack(entity);
+            case MAGIC -> computeMagicalAttack(entity);
             default -> 0;
         };
 
@@ -114,28 +133,87 @@ public class DefaultDamageCalculator implements IDamageCalculator {
         return (int) (baseDamage * multiplier) + fixedDmg;
     }
 
+    // ==================================================================
+    // 综合属性（攻击力 / 防御力）派生公式
+    // ==================================================================
+
+    /**
+     * 计算实体的物理攻击力（综合属性，动态派生）。
+     * <p>
+     * 公式：{@code 力量×2 + 智力}
+     * <p>
+     * 力量/智力读取的是管线最终值（含装备/职业/属性点加成），故装备对一般属性的加成
+     * 会自动计入攻击力。
+     *
+     * @param entity 攻击实体
+     * @return 物理攻击力
+     */
+    public static int computePhysicalAttack(LivingEntity entity) {
+        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
+        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
+        return strength * 2 + intelligence;
+    }
+
+    /**
+     * 计算实体的魔法攻击力（综合属性，动态派生）。
+     * <p>
+     * 公式：{@code 智力×2 + 力量}
+     *
+     * @param entity 攻击实体
+     * @return 魔法攻击力
+     */
+    public static int computeMagicalAttack(LivingEntity entity) {
+        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
+        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
+        return intelligence * 2 + strength;
+    }
+
+    /**
+     * 计算实体的物理防御力（综合属性，动态派生）。
+     * <p>
+     * 公式：{@code 力量×2}
+     * <p>
+     * 魔法防御力不从此方法获得（魔法防御仅来自装备，无属性派生）。
+     *
+     * @param entity 防御实体
+     * @return 物理防御力
+     */
+    public static int computePhysicalDefense(LivingEntity entity) {
+        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
+        return strength * 2;
+    }
+
+    // ==================================================================
+    // 暴击判定
+    // ==================================================================
+
     /**
      * 多层暴击判定
      * <p>
+     * <b>有效暴击率</b> = 暴击率属性 + 敏捷/5（每 5 点敏捷 +1 暴击率）；
+     * <b>有效暴击伤害</b> = 暴击伤害属性 + (精准/5)×2（每 5 点精准 +2 暴击伤害）。
+     * <p>
      * 暴击率每 100% 保底增加一层暴击伤害，超出部分作为下一层的触发概率。
      * <ul>
-     *   <li>暴击率 50%  → 50% 概率 1 层暴击（正常暴击）</li>
-     *   <li>暴击率 120% → 保底 1 层 + 20% 概率第 2 层</li>
-     *   <li>暴击率 220% → 保底 2 层 + 20% 概率第 3 层</li>
-     *   <li>暴击率 300% → 保底 3 层暴击</li>
+     *   <li>有效暴击率 50%  → 50% 概率 1 层暴击</li>
+     *   <li>有效暴击率 120% → 保底 1 层 + 20% 概率第 2 层</li>
+     *   <li>有效暴击率 300% → 保底 3 层暴击</li>
      * </ul>
-     * 每层暴击将伤害乘以 {@code (1 + 暴击伤害/100.0)}，多层为幂次叠加。
+     * 每层暴击将伤害乘以 {@code (1 + 有效暴击伤害/100.0)}，多层为幂次叠加。
      *
      * @param entity 攻击实体
      * @return 暴击倍率（≥1.0，1.0 表示未暴击）
      */
     private double rollCriticalMultiplier(LivingEntity entity) {
-        int critRate = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID);
-        if (critRate <= 0) return 1.0;
+        // 有效暴击率 = 暴击率属性 + 敏捷派生（每 5 敏捷 +1）
+        int critRateAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID);
+        int agile = getAttributeValue(entity, DefaultAttributes.AGILE_ID);
+        int effectiveCritRate = critRateAttr + agile / 5;
+        if (effectiveCritRate <= 0) return 1.0;
 
         // 保底暴击层数 + 额外一层概率
-        int fullCrits = critRate / 100;
-        int remainder = critRate % 100;
+        int fullCrits = effectiveCritRate / 100;
+        int remainder = effectiveCritRate % 100;
         int totalCrits = fullCrits;
 
         if (remainder > 0 && ThreadLocalRandom.current().nextInt(100) < remainder) {
@@ -144,9 +222,13 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
         if (totalCrits == 0) return 1.0;
 
-        // 每层暴击乘以 (1 + critRatio/100)，多层为幂次
-        int critRatio = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID);
-        double critMulti = 1.0 + critRatio / 100.0;
+        // 有效暴击伤害 = 暴击伤害属性 + 精准派生（每 5 精准 +2）
+        int critRatioAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID);
+        int precision = getAttributeValue(entity, DefaultAttributes.PRECISION_ID);
+        int effectiveCritRatio = critRatioAttr + (precision / 5) * 2;
+
+        // 每层暴击乘以 (1 + 有效暴击伤害/100)，多层为幂次
+        double critMulti = 1.0 + effectiveCritRatio / 100.0;
         return Math.pow(critMulti, totalCrits);
     }
 
@@ -154,8 +236,8 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * 通过快照管理器读取实体属性值
      * <p>
      * 对非玩家实体：触发 {@code GatherAttributeEvent} 收集动态修饰符，
-     * 通过 {@code AttributePipeline} 计算最终值（含装备/光环/职业加成），
-     * 结果缓存在 Tick 级和跨 Tick 缓存中。
+     * 通过 {@link com.rpgcraft.core.attribute.AttributePipeline} 计算最终值
+     * （含装备/光环/职业加成），结果缓存在 Tick 级和跨 Tick 缓存中。
      * <p>
      * 对玩家：透传 {@code EntityAttribute}（自带管线缓存），
      * 快照管理器仅提供统一入口，无额外开销。
