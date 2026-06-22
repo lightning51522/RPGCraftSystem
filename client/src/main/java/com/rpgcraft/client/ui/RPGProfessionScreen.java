@@ -714,7 +714,8 @@ public class RPGProfessionScreen extends Screen {
 
     /**
      * 构造节点悬停气泡的文本行（参考 {@code AttributeListPlugin.getTooltip} 的多行拼装风格）。
-     * 行序：名称（白） / 类型标签（灰） / 状态标签（灰） / 描述（灰） / 等级（白） / 下一级消耗（灰/黄）
+     * 行序：名称（白） / 类型标签（灰） / 状态标签（灰/绿/蓝） / 描述（灰） /
+     * 等级（白） / 下一级消耗（灰/黄） / 属性加成（灰标题+绿/红数值） / 自定义 tooltip
      */
     private List<Component> buildProfessionTooltip(ProfessionNode node, ProfessionStateView state) {
         List<Component> lines = new ArrayList<>();
@@ -785,12 +786,16 @@ public class RPGProfessionScreen extends Screen {
             }
         }
 
-        // 追加职业类自定义 tooltip 行（通过 IProfession.getTooltip 拿到）
+        // 属性加成详情 + 职业类自定义 tooltip 行（通过 IProfession 接口拿到）
         try {
             com.rpgcraft.core.registry.IProfessionSystem sys = com.rpgcraft.core.registry.RPGSystems.getProfessionSystem();
             if (sys != null) {
                 IProfession prof = sys.getProfessionById(node.id());
                 if (prof != null) {
+                    // —— 属性加成展示 ——
+                    // 已解锁：按当前等级计算实际加成；未解锁：按 1 级展示基础加成（让玩家预览职业特性）
+                    appendBonusLines(lines, prof, unlocked ? Math.max(1, level) : 1);
+                    // —— 自定义 tooltip ——
                     com.rpgcraft.core.profession.api.ProfessionTooltipContext ctx =
                             new com.rpgcraft.core.profession.api.ProfessionTooltipContext(
                                     level, maxLevel, unlocked, isCurrent, isSecondaryActive);
@@ -804,6 +809,57 @@ public class RPGProfessionScreen extends Screen {
             // 客户端 fallback：tooltip 扩展失败不应影响面板渲染
         }
         return lines;
+    }
+
+    /**
+     * 向 tooltip 追加职业属性加成详情行。
+     * <p>
+     * 展示规则：
+     * <ul>
+     *   <li>标题行「属性加成:」（灰色小标签）</li>
+     *   <li>每条加成一行：{@code 属性名: ±当前值 (+M/级)}
+     *       —— 正值绿色、负值红色、每级增量灰色（增量为 0 时省略）</li>
+     *   <li>空加成职业：显示「无属性加成」（灰色）</li>
+     * </ul>
+     * 数值按 {@link IProfession#getBonusAtLevel} 计算（已计入基础值 + 每级增量）。
+     *
+     * @param lines   待追加的 tooltip 行列表
+     * @param prof    职业实例
+     * @param atLevel 用于计算加成的等级（已解锁用当前等级，未解锁用 1）
+     */
+    private void appendBonusLines(List<Component> lines, IProfession prof, int atLevel) {
+        java.util.Map<Identifier, Integer> baseBonus = prof.getBaseBonusMap();
+        if (baseBonus == null || baseBonus.isEmpty()) {
+            lines.add(Component.literal("无属性加成").withStyle(s -> s.withColor(0xAAAAAA)));
+            return;
+        }
+        lines.add(Component.literal("属性加成:").withStyle(s -> s.withColor(0xAAAAAA)));
+        com.rpgcraft.core.attribute.api.IAttributeRegistry attrReg =
+                com.rpgcraft.core.attribute.AttributeManager.getRegistry();
+        for (java.util.Map.Entry<Identifier, Integer> entry : baseBonus.entrySet()) {
+            Identifier attrId = entry.getKey();
+            // 属性显示名：优先从注册中心取，失败回退到 ID path
+            String attrName;
+            com.rpgcraft.core.attribute.api.IAttributeEntry attrEntry = attrReg.getEntry(attrId);
+            if (attrEntry != null) {
+                attrName = attrEntry.getDisplayName();
+            } else {
+                String path = attrId.getPath();
+                attrName = path.substring(0, 1).toUpperCase() + path.substring(1);
+            }
+            int currentBonus = prof.getBonusAtLevel(attrId, atLevel);
+            int perLevel = prof.getBonusPerLevel(attrId);
+            // 数值颜色：正绿/负红/0 灰
+            int valueColor = currentBonus > 0 ? 0x55FF55 : currentBonus < 0 ? 0xFF8080 : 0xAAAAAA;
+            String sign = currentBonus >= 0 ? "+" : "";
+            StringBuilder sb = new StringBuilder("  ").append(attrName).append(": ")
+                    .append(sign).append(currentBonus);
+            if (perLevel != 0) {
+                String perSign = perLevel >= 0 ? "+" : "";
+                sb.append(" (").append(perSign).append(perLevel).append("/级)");
+            }
+            lines.add(Component.literal(sb.toString()).withStyle(s -> s.withColor(valueColor)));
+        }
     }
 
     // ====================================================================
