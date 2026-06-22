@@ -104,15 +104,14 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
             int maxHealth = lifeAttr.getMaxValue();
 
             // 从快照读取战斗属性（属性未注册时读取值为 0，自动降级）
+            // 注：mana/defense 已废弃（v0.6.0-alpha 起），此处传 0 保持网络协议兼容
             int strength = getSnapshotValue(snapshot, "rpgcraftcore", "strength");
-            int mana = getSnapshotValue(snapshot, "rpgcraftcore", "mana");
-            int defense = getSnapshotValue(snapshot, "rpgcraftcore", "defense");
             int resistance = getSnapshotValue(snapshot, "rpgcraftcore", "resistance");
 
-            // 回复给客户端
+            // 回复给客户端（mana=0, defense=0，已废弃）
             String ratingName = levelData.getRating().name();
             player.connection.send(new SyncMobInfoPacket(data.entityId(), ratingName, mobLevel,
-                    currentHealth, maxHealth, strength, mana, defense, resistance,
+                    currentHealth, maxHealth, strength, 0, 0, resistance,
                     Math.max(0, expGain)));
         });
     }

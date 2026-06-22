@@ -14,7 +14,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
  * RPG Attribute Points 插件模组入口
  * <p>
  * 提供属性点分配系统：玩家每升一级获得 1 个可自由分配的属性点，
- * 可分配到除 life/skill_point/magic_point 之外的任意属性上。
+ * 可分配到除 life/skill_point 之外的任意属性上。
  * <p>
  * 仅依赖 RPG Core（rpgcraftcore），不依赖其他插件模组。通过 {@link com.rpgcraft.core.event.PlayerLevelUpEvent}
  * 监听升级以授予点数，通过 core 的属性注册表动态发现可分配属性。

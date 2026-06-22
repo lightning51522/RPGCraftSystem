@@ -13,7 +13,7 @@ import java.util.Map;
  * <p>
  * <b>属性点语义</b>：每个属性点对应 1 点 {@code ADDITION} 属性修饰符，应用到对应属性上。
  * 可分配属性 = 所有 {@code shouldResetOnRespawn() == false} 的注册属性
- * （即排除 life/skill_point/magic_point 等资源型属性）。
+ * （即排除 life/skill_point 等资源型属性）。
  *
  * @see RPGSystems#registerAttributePointSystem(IAttributePointSystem)
  * @see RPGSystems#getAttributePointSystem()

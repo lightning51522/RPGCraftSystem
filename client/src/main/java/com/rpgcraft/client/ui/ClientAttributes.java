@@ -15,4 +15,6 @@ final class ClientAttributes {
     }
 
     static final Identifier CRITICAL_RATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
+    static final Identifier STRENGTH_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
+    static final Identifier INTELLIGENCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
 }

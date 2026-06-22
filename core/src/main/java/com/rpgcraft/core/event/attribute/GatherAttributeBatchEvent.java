@@ -29,7 +29,7 @@ import java.util.*;
  * RPGEventBus.register(GatherAttributeBatchEvent.class, event -> {
  *     for (LivingEntity entity : event.getEntities()) {
  *         if (isInAuraRange(entity)) {
- *             event.addModifier(entity, DEFENSE_ID,
+ *             event.addModifier(entity, STRENGTH_ID,
  *                 new SimpleAttributeModifier(AURA_SOURCE_ID, Operation.ADDITION, 10));
  *         }
  *     }

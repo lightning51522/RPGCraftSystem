@@ -1,7 +1,6 @@
 package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
-import com.rpgcraft.core.attributepoints.PlayerAttributePoints;
 import com.rpgcraft.core.level.PlayerLevelData;
 import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;
@@ -23,9 +22,12 @@ import net.minecraft.world.entity.player.Player;
  *   <li>标题 "玩家信息"（居中，黄色）</li>
  *   <li>等级行：{@code "等级: X (MAX)"} 或 {@code "等级: X  经验: current/next"}</li>
  *   <li>主职业行：{@code "职业: 名称 Lv.X"}（副职业不在此显示，避免多副职业时占用过多空间）</li>
- *   <li>可分配点数行：{@code "可分配点数: N"}（N &gt; 0 时绿色高亮，提示玩家分配）</li>
+ *   <li>可分配职业经验行（仅当池 &gt; 0 时）</li>
  *   <li>分隔线</li>
  * </ol>
+ * <p>
+ * 注：可分配属性点数不在此显示 —— 属性点分配在角色界面右侧面板（{@code AttributePointPanel}）
+ * 有专门的 [+]/[-] 操作区，左侧信息区不再重复展示数值。
  *
  * @see ICharacterScreenPlugin
  */
@@ -54,19 +56,16 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final int COLOR_TEXT = 0xFFFFFFFF;
     /** 灰色分隔线（原版灰阶） */
     private static final int COLOR_SEPARATOR = 0xFF373737;
-    /** 绿色高亮（有可分配点数时） */
-    private static final int COLOR_HIGHLIGHT = 0xFF55FF55;
-    /** 灰色提示（无可分配点数时） */
-    private static final int COLOR_HINT = 0xFFA0A0A0;
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
 
     /**
-     * 插件总高度（标题 + 等级 + 主职业 + 可分配点数 + 分隔线间距 + 1px 分隔线）。
+     * 插件总高度（标题 + 等级 + 主职业 + 可选的职业经验池行 + 分隔线间距 + 1px 分隔线）。
      * <p>
      * 主职业经验池行仅当 {@code pool > 0} 时显示，故其高度动态。
      * 副职业不在此界面显示（可同时激活多个，全列会占用过多空间；详见职业面板 P 键）。
+     * 可分配属性点数不在此显示（在右侧 AttributePointPanel 专门展示）。
      */
     @Override
     public int getHeight() {
@@ -78,7 +77,8 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
                     RPGSystems.<ProfessionData>getPlayerProfessionAttachment().get());
             if (profData.getSkillPointPool() > 0) extraLines += 1;
         }
-        return TITLE_HEIGHT + LINE_HEIGHT * (4 + extraLines) + SEPARATOR_GAP * 2 + 1;
+        // 行数：等级 + 职业 = 2 行固定，+ extraLines（职业经验池）+ 1 行分隔线间距
+        return TITLE_HEIGHT + LINE_HEIGHT * (2 + extraLines) + SEPARATOR_GAP * 2 + 1;
     }
 
     /**
@@ -143,18 +143,11 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
             currentY += LINE_HEIGHT;
         }
 
-        // 4. 可分配属性点数（属性点模块加载时显示；N > 0 绿色高亮提示分配）
-        if (RPGSystems.hasAttributePointSystem()) {
-            PlayerAttributePoints points = player.getData(
-                    RPGSystems.<PlayerAttributePoints>getPlayerAttributePointsAttachment().get());
-            int available = points.getAvailablePoints();
-            String pointsText = "可分配点数: " + available;
-            int pointsColor = available > 0 ? COLOR_HIGHLIGHT : COLOR_HINT;
-            graphics.text(mc.font, pointsText, x, currentY, pointsColor, false);
-        }
-        currentY += LINE_HEIGHT + SEPARATOR_GAP;
+        // 可分配属性点数不在此显示 —— 右侧 AttributePointPanel 已有专门的 [+]/[-] 操作区，
+        // 左侧信息区不再重复展示数值。
 
-        // 5. 分隔线
+        // 4. 分隔线
+        currentY += SEPARATOR_GAP;
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
     }
 }
