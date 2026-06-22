@@ -1,6 +1,5 @@
-package com.rpgcraft.profession;
+package com.rpgcraft.core.profession.api;
 
-import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,18 +8,42 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 由 datapack JSON 定义的职业实现。
+ * 职业抽象基类 —— 封装常用静态数据字段，降低职业子类样板代码
  * <p>
- * 所有字段在构造时从 JSON 解析得到，运行时不可变。取代了旧版本中每个内置职业一个 Java 类
- * （{@code WarriorProfession} 等）的硬编码做法 —— 框架与具体职业彻底解耦，新增/修改职业只需
- * 增改 {@code data/rpgcraftcore/rpg/professions/*.json}，无需改动 Java 代码。
+ * 继承本类的职业只需在构造函数传入核心字段（ID、显示名、描述、类型、前置、等级上限、加成映射），
+ * 然后按需覆写 {@link IProfession} 的钩子方法（如 {@link #getIconItem}、{@link #onAttack} 等）。
  * <p>
- * 由 {@link ProfessionDefinitionLoader} 解析 JSON 后构造并注册到 {@link ProfessionRegistry}。
+ * 所有 Map 字段在构造时被冻结为不可变，保证运行时不可变。
+ * <p>
+ * 不继承本类、直接实现 {@link IProfession} 也是允许的（适合纯行为型职业或特殊场景）。
+ *
+ * <h3>使用示例</h3>
+ * <pre>{@code
+ * public class WarriorProfession extends AbstractProfession {
+ *     public WarriorProfession() {
+ *         super(
+ *             Identifier.fromNamespaceAndPath("rpgcraftcore", "warrior"),
+ *             "战士", "力量提升，敏捷降低",
+ *             ProfessionType.PRIMARY,
+ *             ProfessionManager.COMMONER_ID,
+ *             20,
+ *             Map.of(STRENGTH_ID, 5, AGILE_ID, -3),
+ *             Map.of(STRENGTH_ID, 1)
+ *         );
+ *     }
+ *
+ *     @Override public ItemStack getIconItem() { return new ItemStack(Items.IRON_SWORD); }
+ *
+ *     @Override
+ *     public void onAttack(ProfessionCombatContext ctx) {
+ *         // 战士特有战斗逻辑
+ *     }
+ * }
+ * }</pre>
  *
  * @see IProfession
- * @see ProfessionDefinitionLoader
  */
-public final class JsonProfession implements IProfession {
+public abstract class AbstractProfession implements IProfession {
 
     private final Identifier id;
     private final String displayName;
@@ -30,9 +53,10 @@ public final class JsonProfession implements IProfession {
     private final int maxLevel;
     private final Map<Identifier, Integer> baseBonuses;
     private final Map<Identifier, Integer> perLevel;
-    private final int @Nullable [] expTable;
 
     /**
+     * 全参数构造函数
+     *
      * @param id           职业 ID
      * @param displayName  显示名
      * @param description  描述
@@ -41,21 +65,23 @@ public final class JsonProfession implements IProfession {
      * @param maxLevel     等级上限
      * @param baseBonuses  1 级基础加成（attrId → 数值），会被冻结为不可变
      * @param perLevel     每级增量（attrId → 数值），会被冻结为不可变
-     * @param expTable     专属经验表（可为 null 表示用全局公式）
      */
-    public JsonProfession(Identifier id, String displayName, String description,
-                          ProfessionType type, @Nullable Identifier prerequisite, int maxLevel,
-                          Map<Identifier, Integer> baseBonuses, Map<Identifier, Integer> perLevel,
-                          int @Nullable [] expTable) {
+    protected AbstractProfession(Identifier id, String displayName, String description,
+                                 ProfessionType type, @Nullable Identifier prerequisite, int maxLevel,
+                                 Map<Identifier, Integer> baseBonuses, Map<Identifier, Integer> perLevel) {
         this.id = id;
         this.displayName = displayName;
         this.description = description;
         this.type = type;
         this.prerequisite = prerequisite;
         this.maxLevel = maxLevel;
-        this.baseBonuses = Collections.unmodifiableMap(new LinkedHashMap<>(baseBonuses));
-        this.perLevel = Collections.unmodifiableMap(new LinkedHashMap<>(perLevel));
-        this.expTable = expTable == null ? null : expTable.clone();
+        this.baseBonuses = freeze(baseBonuses);
+        this.perLevel = freeze(perLevel);
+    }
+
+    private static Map<Identifier, Integer> freeze(Map<Identifier, Integer> map) {
+        if (map == null || map.isEmpty()) return Map.of();
+        return Collections.unmodifiableMap(new LinkedHashMap<>(map));
     }
 
     @Override
@@ -86,11 +112,6 @@ public final class JsonProfession implements IProfession {
     @Override
     public int getMaxLevel() {
         return maxLevel;
-    }
-
-    @Override
-    public int @Nullable [] getExpTable() {
-        return expTable == null ? null : expTable.clone();
     }
 
     @Override

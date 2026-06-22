@@ -37,7 +37,9 @@ public record ProfessionActionPacket(Action action, @Nullable Identifier profess
         /** 切换当前主职业到目标职业 */
         SWITCH_MAIN,
         /** 切换指定副职业（{@code professionId}）的激活状态 */
-        TOGGLE_SECONDARY
+        TOGGLE_SECONDARY,
+        /** 解锁指定副职业（{@code professionId}）：消耗职业经验，基础副职业直接解锁，非基础需前置满级 */
+        UNLOCK_SECONDARY
     }
 
     public static final Type<ProfessionActionPacket> TYPE = new Type<>(
@@ -76,6 +78,7 @@ public record ProfessionActionPacket(Action action, @Nullable Identifier profess
                 case TOGGLE_SECONDARY -> {
                     if (id != null) sys.setSecondaryActive(player, id, !sys.isSecondaryActive(player, id));
                 }
+                case UNLOCK_SECONDARY -> { if (id != null) sys.unlockSecondary(player, id); }
             }
         });
     }

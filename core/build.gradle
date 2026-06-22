@@ -82,6 +82,9 @@ neoForge {
         rpgcraftprofession {
             sourceSet project(':profession').sourceSets.main
         }
+        rpgcraftprofessions {
+            sourceSet project(':professions').sourceSets.main
+        }
         rpgcraftclient {
             sourceSet project(':client').sourceSets.main
         }
@@ -104,6 +107,7 @@ dependencies {
     runtimeOnly project(':leveling')
     runtimeOnly project(':equipment')
     runtimeOnly project(':profession')
+    runtimeOnly project(':professions')
     runtimeOnly project(':client')
     runtimeOnly project(':attributepoints')
     runtimeOnly project(':skills')

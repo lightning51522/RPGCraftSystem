@@ -82,6 +82,8 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
         }
         // 重生（PlayerEvent.Clone）创建的是全新实体，职业加成修饰符需重新应用
         ProfessionManager.reapplyAllBonuses(newPlayer);
+        // 生命周期钩子：重生（加成重建后触发）
+        ProfessionManager.notifyRespawnHooks(newPlayer);
     }
 
     @Override

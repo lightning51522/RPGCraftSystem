@@ -2,6 +2,7 @@ package com.rpgcraft.core.ui;
 
 import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -53,7 +54,9 @@ public final class ProfessionStateCache {
      * @param prerequisite 前置职业 ID（可为 null）
      * @param advanced    是否进阶职业
      * @param type        职业类型（主职业 / 副职业），决定节点归属哪棵树
-     * @param maxLevel    该职业的等级上限（来自 JSON max_level / 全局 default_max_level）
+     * @param maxLevel    该职业的等级上限
+     * @param iconItem    节点物品图标（{@link IProfession#getIconItem()}），空物品表示回退到字符图标
+     * @param iconChar    节点字符图标（{@link IProfession#getIconChar()}），物品图标为空时使用
      */
     public record ProfessionNode(
             Identifier id,
@@ -62,7 +65,9 @@ public final class ProfessionStateCache {
             @Nullable Identifier prerequisite,
             boolean advanced,
             IProfession.ProfessionType type,
-            int maxLevel
+            int maxLevel,
+            ItemStack iconItem,
+            String iconChar
     ) {
     }
 

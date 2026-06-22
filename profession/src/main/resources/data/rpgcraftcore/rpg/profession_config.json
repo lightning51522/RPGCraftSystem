@@ -1,4 +1,5 @@
 {
   "allow_downgrade_switch": false,
-  "default_max_level": 20
+  "default_max_level": 20,
+  "secondary_unlock_cost": 50000
 }

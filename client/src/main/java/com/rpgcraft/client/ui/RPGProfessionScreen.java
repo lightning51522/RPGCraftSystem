@@ -15,7 +15,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -91,13 +90,24 @@ public class RPGProfessionScreen extends Screen {
     private static final int LEVEL_GAP_X = 90;
     /** 横向树：同层兄弟节点间距（Y 方向） */
     private static final int SIBLING_GAP_Y = 40;
-    /** 当前主职业金色框的额外外扩（每边） */
-    private static final int GOLD_BORDER_PAD = 2;
-    /** 激活副职业蓝色框的额外外扩（每边，与金色一致） */
-    private static final int SECONDARY_BORDER_PAD = 2;
+    /** 当前主职业/激活副职业角标 —— 距节点外缘的间距（每边），贴近节点框 */
+    private static final int CORNER_OFFSET = 1;
+    /** 角标的臂长（水平/垂直段各画这么长） */
+    private static final int CORNER_ARM = 5;
+    /** 角标的线宽 */
+    private static final int CORNER_THICK = 1;
 
     /** 节点下方 +（投入一级）按钮尺寸 —— 适配原版按钮 9-slice（3px 边框，14 仍可接受） */
     private static final int PLUS_BUTTON_SIZE = 14;
+    /** 节点下方 + 按钮宽度 —— 加宽以容纳「Lv.NN +」文本（字体宽度约 36px，留余量到 40） */
+    private static final int PLUS_BUTTON_WIDTH = 40;
+    /**
+     * 解锁副职业消耗的职业经验（与服务端 {@code ProfessionConfigLoader.secondaryUnlockCost} 默认值镜像）。
+     * <p>
+     * 仅用于客户端 UI 显示/灰显判定；实际扣费由服务端权威处理。
+     * 服务端配置可改，客户端若未同步会显示偏差但不影响实际扣费正确性。
+     */
+    private static final int SECONDARY_UNLOCK_COST = 50000;
     /** 节点下升级按钮行与节点的垂直间距 */
     private static final int PLUS_BUTTON_GAP = 1;
     /** 标题栏右上角最大化按钮尺寸 */
@@ -138,35 +148,14 @@ public class RPGProfessionScreen extends Screen {
     /** 连接线 */
     private static final int COLOR_LINE_UNLOCKED = 0xFF555555;
     private static final int COLOR_LINE_LOCKED = 0xFF373737;
-    /** 当前主职业金色框 */
-    private static final int COLOR_GOLD = 0xFFFFD700;
-    /** 激活副职业蓝色框 */
+    /** 当前主职业绿色角标（与激活副职业的蓝色区分） */
+    private static final int COLOR_MAIN_CURRENT = 0xFF55FF55;
+    /** 激活副职业蓝色角标 */
     private static final int COLOR_SECONDARY_ACTIVE = 0xFF3A7BFF;
 
-    /** 每个职业的图标字符（fallback，优先用 {@link #NODE_ITEM_ICONS} 的物品图标） */
-    private static final Map<Identifier, String> NODE_ICONS = new HashMap<>();
-
-    /**
-     * 每个职业的物品图标（原版 advancement 节点风格）。优先用 fakeItem 渲染；
-     * 未映射的职业回退到 {@link #NODE_ICONS} 的中文字符。
-     */
-    private static final Map<Identifier, ItemStack> NODE_ITEM_ICONS = new HashMap<>();
-
-    static {
-        NODE_ICONS.put(id("rpgcraftcore", "commoner"), "民");
-        NODE_ICONS.put(id("rpgcraftcore", "warrior"), "战");
-        NODE_ICONS.put(id("rpgcraftcore", "berserker"), "狂");
-        NODE_ICONS.put(id("rpgcraftcore", "archer"), "弓");
-        NODE_ICONS.put(id("rpgcraftcore", "marksman"), "神");
-        NODE_ICONS.put(id("rpgcraftcore", "apprentice"), "徒");
-
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "commoner"), new ItemStack(Items.WOODEN_HOE));
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "warrior"), new ItemStack(Items.IRON_SWORD));
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "berserker"), new ItemStack(Items.DIAMOND_AXE));
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "archer"), new ItemStack(Items.BOW));
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "marksman"), new ItemStack(Items.CROSSBOW));
-        NODE_ITEM_ICONS.put(id("rpgcraftcore", "apprentice"), new ItemStack(Items.BOOK));
-    }
+    /** 每个职业的图标字符（fallback，优先用 {@link ProfessionNode#iconItem()} 的物品图标） */
+    // 注：图标现由服务端通过 ProfessionNode.iconItem / iconChar 推送（源自 IProfession 实现），
+    // 客户端不再硬编码。
 
     // ----------------------------------------------------------------
     // 两个可拖动浮窗
@@ -244,7 +233,10 @@ public class RPGProfessionScreen extends Screen {
         centeredOnMain = false;
         lastClickTime = 0L;
         lastClickNodeId = null;
-        ProfessionStateCache.clear();
+        // 注意：不清空 ProfessionStateCache。
+        // 缓存由服务端推送的全局状态，与 Screen 生命周期无关；切到确认框等子 Screen 时本 Screen 会被
+        // removed()，若清空缓存则切回时会因 state==null 显示「加载中」白屏。缓存会在下次服务端推送时
+        // 自然覆盖更新，无需手动清理。
         super.removed();
     }
 
@@ -565,26 +557,25 @@ public class RPGProfessionScreen extends Screen {
         int sy = y + (int) win.panY;
         boolean hover = isHover(mouseX, mouseY, sx, sy, NODE_SIZE, NODE_SIZE);
 
-        // 外框：激活副职业（蓝）优先于当前主职业（金）—— 渲染用逻辑坐标 x/y
+        // 外框角标：激活副职业（蓝）优先于当前主职业（绿）—— 在节点四角绘制 L 形角标
+        // （不使用填充色块，避免大面积遮挡相邻节点；主/副用不同颜色区分）
         if (isSecondaryActive) {
-            graphics.fill(x - SECONDARY_BORDER_PAD - 1, y - SECONDARY_BORDER_PAD - 1,
-                    x + NODE_SIZE + SECONDARY_BORDER_PAD + 1, y + NODE_SIZE + SECONDARY_BORDER_PAD + 1,
-                    COLOR_SECONDARY_ACTIVE);
+            drawCornerMarkers(graphics, x, y, NODE_SIZE, COLOR_SECONDARY_ACTIVE);
         } else if (isCurrent) {
-            graphics.fill(x - GOLD_BORDER_PAD - 1, y - GOLD_BORDER_PAD - 1,
-                    x + NODE_SIZE + GOLD_BORDER_PAD + 1, y + NODE_SIZE + GOLD_BORDER_PAD + 1, COLOR_GOLD);
+            drawCornerMarkers(graphics, x, y, NODE_SIZE, COLOR_MAIN_CURRENT);
         }
         // 节点框：原版 advancement task_frame（26×26，1:1 无缩放）
         // obtained = 已解锁/当前/激活副职业（亮框）；unobtained = 未解锁（暗框）
         boolean obtained = unlocked || isCurrent || isSecondaryActive;
         Identifier frameSprite = obtained ? TASK_FRAME_OBTAINED : TASK_FRAME_UNOBTAINED;
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, frameSprite, x, y, NODE_SIZE, NODE_SIZE);
-        // 图标：优先物品图标（fakeItem，原版 advancement 节点偏移 +8,+5），否则回退中文字符
-        ItemStack itemIcon = NODE_ITEM_ICONS.get(node.id());
+        // 图标：优先物品图标（fakeItem，原版 advancement 节点偏移 +8,+5），否则回退字符图标
+        // 图标数据由服务端通过 ProfessionNode 推送（源自 IProfession.getIconItem / getIconChar）
+        ItemStack itemIcon = node.iconItem();
         if (itemIcon != null && !itemIcon.isEmpty()) {
             graphics.fakeItem(itemIcon, x + NODE_ICON_ITEM_X, y + NODE_ICON_ITEM_Y);
         } else {
-            String icon = NODE_ICONS.getOrDefault(node.id(), "?");
+            String icon = node.iconChar() != null && !node.iconChar().isEmpty() ? node.iconChar() : "?";
             int iconColor = unlocked ? COLOR_TEXT : COLOR_HINT;
             graphics.text(this.font, icon, x + (NODE_SIZE - this.font.width(icon)) / 2,
                     y + ICON_TEXT_OFFSET_Y, iconColor, false);
@@ -620,12 +611,13 @@ public class RPGProfessionScreen extends Screen {
         int rowSY = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;       // 屏幕行 Y
 
         if (!atMax) {
-            // 可升级：加宽按钮（节点宽度）显示「Lv.N +」
+            // 可升级：加宽按钮显示「Lv.N +」，按钮水平居中于节点下方
             // canInvest 时高亮可点；经验不足时禁用态（button_disabled），仍显示等级
             boolean canInvest = canInvest(state, node);
-            int btnW = NODE_SIZE;
-            int lx = nodeLx;                                     // 逻辑 X（左对齐到节点）
-            int hx = nodeSx;                                     // 屏幕 X
+            int btnW = PLUS_BUTTON_WIDTH;
+            // 按钮左上角：水平居中于节点（节点中心 = nodeLx + NODE_SIZE/2）
+            int lx = nodeLx + (NODE_SIZE - btnW) / 2;
+            int hx = nodeSx + (NODE_SIZE - btnW) / 2;
             boolean hover = canInvest && isHover(mouseX, mouseY, hx, rowSY, btnW, PLUS_BUTTON_SIZE);
             Identifier sprite = !canInvest ? BUTTON_DISABLED_SPRITE
                     : (hover ? BUTTON_HIGHLIGHTED_SPRITE : BUTTON_SPRITE);
@@ -670,11 +662,50 @@ public class RPGProfessionScreen extends Screen {
         return (height - 9) / 2 + 1;
     }
 
-    /** 节点下升级按钮的屏幕矩形（节点宽度，命中检测用） */
+    /**
+     * 在矩形（节点）四个角绘制 L 形角标，用于标识当前主职业/已激活副职业。
+     * <p>
+     * 替代旧的整圈填充色块 —— 角标更轻量，不会大面积遮挡相邻节点。
+     * 每个角的拐角点位于节点外缘 {@link #CORNER_OFFSET} 处，两条短臂向节点方向（向内）延伸
+     * {@link #CORNER_ARM} 长，构成开口朝向节点中心的 L 形，整体呈"取景框"效果：
+     * <pre>
+     *    ┘                └
+     *     ┐            ┌
+     *       节点矩形
+     *     └            ┘
+     *    ┐                ┌
+     * </pre>
+     * 注：上图拐角在外、臂向内（实际臂较长时拐角几乎贴节点四角）。
+     *
+     * @param x     节点左上角逻辑 X
+     * @param y     节点左上角逻辑 Y
+     * @param size  节点边长
+     * @param color 角标颜色（ARGB）
+     */
+    private static void drawCornerMarkers(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
+        int off = CORNER_OFFSET;
+        int arm = CORNER_ARM;
+        int thick = CORNER_THICK;
+        // 每个角的拐角点位于节点外缘 `off` 处；水平段和垂直段均从拐角点向节点方向（向内）延伸 `arm` 长
+        // 左上角（拐角在节点左上方外缘，臂向右、向下伸向节点）
+        graphics.fill(x - off - thick, y - off - thick,         x - off + arm,             y - off,             color); // 水平段（向右）
+        graphics.fill(x - off - thick, y - off - thick,         x - off,                   y - off + arm,        color); // 垂直段（向下）
+        // 右上角（拐角在节点右上方外缘，臂向左、向下）
+        graphics.fill(x + size + off - arm, y - off - thick,    x + size + off + thick,    y - off,              color);
+        graphics.fill(x + size + off,       y - off - thick,    x + size + off + thick,    y - off + arm,        color);
+        // 左下角（拐角在节点左下方外缘，臂向右、向上）
+        graphics.fill(x - off - thick,      y + size + off,     x - off + arm,             y + size + off + thick, color);
+        graphics.fill(x - off - thick,      y + size + off - arm, x - off,                 y + size + off + thick, color);
+        // 右下角（拐角在节点右下方外缘，臂向左、向上）
+        graphics.fill(x + size + off - arm, y + size + off,     x + size + off + thick,    y + size + off + thick, color);
+        graphics.fill(x + size + off,       y + size + off - arm, x + size + off + thick,  y + size + off + thick, color);
+    }
+
+    /** 节点下升级按钮的屏幕矩形（水平居中于节点，命中检测用） */
     private int[] plusButtonScreenRect(int nodeSx, int nodeSy) {
-        int bx = nodeSx;
+        int bx = nodeSx + (NODE_SIZE - PLUS_BUTTON_WIDTH) / 2;
         int by = nodeSy + NODE_SIZE + PLUS_BUTTON_GAP;
-        return new int[]{bx, by, NODE_SIZE, PLUS_BUTTON_SIZE};
+        return new int[]{bx, by, PLUS_BUTTON_WIDTH, PLUS_BUTTON_SIZE};
     }
 
     // --------------------------------------------------------------------
@@ -699,7 +730,7 @@ public class RPGProfessionScreen extends Screen {
 
         String status;
         int statusColor;
-        if (isCurrent) { status = "[当前主职业]"; statusColor = 0xFFD700; }
+        if (isCurrent) { status = "[当前主职业]"; statusColor = 0x55FF55; }
         else if (isSecondaryActive) { status = "[副职业·已激活]"; statusColor = 0x3A7BFF; }
         else if (unlocked) { status = "[已解锁]"; statusColor = 0x55FF55; }
         else { status = "[未解锁]"; statusColor = 0xAAAAAA; }
@@ -725,6 +756,52 @@ public class RPGProfessionScreen extends Screen {
             } else {
                 lines.add(Component.literal("已达满级").withStyle(s -> s.withColor(0xFFFF00)));
             }
+        } else if (node.type() == IProfession.ProfessionType.SECONDARY) {
+            // 未解锁副职业：显示解锁条件
+            int cost = SECONDARY_UNLOCK_COST;
+            boolean canAfford = state.pool() >= cost;
+            boolean prereqOk = true;
+            String prereqHint = "";
+            if (node.prerequisite() != null) {
+                ProfessionNode prereqNode = findNode(state, node.prerequisite());
+                String prereqName = prereqNode != null ? prereqNode.displayName() : node.prerequisite().toString();
+                int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
+                int prereqLvl = state.levels().getOrDefault(node.prerequisite(), 0);
+                if (!state.unlocked().contains(node.prerequisite())) {
+                    prereqOk = false;
+                    prereqHint = "需先解锁前置: " + prereqName;
+                } else if (prereqLvl < prereqMax) {
+                    prereqOk = false;
+                    prereqHint = "前置 " + prereqName + " 需达满级 (" + prereqLvl + "/" + prereqMax + ")";
+                }
+            }
+            if (!prereqOk) {
+                lines.add(Component.literal(prereqHint).withStyle(s -> s.withColor(0xFF8080)));
+            }
+            String costText = "解锁消耗: " + cost + (canAfford ? " 经验" : " 经验 (不足)");
+            lines.add(Component.literal(costText).withStyle(s -> s.withColor(canAfford ? 0xFFFF00 : 0xAAAAAA)));
+            if (canUnlockSecondary(state, node)) {
+                lines.add(Component.literal("双击解锁").withStyle(s -> s.withColor(0x55FF55)));
+            }
+        }
+
+        // 追加职业类自定义 tooltip 行（通过 IProfession.getTooltip 拿到）
+        try {
+            com.rpgcraft.core.registry.IProfessionSystem sys = com.rpgcraft.core.registry.RPGSystems.getProfessionSystem();
+            if (sys != null) {
+                IProfession prof = sys.getProfessionById(node.id());
+                if (prof != null) {
+                    com.rpgcraft.core.profession.api.ProfessionTooltipContext ctx =
+                            new com.rpgcraft.core.profession.api.ProfessionTooltipContext(
+                                    level, maxLevel, unlocked, isCurrent, isSecondaryActive);
+                    List<Component> custom = prof.getTooltip(ctx);
+                    if (custom != null && !custom.isEmpty()) {
+                        lines.addAll(custom);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // 客户端 fallback：tooltip 扩展失败不应影响面板渲染
         }
         return lines;
     }
@@ -843,11 +920,34 @@ public class RPGProfessionScreen extends Screen {
             }
             // 已解锁且是当前 → 无操作
         } else {
-            // 副职业：已解锁 → 切换激活状态
-            if (unlocked) {
+            // 副职业：未解锁 → 可解锁则弹确认框；已解锁 → 切换激活状态
+            if (!unlocked) {
+                if (canUnlockSecondary(state, node)) {
+                    openUnlockSecondaryConfirm(node);
+                }
+            } else {
                 sendAction("toggle_secondary", nodeId);
             }
         }
+    }
+
+    /** 打开副职业解锁确认对话框 */
+    private void openUnlockSecondaryConfirm(ProfessionNode node) {
+        Minecraft mc = Minecraft.getInstance();
+        Screen parent = this;
+        ConfirmScreen confirm = new ConfirmScreen(
+                confirmed -> {
+                    if (confirmed) {
+                        sendAction("unlock_secondary", node.id());
+                    }
+                    mc.setScreen(parent);
+                },
+                Component.literal("解锁 " + node.displayName() + "?"),
+                Component.literal("将消耗 " + SECONDARY_UNLOCK_COST + " 职业经验解锁此副职业"),
+                Component.literal("解锁"),
+                Component.literal("取消")
+        );
+        mc.setScreen(confirm);
     }
 
     /** 打开进阶确认对话框 */
@@ -985,6 +1085,7 @@ public class RPGProfessionScreen extends Screen {
             case "advance" -> ProfessionActionPacket.Action.ADVANCE;
             case "switch_main" -> ProfessionActionPacket.Action.SWITCH_MAIN;
             case "toggle_secondary" -> ProfessionActionPacket.Action.TOGGLE_SECONDARY;
+            case "unlock_secondary" -> ProfessionActionPacket.Action.UNLOCK_SECONDARY;
             default -> null;
         };
         if (act == null) return;
@@ -1051,6 +1152,29 @@ public class RPGProfessionScreen extends Screen {
         ProfessionNode prereqNode = findNode(state, node.prerequisite());
         int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
         return state.levels().getOrDefault(node.prerequisite(), 0) >= prereqMax;
+    }
+
+    /**
+     * 副职业节点是否可解锁（与服务端 {@code canUnlockSecondary} 镜像，仅用于 UI 显示/交互）。
+     * <p>
+     * 规则：
+     * <ul>
+     *   <li>必须是 SECONDARY 类型且未解锁</li>
+     *   <li>基础副职业（prerequisite=null）：池 ≥ 解锁消耗</li>
+     *   <li>非基础副职业：前置须已解锁且达其满级，池 ≥ 解锁消耗</li>
+     * </ul>
+     */
+    private boolean canUnlockSecondary(ProfessionStateView state, ProfessionNode node) {
+        if (node.type() != IProfession.ProfessionType.SECONDARY) return false;
+        if (state.unlocked().contains(node.id())) return false;
+        if (state.pool() < SECONDARY_UNLOCK_COST) return false;
+        if (node.prerequisite() != null) {
+            if (!state.unlocked().contains(node.prerequisite())) return false;
+            ProfessionNode prereqNode = findNode(state, node.prerequisite());
+            int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
+            if (state.levels().getOrDefault(node.prerequisite(), 0) < prereqMax) return false;
+        }
+        return true;
     }
 
     private ProfessionNode findNode(ProfessionStateView state, Identifier id) {
