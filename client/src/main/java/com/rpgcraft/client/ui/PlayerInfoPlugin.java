@@ -22,7 +22,7 @@ import net.minecraft.world.entity.player.Player;
  * <ol>
  *   <li>标题 "玩家信息"（居中，黄色）</li>
  *   <li>等级行：{@code "等级: X (MAX)"} 或 {@code "等级: X  经验: current/next"}</li>
- *   <li>职业行：{@code "职业: 名称"}</li>
+ *   <li>主职业行：{@code "职业: 名称 Lv.X"}（副职业不在此显示，避免多副职业时占用过多空间）</li>
  *   <li>可分配点数行：{@code "可分配点数: N"}（N &gt; 0 时绿色高亮，提示玩家分配）</li>
  *   <li>分隔线</li>
  * </ol>
@@ -63,10 +63,10 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final StringBuilder SB = new StringBuilder(64);
 
     /**
-     * 插件总高度（标题 + 等级 + 主职业 + 各已激活副职业行 + 可分配点数 + 分隔线间距 + 1px 分隔线）。
+     * 插件总高度（标题 + 等级 + 主职业 + 可分配点数 + 分隔线间距 + 1px 分隔线）。
      * <p>
-     * 高度随当前已激活副职业数量动态变化（多副职业共存模型）。
-     * 主职业经验池行仅当 {@code pool > 0} 时显示，故其高度也动态。
+     * 主职业经验池行仅当 {@code pool > 0} 时显示，故其高度动态。
+     * 副职业不在此界面显示（可同时激活多个，全列会占用过多空间；详见职业面板 P 键）。
      */
     @Override
     public int getHeight() {
@@ -76,7 +76,6 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
         if (player != null) {
             ProfessionData profData = player.getData(
                     RPGSystems.<ProfessionData>getPlayerProfessionAttachment().get());
-            extraLines += profData.getActiveSecondaryProfessions().size();
             if (profData.getSkillPointPool() > 0) extraLines += 1;
         }
         return TITLE_HEIGHT + LINE_HEIGHT * (4 + extraLines) + SEPARATOR_GAP * 2 + 1;
@@ -134,15 +133,8 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
                 + " Lv." + Math.max(1, profLevel);
         graphics.text(mc.font, profText, x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
-        // 副职业（多副职业独立激活，加成共存）—— 每个已激活副职业一行
-        for (net.minecraft.resources.Identifier secId : profData.getActiveSecondaryProfessions()) {
-            IProfession secProf = RPGSystems.getProfessionSystem().getProfessionById(secId);
-            int secLevel = profData.getProfessionLevel(secId);
-            String secText = "  副: " + (secProf != null ? secProf.getDisplayName() : "未知")
-                    + " Lv." + Math.max(1, secLevel);
-            graphics.text(mc.font, secText, x, currentY, COLOR_HINT, false);
-            currentY += LINE_HEIGHT;
-        }
+        // 注：副职业不在此界面显示 —— 副职业可同时激活多个，全列会占用过多空间且信息冗余。
+        // 副职业详情请查看职业面板（按 P 键）。
         // 可分配职业经验池
         int profPool = profData.getSkillPointPool();
         if (profPool > 0) {

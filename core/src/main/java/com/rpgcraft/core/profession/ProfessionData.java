@@ -101,10 +101,21 @@ public class ProfessionData {
     }
 
     /**
-     * 已激活副职业集合的不可变视图
+     * 已激活副职业集合的快照拷贝。
+     * <p>
+     * <b>返回拷贝而非不可变视图</b>，因为多处调用方在遍历本集合时通过
+     * {@link #setSecondaryActive} 修改底层集合（如客户端同步包清空旧激活集、
+     * 战斗钩子 dispatch 中职业回调可能间接触发激活态变更），返回视图会触发
+     * {@link ConcurrentModificationException}。
+     * <p>
+     * 性能权衡：激活副职业数量受玩家手动激活行为约束（远小于全职业数），
+     * 拷贝开销可忽略。其他两个集合 getter（{@link #getProfessionLevels} /
+     * {@link #getUnlockedProfessions}）无迭代修改场景，仍返回零分配的不可变视图。
+     * <p>
+     * 调用方不应依赖返回集合的修改反映回本对象。
      */
     public Set<Identifier> getActiveSecondaryProfessions() {
-        return Collections.unmodifiableSet(activeSecondaryProfessions);
+        return new java.util.LinkedHashSet<>(activeSecondaryProfessions);
     }
 
     /** 指定副职业是否已激活 */
@@ -149,7 +160,7 @@ public class ProfessionData {
         professionLevels.put(professionId, level);
     }
 
-    /** 职业等级的不可变视图 */
+    /** 职业等级的不可变视图（无迭代修改场景，仅整体传递/单点查询，零分配） */
     public Map<Identifier, Integer> getProfessionLevels() {
         return Collections.unmodifiableMap(professionLevels);
     }
@@ -163,7 +174,7 @@ public class ProfessionData {
         professionLevels.putIfAbsent(professionId, 1);
     }
 
-    /** 已解锁职业集合的不可变视图 */
+    /** 已解锁职业集合的不可变视图（无迭代修改场景，仅整体传递/单点查询，零分配） */
     public Set<Identifier> getUnlockedProfessions() {
         return Collections.unmodifiableSet(unlockedProfessions);
     }

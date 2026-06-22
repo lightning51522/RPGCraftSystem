@@ -9,6 +9,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
@@ -85,6 +86,13 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             buf.writeBoolean(n.advanced());
             buf.writeByte(n.type().ordinal());
             buf.writeVarInt(n.maxLevel());
+            // 图标：优先物品（带空标记），其次字符
+            ItemStack item = n.iconItem();
+            buf.writeBoolean(!item.isEmpty());
+            if (!item.isEmpty()) {
+                ItemStack.STREAM_CODEC.encode(buf, item);
+            }
+            buf.writeUtf(n.iconChar());
         }
     }
 
@@ -120,7 +128,12 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             boolean advanced = buf.readBoolean();
             IProfession.ProfessionType type = IProfession.ProfessionType.values()[buf.readByte()];
             int maxLevel = buf.readVarInt();
-            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type, maxLevel));
+            ItemStack iconItem = ItemStack.EMPTY;
+            if (buf.readBoolean()) {
+                iconItem = ItemStack.STREAM_CODEC.decode(buf);
+            }
+            String iconChar = buf.readUtf();
+            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type, maxLevel, iconItem, iconChar));
         }
         return new SyncProfessionStatePacket(new ProfessionStateView(
                 pool, currentMain, activeSecondary,

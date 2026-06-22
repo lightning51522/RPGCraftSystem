@@ -6,19 +6,25 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.attribute.api.Operation;
+import com.rpgcraft.core.event.RPGEventBus;
+import com.rpgcraft.core.event.combat.RPGDamageEvent;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.network.ProfessionStateAssembler;
 import com.rpgcraft.core.profession.ProfessionData;
 import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.core.profession.api.ProfessionCombatContext;
+import com.rpgcraft.core.profession.api.ProfessionContext;
 import com.rpgcraft.core.registry.IProfessionSystem;
 import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.profession.network.SyncPlayerProfessionPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -39,7 +45,7 @@ import java.util.function.Supplier;
  */
 public class ProfessionManager {
 
-    /** 全局职业默认等级上限（职业 JSON 未指定 max_level 时使用；由 ProfessionDefinitionLoader 加载） */
+    /** 全局职业默认等级上限（职业未指定 max_level 时使用；由 ProfessionConfigLoader 加载） */
     public static final int LEVEL_CAP = 20;
 
     private static ProfessionRegistry registry;
@@ -51,11 +57,11 @@ public class ProfessionManager {
 
     public static final Identifier COMMONER_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "commoner");
-    /** 占位副职业 ID（当 datapack 未提供任何 secondary 职业时注入，详见 ProfessionDefinitionLoader） */
+    /** 占位副职业 ID（当 professions 子模块未提供任何 secondary 职业时由子模块注入） */
     public static final Identifier APPRENTICE_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "apprentice");
     /**
-     * @deprecated 具体职业已由 datapack JSON 驱动，这些 ID 常量仅保留供历史代码引用兼容；
+     * @deprecated 具体职业已迁移到 professions 子模块的 Java 类，这些 ID 常量仅保留供历史代码引用兼容；
      * 新代码应通过 {@link #getRegistry()} 按需查找。
      */
     @Deprecated(since = "0.4.0-alpha", forRemoval = false)
@@ -80,11 +86,12 @@ public class ProfessionManager {
     /**
      * 初始化职业模块
      * <p>
-     * 注意：具体职业定义已改为 datapack JSON 驱动（见 {@link ProfessionDefinitionLoader}），
-     * 此处不再注册任何具体职业。具体职业在服务端资源加载（{@code /reload}）时由
-     * {@link ProfessionDefinitionLoader#applyLoaded} 灌入 {@link #registry}。
+     * 具体职业定义由 {@code professions} 子模块（{@code rpgcraftprofessions}）在它的
+     * {@code @Mod} 入口构造函数中通过 {@link #getRegistry()} 注册，依赖顺序保证
+     * 本方法先于 professions 模块的初始化执行。
      * <p>
-     * 本方法只负责：创建注册表、注册附件类型、注册 SPI/系统门面/状态组装器。
+     * 本方法负责：创建注册表、注册附件类型、注册 SPI/系统门面/状态组装器、
+     * 注册战斗钩子调度监听器（RPGEventBus）。
      */
     public static void init() {
         registry = new ProfessionRegistry();
@@ -104,6 +111,9 @@ public class ProfessionManager {
 
         // 注册职业状态组装器（供 core 的 RequestProfessionStatePacket 组装完整状态推送给客户端）
         ProfessionStateAssembler.register(ProfessionManager::buildStateView);
+
+        // 注册战斗钩子中央调度器：把 RPGDamageEvent 转发到玩家当前生效职业的 onAttack/onDamaged/onKill
+        registerCombatDispatchers();
     }
 
     /**
@@ -116,7 +126,8 @@ public class ProfessionManager {
         for (IProfession prof : registry.getAllProfessions()) {
             nodes.add(new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode(
                     prof.getId(), prof.getDisplayName(), prof.getDescription(),
-                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType(), prof.getMaxLevel()));
+                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType(), prof.getMaxLevel(),
+                    prof.getIconItem(), prof.getIconChar()));
         }
         return new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView(
                 data.getSkillPointPool(),
@@ -131,8 +142,8 @@ public class ProfessionManager {
     /**
      * 向所有在线玩家推送最新职业状态。
      * <p>
-     * 由 {@link ProfessionDefinitionLoader} 在 {@code /reload} 重建注册表后调用，
-     * 使客户端职业面板立即反映 datapack 修改。
+     * 由 {@link ProfessionConfigLoader} 在 {@code /reload} 重建配置后调用，
+     * 使客户端职业面板立即反映配置修改。
      */
     public static void pushProfessionStateToAllOnline() {
         MinecraftServer server = currentServer;
@@ -146,7 +157,7 @@ public class ProfessionManager {
         }
     }
 
-    /** 当前服务器实例（由 {@link ProfessionDefinitionLoader} 在 ServerStartedEvent 时注入） */
+    /** 当前服务器实例（由 {@link ProfessionConfigLoader} 在 ServerStartedEvent 时注入） */
     private static volatile MinecraftServer currentServer;
 
     public static MinecraftServer getCurrentServer() {
@@ -186,7 +197,7 @@ public class ProfessionManager {
     private static final int[] DEFAULT_EXP_TABLE = generateExpTable();
 
     private static int[] generateExpTable() {
-        int cap = Math.max(2, ProfessionDefinitionLoader.getDefaultMaxLevel());
+        int cap = Math.max(2, ProfessionConfigLoader.getDefaultMaxLevel());
         // 委托 ExpFormula 统一公式（与 leveling 模块共用，避免拷贝漂移）
         return com.rpgcraft.core.level.ExpFormula.generateExpTable(cap);
     }
@@ -246,6 +257,10 @@ public class ProfessionManager {
         } else if (data.isSecondaryActive(professionId)) {
             reapplySecondaryBonus(player, professionId);
         }
+        // 生命周期钩子：等级提升
+        if (prof != null) {
+            prof.onLevelUp(new ProfessionContext(player, prof, level + 1));
+        }
         syncToClient(player);
         return true;
     }
@@ -278,6 +293,11 @@ public class ProfessionManager {
         switchToMain(player, professionId);
         ProfessionMod.LOGGER.info("玩家 {} 进阶为 {}", player.getName().getString(),
                 target.getDisplayName());
+        // 生命周期钩子：进阶到本职业
+        if (target != null) {
+            target.onAdvance(new ProfessionContext(player, target,
+                    data.getProfessionLevel(professionId)));
+        }
         return true;
     }
 
@@ -296,7 +316,7 @@ public class ProfessionManager {
     /**
      * 是否可切换当前主职业到目标职业
      * <p>
-     * 规则（见 {@link ProfessionDefinitionLoader#isAllowDowngradeSwitch()}）：
+     * 规则（见 {@link ProfessionConfigLoader#isAllowDowngradeSwitch()}）：
      * <ul>
      *   <li>目标必须已解锁，且必须是主职业（{@link IProfession.ProfessionType#PRIMARY}）</li>
      *   <li>目标不能是当前主职业本身</li>
@@ -316,7 +336,7 @@ public class ProfessionManager {
 
         // 目标是当前职业的基础职业 → 受切回开关控制
         boolean targetIsPrereqOfCurrent = professionId.equals(current.getPrerequisite());
-        if (targetIsPrereqOfCurrent && !ProfessionDefinitionLoader.isAllowDowngradeSwitch()) {
+        if (targetIsPrereqOfCurrent && !ProfessionConfigLoader.isAllowDowngradeSwitch()) {
             return false;
         }
         return true;
@@ -373,7 +393,62 @@ public class ProfessionManager {
         if (active == data.isSecondaryActive(professionId)) return;
         data.setSecondaryActive(professionId, active);
         applyBonusAtLevel(player, prof, data.getProfessionLevel(professionId), active, true);
+        // 生命周期钩子：副职业激活/取消
+        ProfessionContext ctx = new ProfessionContext(player, prof, data.getProfessionLevel(professionId));
+        if (active) prof.onActivate(ctx);
+        else prof.onDeactivate(ctx);
         syncToClient(player);
+    }
+
+    // ----------------------------------------------------------------
+    // 副职业解锁（消耗职业经验）
+    // ----------------------------------------------------------------
+
+    /**
+     * 是否可以解锁指定副职业（仅校验，不消耗经验）。
+     * <p>
+     * 规则：
+     * <ul>
+     *   <li>目标必须是 SECONDARY 类型且尚未解锁</li>
+     *   <li>基础副职业（prerequisite=null）：池内经验 ≥ {@link ProfessionConfigLoader#getSecondaryUnlockCost}</li>
+     *   <li>非基础副职业：前置副职业须已解锁且达其满级，且池内经验 ≥ 解锁消耗</li>
+     * </ul>
+     */
+    public static boolean canUnlockSecondary(ServerPlayer player, Identifier professionId) {
+        IProfession prof = registry.getProfession(professionId);
+        if (prof == null || prof.getType() != IProfession.ProfessionType.SECONDARY) return false;
+        ProfessionData data = getData(player);
+        if (data.isUnlocked(professionId)) return false; // 已解锁
+        int cost = ProfessionConfigLoader.getSecondaryUnlockCost();
+        if (data.getSkillPointPool() < cost) return false;
+        // 前置校验：基础副职业无前置；非基础副职业需前置已解锁且满级
+        Identifier prereq = prof.getPrerequisite();
+        if (prereq != null) {
+            if (!data.isUnlocked(prereq)) return false;
+            IProfession prereqProf = registry.getProfession(prereq);
+            int prereqMax = prereqProf != null ? prereqProf.getMaxLevel() : LEVEL_CAP;
+            if (data.getProfessionLevel(prereq) < prereqMax) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 解锁指定副职业。服务端权威校验 + 扣经验 + 解锁（初始 1 级）+ 同步。
+     * <p>
+     * 注意：本方法仅完成"解锁"，不自动激活。玩家需在面板双击切换激活状态。
+     * 失败返回 false（不消耗经验、不改变状态）。
+     */
+    public static boolean unlockSecondary(ServerPlayer player, Identifier professionId) {
+        if (!canUnlockSecondary(player, professionId)) return false;
+        ProfessionData data = getData(player);
+        IProfession prof = registry.getProfession(professionId);
+        int cost = ProfessionConfigLoader.getSecondaryUnlockCost();
+        data.addSkillPoints(-cost);
+        data.unlock(professionId); // 初始 1 级，加入已解锁集合
+        ProfessionMod.LOGGER.info("玩家 {} 消耗 {} 经验解锁副职业 {}",
+                player.getName().getString(), cost, prof.getDisplayName());
+        syncToClient(player);
+        return true;
     }
 
     // ====================================================================
@@ -457,6 +532,135 @@ public class ProfessionManager {
     public static void reapplyAllBonuses(ServerPlayer player) {
         reapplyMainBonuses(player);
         reapplySecondaryBonuses(player);
+    }
+
+    // ====================================================================
+    // 行为钩子调度（战斗 + 生命周期）
+    // ====================================================================
+
+    /**
+     * 注册战斗事件中央调度器到 {@link RPGEventBus}。
+     * <p>
+     * 战斗事件触发时遍历玩家当前生效的职业（主职业 + 所有已激活副职业），
+     * 依次调用对应钩子（{@code onAttack} / {@code onDamaged} / {@code onKill}）。
+     */
+    private static void registerCombatDispatchers() {
+        // Pre：攻击命中前。仅处理玩家作为攻击者的 onAttack
+        RPGEventBus.register(RPGDamageEvent.Pre.class, event -> {
+            LivingEntity attacker = event.getAttacker();
+            if (!(attacker instanceof ServerPlayer player)) return;
+            dispatchAttack(player, event.getTarget(), event.getDamage(), event.getAttackType());
+        });
+        // Post：伤害应用后。区分攻击者（onKill）/ 被攻击者（onDamaged）
+        RPGEventBus.register(RPGDamageEvent.Post.class, event -> {
+            LivingEntity attacker = event.getAttacker();
+            LivingEntity target = event.getTarget();
+            if (attacker instanceof ServerPlayer atkPlayer) {
+                // 攻击者：致命则触发 onKill，否则无额外钩子（onAttack 已在 Pre 阶段触发）
+                if (event.isLethal()) {
+                    dispatchKill(atkPlayer, target, event.getDamageDealt(), event.getAttackType());
+                }
+            }
+            if (target instanceof ServerPlayer targetPlayer) {
+                dispatchDamaged(targetPlayer, attacker, event.getDamageDealt(), event.getAttackType());
+            }
+        });
+    }
+
+    /**
+     * 对玩家当前生效的职业（主 + 已激活副）依次触发 onAttack。
+     * 注意：Pre 阶段的 damage 是计算前值，可能随后被公式修改。
+     */
+    private static void dispatchAttack(ServerPlayer player, LivingEntity target,
+                                       int damage, com.rpgcraft.core.attribute.AttackType attackType) {
+        ProfessionData data = getData(player);
+        // 主职业
+        IProfession main = registry.getProfession(data.getProfessionId());
+        if (main != null) {
+            main.onAttack(buildCombatCtx(player, main, target, damage, attackType, true));
+        }
+        // 已激活副职业
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession sec = registry.getProfession(secId);
+            if (sec != null) {
+                sec.onAttack(buildCombatCtx(player, sec, target, damage, attackType, true));
+            }
+        }
+    }
+
+    private static void dispatchDamaged(ServerPlayer player, @Nullable LivingEntity attacker,
+                                        int damage, com.rpgcraft.core.attribute.AttackType attackType) {
+        ProfessionData data = getData(player);
+        IProfession main = registry.getProfession(data.getProfessionId());
+        if (main != null) {
+            main.onDamaged(buildCombatCtx(player, main, attacker, damage, attackType, false));
+        }
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession sec = registry.getProfession(secId);
+            if (sec != null) {
+                sec.onDamaged(buildCombatCtx(player, sec, attacker, damage, attackType, false));
+            }
+        }
+    }
+
+    private static void dispatchKill(ServerPlayer player, LivingEntity victim,
+                                     int damage, com.rpgcraft.core.attribute.AttackType attackType) {
+        ProfessionData data = getData(player);
+        IProfession main = registry.getProfession(data.getProfessionId());
+        if (main != null) {
+            main.onKill(buildCombatCtx(player, main, victim, damage, attackType, true));
+        }
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession sec = registry.getProfession(secId);
+            if (sec != null) {
+                sec.onKill(buildCombatCtx(player, sec, victim, damage, attackType, true));
+            }
+        }
+    }
+
+    private static ProfessionCombatContext buildCombatCtx(ServerPlayer player, IProfession prof,
+                                                          @Nullable LivingEntity opponent, int damage,
+                                                          com.rpgcraft.core.attribute.AttackType attackType,
+                                                          boolean isAttacker) {
+        return new ProfessionCombatContext(player, prof,
+                getData(player).getProfessionLevel(prof.getId()),
+                opponent, damage, attackType, isAttacker);
+    }
+
+    /**
+     * 触发玩家当前生效职业（主 + 已激活副）的 onLogin 钩子。
+     * 由 {@link ProfessionLoginEventHandler} 在加成重建后调用。
+     */
+    public static void notifyLoginHooks(ServerPlayer player) {
+        ProfessionData data = getData(player);
+        IProfession main = registry.getProfession(data.getProfessionId());
+        if (main != null) {
+            main.onLogin(new ProfessionContext(player, main, data.getProfessionLevel(main.getId())));
+        }
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession sec = registry.getProfession(secId);
+            if (sec != null) {
+                sec.onLogin(new ProfessionContext(player, sec, data.getProfessionLevel(secId)));
+            }
+        }
+    }
+
+    /**
+     * 触发玩家当前生效职业（主 + 已激活副）的 onRespawn 钩子。
+     * 由 {@link ProfessionSnapshotContributor} 在重生加成重建后调用。
+     */
+    public static void notifyRespawnHooks(ServerPlayer player) {
+        ProfessionData data = getData(player);
+        IProfession main = registry.getProfession(data.getProfessionId());
+        if (main != null) {
+            main.onRespawn(new ProfessionContext(player, main, data.getProfessionLevel(main.getId())));
+        }
+        for (Identifier secId : data.getActiveSecondaryProfessions()) {
+            IProfession sec = registry.getProfession(secId);
+            if (sec != null) {
+                sec.onRespawn(new ProfessionContext(player, sec, data.getProfessionLevel(secId)));
+            }
+        }
     }
 
     // ====================================================================
@@ -545,5 +749,6 @@ public class ProfessionManager {
         @Override public Set<Identifier> getActiveSecondary(ServerPlayer p) { return ProfessionManager.getActiveSecondary(p); }
         @Override public boolean isSecondaryActive(ServerPlayer p, Identifier id) { return ProfessionManager.isSecondaryActive(p, id); }
         @Override public void setSecondaryActive(ServerPlayer p, Identifier id, boolean a) { ProfessionManager.setSecondaryActive(p, id, a); }
+        @Override public boolean unlockSecondary(ServerPlayer p, Identifier id) { return ProfessionManager.unlockSecondary(p, id); }
     }
 }

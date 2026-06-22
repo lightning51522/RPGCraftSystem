@@ -32,6 +32,8 @@ public class ProfessionLoginEventHandler {
         validateAndRepairProfessionData(player);
         ProfessionManager.reapplyAllBonuses(player);
         ProfessionManager.syncToClient(player);
+        // 生命周期钩子：登录（加成重建后触发）
+        ProfessionManager.notifyLoginHooks(player);
     }
 
     /**

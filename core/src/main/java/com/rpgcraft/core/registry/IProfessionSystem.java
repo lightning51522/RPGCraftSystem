@@ -151,4 +151,20 @@ public interface IProfessionSystem {
      * @param active       true 激活（加成应用），false 取消（加成移除）
      */
     void setSecondaryActive(ServerPlayer player, Identifier professionId, boolean active);
+
+    /**
+     * 解锁指定副职业。
+     * <p>
+     * 服务端权威校验：
+     * <ul>
+     *   <li>目标必须是 SECONDARY 类型且尚未解锁</li>
+     *   <li>基础副职业（prerequisite=null）：消耗 {@code secondary_unlock_cost} 经验直接解锁</li>
+     *   <li>非基础副职业：前置副职业须已解锁且达到其满级，再消耗同额经验解锁</li>
+     * </ul>
+     * 校验失败返回 false（不消耗经验、不改变状态）。
+     *
+     * @param professionId 目标副职业 ID
+     * @return true 解锁成功
+     */
+    boolean unlockSecondary(ServerPlayer player, Identifier professionId);
 }
