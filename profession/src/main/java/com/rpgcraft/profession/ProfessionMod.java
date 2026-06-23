@@ -38,10 +38,12 @@ public class ProfessionMod {
     }
 
     /**
-     * 网络包注册回调
+     * 网络包注册回调。
+     * <p>
+     * 协议版本与 {@code rpgcraftcore} 通道同步升至 v2（复合职业引入，见 {@code PacketHandler}）。
      */
     private void registerNetwork(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("1");
+        var registrar = event.registrar("2");
         registrar.playToClient(
                 SyncPlayerProfessionPacket.TYPE,
                 SyncPlayerProfessionPacket.STREAM_CODEC,

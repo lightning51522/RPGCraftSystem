@@ -82,7 +82,11 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             Identifier.STREAM_CODEC.encode(buf, n.id());
             buf.writeUtf(n.displayName());
             buf.writeUtf(n.description());
-            encodeNullableId(buf, n.prerequisite());
+            // prerequisites 列表（空列表表示树根；单前置含 1 个；复合含多个）
+            buf.writeVarInt(n.prerequisites().size());
+            for (Identifier prereqId : n.prerequisites()) {
+                Identifier.STREAM_CODEC.encode(buf, prereqId);
+            }
             buf.writeBoolean(n.advanced());
             buf.writeByte(n.type().ordinal());
             buf.writeVarInt(n.maxLevel());
@@ -124,7 +128,11 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
             Identifier id = Identifier.STREAM_CODEC.decode(buf);
             String name = buf.readUtf();
             String desc = buf.readUtf();
-            Identifier prereq = decodeNullableId(buf);
+            int prereqSize = buf.readVarInt();
+            List<Identifier> prereqs = new ArrayList<>(prereqSize);
+            for (int j = 0; j < prereqSize; j++) {
+                prereqs.add(Identifier.STREAM_CODEC.decode(buf));
+            }
             boolean advanced = buf.readBoolean();
             IProfession.ProfessionType type = IProfession.ProfessionType.values()[buf.readByte()];
             int maxLevel = buf.readVarInt();
@@ -133,7 +141,7 @@ public record SyncProfessionStatePacket(ProfessionStateView view) implements Cus
                 iconItem = ItemStack.STREAM_CODEC.decode(buf);
             }
             String iconChar = buf.readUtf();
-            nodes.add(new ProfessionNode(id, name, desc, prereq, advanced, type, maxLevel, iconItem, iconChar));
+            nodes.add(new ProfessionNode(id, name, desc, java.util.List.copyOf(prereqs), advanced, type, maxLevel, iconItem, iconChar));
         }
         return new SyncProfessionStatePacket(new ProfessionStateView(
                 pool, currentMain, activeSecondary,

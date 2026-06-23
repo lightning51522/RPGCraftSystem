@@ -4,6 +4,62 @@
 
 ---
 
+## [0.6.1-alpha] - 2026-06-23
+
+### 新增
+
+#### 魔法主职业系列（术士 → 法师 → 大法师）
+
+魔法向的主职业进阶树，与物理系（战士/弓箭手）并行：
+
+| 职业 | 前置 | 加成（基础 / 每级） |
+|------|------|---------------------|
+| `sorcerer` 术士 | commoner | 智力 +5 / +1；力量 -3 |
+| `mage` 法师 | sorcerer（满级） | 智力 +6 / +1；法术穿透 +3 / +1 |
+| `archmage` 大法师 | mage（满级） | 智力 +7 / +1；暴击伤害 +5 / +1 |
+
+图标统一为书本。
+
+#### 复合职业系统（compound 类型）
+
+新增第三类职业类型 `COMPOUND`，要求解锁**复数主职业**（均达满级）作为前置：
+
+- `IProfession.ProfessionType` 新增 `COMPOUND`（追加在末尾，保证 ordinal 网络序列化兼容），
+  并新增 `isMainLike()` = `PRIMARY || COMPOUND`，集中表达「可作为主职业」。
+- `IProfession` 新增 `getPrerequisites()`（默认从单 `getPrerequisite()` 派生），
+  `isAdvanced()` 改据此判断；复合职业覆写该方法返回多前置集合。
+- `ProfessionManager.canAdvance` 泛化为「所有前置已解锁且达满级」+ 允许 `COMPOUND`。
+- 复合职业行为等同主职业：可 advance / switchMain / 走主职业修饰符管线，**不可**作副职业。
+- 第一个复合职业：`witchblade`（魔剑士），前置 `berserker + mage`，加成 力量 +4 / 智力 +4（各 +1 每级）。
+
+#### 复合职业面板（标题栏 ⇌ 切换）
+
+职业面板新增「复合职业窗」，与主/副双窗复用同一窗口，通过标题栏 **⇌** 按钮（化学可逆反应符号样式）切换：
+
+- 复合窗复用 `renderTreeWindow` + COMPOUND 类型过滤，单独成树。
+- 每个复合节点**上方挂出其前置主职业的只读图标**（暗灰描边 + 虚线连接），不进布局 map 故**不可**进阶/升级/切换。
+- ⇌ 图标用手绘两支反向半箭头（`graphics.fill`）实现，几何相对按钮中心计算，绕开 Unicode `⇌` 字形在 Minecraft 字体里居中偏移的问题。
+- tooltip 新增 `[复合职业]` 标签 + 多前置满足状态提示。
+
+### 优化
+
+#### 职业面板居中行为
+
+- **进阶/切换主职业后自动重新居中**到新当前职业（原行为：首次居中后被锁死，进阶后停留在旧位置/树左侧）。
+- **进阶确认框跳转期间保留全部窗口状态**（矩形/pan/maximized），不再被 `removed()` 重置回默认视图 —— 进阶后保持原最大化状态。
+- **窗口从最大化还原为缩小时重新居中**：避免大窗里把树拖到底部后缩小导致树推出可视区。主/副/复合三类窗口均覆盖。
+- **视图切换时重置居中**：⇌ 切回主视图时强制重新居中主职业树（两视图共用 mainWindow 的 pan，复合视图里改过的 pan 会错位到主视图）。
+- **当前主职业为复合职业时居中回退到几何中心**：主/副双窗视图渲染 PRIMARY 树，复合职业节点不在该树里，回退到整树几何中心保证树可见、pan 不冻结。
+
+### 变更
+
+- `SyncProfessionStatePacket` 节点字段 `prerequisite`（单 nullable id）→ `prerequisites`（id 列表），
+  网络协议版本 `1` → `2`（`PacketHandler` + `ProfessionMod`），NeoForge 据此拒绝版本不匹配连接。
+- 涉及模块版本号升级 `0.6.1-alpha`：`core`（0.6.0→0.6.1）、`profession`（0.5.4→0.6.1）、
+  `professions`（0.5.4→0.6.1）、`client`（0.6.0→0.6.1）。未触及模块（attributes/leveling/equipment/attributepoints/skills）保持原版本。
+
+---
+
 ## [0.5.3-alpha] - 2026-06-22
 
 ### 修复

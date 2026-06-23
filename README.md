@@ -3,7 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.6.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.6.1--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -213,19 +213,23 @@ baseValue
 
 `profession` 模块的**框架**（注册门面、经验/等级、进阶、主副职业逻辑）与**具体职业定义**完全解耦：具体职业全部由 datapack JSON 驱动，框架代码不再硬编码任何职业。核心数据持久化在 `ProfessionData` 附件中。
 
-### 严格区分主职业与副职业
+### 严格区分主职业、副职业与复合职业
 
-职业分两类（由 JSON 的 `type` 字段决定）：
+职业分三类（由职业类的 `ProfessionType` 决定）：
 
-| | 主职业（primary） | 副职业（secondary） |
-|---|---|---|
-| 职业树 | 链根于 `commoner`（平民，唯一根） | 独立成树 |
-| `prerequisite` 约束 | 只能指 primary，链最终追溯到 commoner | 只能指 secondary 或为 null |
-| 可做主职业 | ✅（`advance` / `switchMain` 仅限此类） | ❌ |
-| 可做副职业 | ❌ | ✅（`setSecondary` 仅限此类） |
-| 可投入经验升级 | ✅ | ✅ |
-| 加成生效 | 当前主职业按等级生效 | 激活的副职业按等级生效 |
+| | 主职业（primary） | 副职业（secondary） | 复合职业（compound） |
+|---|---|---|---|
+| 职业树 | 链根于 `commoner`（平民，唯一根） | 独立成树 | 独立成树，无单父 |
+| `prerequisite` 约束 | 只能指 primary，链最终追溯到 commoner | 只能指 secondary 或为 null | 返回 null；`getPrerequisites()` 指向多个 primary |
+| 可做主职业 | ✅（`advance` / `switchMain` 仅限 `isMainLike()` 类型） | ❌ | ✅（与主职业同走主职业修饰符管线） |
+| 可做副职业 | ❌ | ✅（`setSecondary` 仅限此类） | ❌ |
+| 可投入经验升级 | ✅ | ✅ | ✅ |
+| 加成生效 | 当前主职业按等级生效 | 激活的副职业按等级生效 | 当前主职业时按等级生效 |
+| 解锁条件 | 单前置达满级 | 单前置达满级 + 消耗经验池 | **所有**前置主职业均达满级 |
+| 面板归属 | 主职业窗 | 副职业窗 | 复合窗（标题栏 ⇌ 切换） |
 
+> `ProfessionType.isMainLike()` = `type == PRIMARY || type == COMPOUND`，集中表达「可作为主职业」判定，用于 `canAdvance` / `canSwitchMain` / `setProfession` / 登录主职业校验。
+>
 > 历史版本下"任意已解锁职业都能做副职业"的旧行为已废弃；旧存档若副职业引用了 primary 类型职业，登录时会自动清空（WARN）。
 
 ### 职业定义 JSON（datapack 驱动）
@@ -256,18 +260,29 @@ baseValue
 ### 内置职业（随模组提供，可被 datapack 覆盖）
 
 ```
-主职业树：commoner（平民）→ warrior（战士）→ berserker（狂战士）
-                       → archer（弓箭手）→ marksman（神射手）
-副职业树：（首期无内置副职业，由下方占位副职业兜底）
+主职业树（物理系）：commoner（平民）→ warrior（战士）→ berserker（狂战士）
+                                  → archer（弓箭手）→ marksman（神射手）
+主职业树（魔法系）：commoner（平民）→ sorcerer（术士）→ mage（法师）→ archmage（大法师）
+复合职业：         berserker + mage（均满级）→ witchblade（魔剑士）
+副职业树：         scholar（学者）→ researcher（研究员）→ naturalist（博物学家）
 ```
 
-| 职业 | 前置 | 加成（基础 / 每级） |
-|------|------|---------------------|
-| `commoner` 平民 | — | 无加成 |
-| `warrior` 战士 | commoner | 力量 +5 / +1 每级；敏捷 -3 |
-| `archer` 弓箭手 | commoner | 敏捷 +5 / +1 每级；力量 -3 |
-| `berserker` 狂战士 | warrior（满级） | 力量 +6 / +1 每级；生命 +10 / +2 每级 |
-| `marksman` 神射手 | archer（满级） | 敏捷 +6 / +1 每级；暴击率 +3 / +1 每级 |
+| 职业 | 类型 | 前置 | 加成（基础 / 每级） |
+|------|------|------|---------------------|
+| `commoner` 平民 | primary | — | 无加成 |
+| `warrior` 战士 | primary | commoner | 力量 +5 / +1 每级；敏捷 -3 |
+| `archer` 弓箭手 | primary | commoner | 敏捷 +5 / +1 每级；力量 -3 |
+| `berserker` 狂战士 | primary | warrior（满级） | 力量 +6 / +1 每级；生命 +10 / +2 每级 |
+| `marksman` 神射手 | primary | archer（满级） | 敏捷 +6 / +1 每级；暴击率 +3 / +1 每级 |
+| `sorcerer` 术士 | primary | commoner | 智力 +5 / +1 每级；力量 -3 |
+| `mage` 法师 | primary | sorcerer（满级） | 智力 +6 / +1 每级；法术穿透 +3 / +1 每级 |
+| `archmage` 大法师 | primary | mage（满级） | 智力 +7 / +1 每级；暴击伤害 +5 / +1 每级 |
+| `witchblade` 魔剑士 | compound | berserker + mage（均满级） | 力量 +4 / +1 每级；智力 +4 / +1 每级 |
+| `scholar` 学者 | secondary | — | 无加成（待设计） |
+| `researcher` 研究员 | secondary | scholar（满级） | 无加成（待设计） |
+| `naturalist` 博物学家 | secondary | researcher（满级） | 无加成（待设计） |
+
+> 物理/魔法两条主职业树并行，复合职业跨树融合：魔剑士同时需要战系叶子（狂战士）与法系中间层（法师）达满级 —— 不要求系列达最顶级。
 
 ### 默认占位副职业（apprentice）
 
@@ -301,11 +316,14 @@ baseValue
 
 | 元素 | 说明 |
 |------|------|
-| 左侧大画布 | **上下分区**的职业树：上半为主职业树、下半为副职业树（各自独立成树，用"主职业"/"副职业"小标题分隔）。每个职业用方形节点表示，父子节点用连接线相连；当前主职业节点带金色高亮边框 |
-| 鼠标拖动 | 按住左键拖动画布空白处可**平移**整个职业树，支持树超出可见区时查看其余部分 |
-| 打开居中 | 每次按 P 打开时，自动以**当前主职业**节点为中心显示 |
-| 右侧小详情 | 选中职业的类型标签、等级、经验、加成与操作按钮（投入经验 / 进阶 / 设为主职业 / 设为副职业 / 切换副职业开关） |
-| 顶部 | 可分配职业经验池 |
+| 浮动窗口 | 上下两个可拖动浮窗：**主职业窗**（primary 树）与**副职业窗**（secondary 树）。每个职业用方形节点表示，父子节点用连接线相连；当前主职业节点带绿色角标、已激活副职业带蓝色角标 |
+| 标题栏 ⇌ 按钮 | 在「主/副双窗」与「复合职业单窗」之间切换（类似化学可逆反应符号）。复合窗内每个复合职业节点上方挂出其前置主职业的只读图标（虚线连接），**不可**进阶/升级/切换 |
+| 标题栏 □/⊟ 按钮 | 单窗最大化/还原（铺满全屏 / 恢复双窗）；还原时自动以当前职业居中，避免大窗拖动后缩小导致树推出可视区 |
+| 鼠标拖动 | 按住标题栏拖动窗口；按住窗内空白拖动**平移**职业树 |
+| 打开居中 | 首次打开时以**当前主职业**节点为中心；进阶/切换主职业后自动重新居中到新职业 |
+| 双击节点 | 主职业/复合职业：未解锁且前置满足→进阶确认框；已解锁非当前→切换为主职业。副职业：未解锁→解锁确认框；已解锁→切换激活状态 |
+| 节点下 + 按钮 | 已解锁未满级职业可投入经验升级（按钮显示 `Lv.N +`，满级显示 `Lv.MAX`） |
+| 悬停气泡 | 职业类型标签、状态、等级、加成详情、解锁/进阶条件提示 |
 
 > 所有操作通过 `ProfessionActionPacket` 发送至服务端权威处理，防作弊。`/reload` 后职业定义立即重载并推送在线玩家。
 

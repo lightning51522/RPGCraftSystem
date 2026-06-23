@@ -112,6 +112,12 @@ public class RPGProfessionScreen extends Screen {
     private static final int PLUS_BUTTON_GAP = 1;
     /** 标题栏右上角最大化按钮尺寸 */
     private static final int MAX_BUTTON_SIZE = 12;
+    /** 标题栏 ⇌ 切换按钮尺寸（主/副窗 ↔ 复合窗） */
+    private static final int TOGGLE_BUTTON_SIZE = 12;
+    /** 复合窗只读前置主职业图标尺寸（小于普通节点，区分只读） */
+    private static final int COMPOUND_PREREQ_ICON_SIZE = 16;
+    /** 复合节点与其上方只读前置图标的垂直间距 */
+    private static final int COMPOUND_PREREQ_GAP_Y = 14;
 
     /** 双击判定时间窗口（毫秒） */
     private static final long DOUBLE_CLICK_MS = 300;
@@ -152,6 +158,10 @@ public class RPGProfessionScreen extends Screen {
     private static final int COLOR_MAIN_CURRENT = 0xFF55FF55;
     /** 激活副职业蓝色角标 */
     private static final int COLOR_SECONDARY_ACTIVE = 0xFF3A7BFF;
+    /** 复合窗只读前置图标框（暗灰，区别于可交互节点） */
+    private static final int COLOR_COMPOUND_PREREQ_FRAME = 0xFF6B6B6B;
+    /** 复合窗虚线连接色 */
+    private static final int COLOR_COMPOUND_DASH = 0xFF555555;
 
     /** 每个职业的图标字符（fallback，优先用 {@link ProfessionNode#iconItem()} 的物品图标） */
     // 注：图标现由服务端通过 ProfessionNode.iconItem / iconChar 推送（源自 IProfession 实现），
@@ -166,8 +176,22 @@ public class RPGProfessionScreen extends Screen {
     private FloatingWindow secondaryWindow;
     /** 是否已完成首次初始化（窗口尺寸/位置 + 居中） */
     private boolean inited = false;
-    /** 标记：是否已完成"以当前主职业居中"（避免每次刷新跳回） */
-    private boolean centeredOnMain = false;
+    /**
+     * 最近一次执行居中时所用的主职业 ID。
+     * <p>
+     * 首次拿到状态时居中一次；之后当 {@code currentMain} 变化（如进阶、切换主职业）时重新居中，
+     * 让新当前职业落在窗可见区中心。手动平移（pan）后此值同步更新，避免被刷新冲掉。
+     */
+    private @org.jetbrains.annotations.Nullable Identifier lastCenteredMainId = null;
+    /**
+     * 是否处于「复合职业」视图（标题栏 ⇌ 切换）。
+     * <p>
+     * true 时仅渲染复合窗（复用 mainWindow 矩形，type = COMPOUND）；
+     * false 时渲染主/副双窗。
+     */
+    private boolean compoundViewActive = false;
+    /** 复合窗是否已完成首次居中（切换到复合视图时重新居中一次） */
+    private boolean centeredOnCompound = false;
 
     /** 双击判定：上次点击时间与节点 ID */
     private long lastClickTime = 0L;
@@ -219,6 +243,11 @@ public class RPGProfessionScreen extends Screen {
         /** 最大化按钮的屏幕矩形（标题栏右上角） */
         int maxButtonX() { return x + w - CONTENT_MARGIN - MAX_BUTTON_SIZE; }
         int maxButtonY() { return y + (TITLE_BAR_HEIGHT - MAX_BUTTON_SIZE) / 2; }
+        /** ⇌ 切换按钮的屏幕矩形（标题栏标题文字右侧） */
+        int toggleButtonX(int titleWidth) {
+            return x + CONTENT_MARGIN + titleWidth + CONTENT_MARGIN;
+        }
+        int toggleButtonY() { return y + (TITLE_BAR_HEIGHT - TOGGLE_BUTTON_SIZE) / 2; }
     }
 
     public RPGProfessionScreen() {
@@ -227,16 +256,14 @@ public class RPGProfessionScreen extends Screen {
 
     @Override
     public void removed() {
-        mainWindow = null;
-        secondaryWindow = null;
-        inited = false;
-        centeredOnMain = false;
-        lastClickTime = 0L;
-        lastClickNodeId = null;
-        // 注意：不清空 ProfessionStateCache。
-        // 缓存由服务端推送的全局状态，与 Screen 生命周期无关；切到确认框等子 Screen 时本 Screen 会被
-        // removed()，若清空缓存则切回时会因 state==null 显示「加载中」白屏。缓存会在下次服务端推送时
-        // 自然覆盖更新，无需手动清理。
+        // 切到进阶/解锁确认框等子 Screen 时，本 Screen 会被 removed()，随后 setScreen(parent)
+        // 回到本实例。这里保留所有窗口状态（矩形 / pan / maximized / 居中标记 / 点击判定），
+        // 让回到面板时视图完全恢复（最大化、滚动位置不变），而非被重新初始化回默认视图。
+        // <p>
+        // 真正关闭（onClose → Minecraft.screen=null）时整个 Screen 实例会被丢弃，字段自然释放，
+        // 故这里不清空也无内存泄漏。
+        // <p>
+        // ProfessionStateCache 同样不清空：缓存由服务端推送的全局状态，与 Screen 生命周期无关。
         super.removed();
     }
 
@@ -340,6 +367,21 @@ public class RPGProfessionScreen extends Screen {
         }
         applyMaximizedLayout();
 
+        if (compoundViewActive) {
+            // 复合职业视图：单窗（复用 mainWindow 矩形），仅渲染 COMPOUND 类型节点。
+            // mainWindow.maximized 同样驱动复合窗的最大化/还原（与主/副窗一致）。
+            if (mainWindow != null) {
+                renderTreeWindow(graphics, state, mainWindow, "复合职业",
+                        IProfession.ProfessionType.COMPOUND, mouseX, mouseY);
+            }
+            // 复合视图首次居中
+            if (state != null && !centeredOnCompound) {
+                centerCompoundView(state);
+                centeredOnCompound = true;
+            }
+            return;
+        }
+
         // 根据最大化状态决定渲染哪些窗：
         // 任一窗最大化 → 只渲染该最大化窗；否则两个窗都渲染
         boolean mainMax = mainWindow != null && mainWindow.maximized;
@@ -362,10 +404,14 @@ public class RPGProfessionScreen extends Screen {
             }
         }
 
-        // 首次拿到非空 state 时，以当前主职业居中
-        if (state != null && !centeredOnMain) {
-            centerOnCurrentMain(state);
-            centeredOnMain = true;
+        // 首次拿到非空 state 时居中；之后 currentMain 变化（进阶/切换主职业）时重新居中，
+        // 让新当前职业落在窗可见区中心，而非停留在树左侧
+        if (state != null) {
+            Identifier mainId = state.currentMain();
+            if (mainId != null && !mainId.equals(lastCenteredMainId)) {
+                centerOnCurrentMain(state);
+                lastCenteredMainId = mainId;
+            }
         }
     }
 
@@ -393,6 +439,8 @@ public class RPGProfessionScreen extends Screen {
         graphics.blit(RenderPipelines.GUI_TEXTURED, HEADER_SEPARATOR,
                 win.x, win.y + TITLE_BAR_HEIGHT - 2, 0.0F, 0.0F, win.w, 2, 32, 2);
         renderMaxButton(graphics, win, mouseX, mouseY);
+        // 标题栏 ⇌ 切换按钮：主/副双窗 ↔ 复合窗（所有窗都画，便于从任意窗切换）
+        renderToggleButton(graphics, win, this.font.width(title), mouseX, mouseY);
 
         // 经验池行（仅主职业窗显示；副窗显示类型说明）
         String poolText;
@@ -421,24 +469,37 @@ public class RPGProfessionScreen extends Screen {
 
         // 横向连接线（仅该类型、且父子均在该窗口内）
         for (ProfessionNode n : state != null ? state.nodes() : java.util.Collections.<ProfessionNode>emptyList()) {
-            if (n.type() != type || n.prerequisite() == null) continue;
-            int[] parent = pos.get(n.prerequisite());
-            int[] child = pos.get(n.id());
-            if (parent == null || child == null) continue;
+            if (n.type() != type) continue;
             boolean unlocked = state.unlocked().contains(n.id());
             int color = unlocked ? COLOR_LINE_UNLOCKED : COLOR_LINE_LOCKED;
-            int x1 = parent[0] + NODE_SIZE;
-            int y1 = parent[1] + NODE_SIZE / 2;
-            int x2 = child[0];
-            int y2 = child[1] + NODE_SIZE / 2;
-            int midX = (x1 + x2) / 2;
-            graphics.fill(x1, y1, midX + 1, y1 + 1, color);
-            graphics.fill(midX, Math.min(y1, y2), midX + 1, Math.max(y1, y2) + 1, color);
-            graphics.fill(midX, y2, x2 + 1, y2 + 1, color);
+            for (Identifier prereqId : n.prerequisites()) {
+                int[] parent = pos.get(prereqId);
+                int[] child = pos.get(n.id());
+                if (parent == null || child == null) continue;
+                // 单前置主/副职业：实线 L 形；复合职业的多个前置也用同样的 L 形分别画出
+                int x1 = parent[0] + NODE_SIZE;
+                int y1 = parent[1] + NODE_SIZE / 2;
+                int x2 = child[0];
+                int y2 = child[1] + NODE_SIZE / 2;
+                int midX = (x1 + x2) / 2;
+                graphics.fill(x1, y1, midX + 1, y1 + 1, color);
+                graphics.fill(midX, Math.min(y1, y2), midX + 1, Math.max(y1, y2) + 1, color);
+                graphics.fill(midX, y2, x2 + 1, y2 + 1, color);
+            }
         }
         // 节点（仅该类型）+ 节点下 + 按钮
         ProfessionNode hoveredNode = null;
         if (state != null) {
+            // 复合窗特有：在复合节点上方绘制其前置主职业的只读图标 + 虚线连接
+            // （前置属 PRIMARY 树、不在本窗 pos 内，故不会被误判为可点击节点）
+            if (type == IProfession.ProfessionType.COMPOUND) {
+                for (ProfessionNode n : state.nodes()) {
+                    if (n.type() != type) continue;
+                    int[] p = pos.get(n.id());
+                    if (p == null) continue;
+                    renderCompoundPrereqIcons(graphics, state, n, p[0], p[1]);
+                }
+            }
             for (ProfessionNode n : state.nodes()) {
                 if (n.type() != type) continue;
                 int[] p = pos.get(n.id());
@@ -475,7 +536,8 @@ public class RPGProfessionScreen extends Screen {
                                                         int originX, int originY) {
         Map<Identifier, int[]> pos = new LinkedHashMap<>();
         if (state == null) return pos;
-        // 构建该类型的父子关系
+        // 构建该类型的父子关系（取每个节点的第一个前置作为树父；复合职业的多个前置
+        // 跨树类型、不在本窗口内，故其 prerequisite 列表在本类型内找不到父 → 自然成为根）
         List<ProfessionNode> roots = new ArrayList<>();
         Map<Identifier, List<ProfessionNode>> children = new HashMap<>();
         for (ProfessionNode n : state.nodes()) {
@@ -483,10 +545,12 @@ public class RPGProfessionScreen extends Screen {
         }
         for (ProfessionNode n : state.nodes()) {
             if (n.type() != type) continue;
-            if (n.prerequisite() == null) {
-                roots.add(n);
+            // 取第一个前置；若它也属本类型则挂为其子节点，否则该节点作根
+            Identifier parent = n.prerequisites().isEmpty() ? null : n.prerequisites().get(0);
+            if (parent != null && children.containsKey(parent)) {
+                children.get(parent).add(n);
             } else {
-                children.computeIfAbsent(n.prerequisite(), k -> new ArrayList<>()).add(n);
+                roots.add(n);
             }
         }
         if (roots.isEmpty()) return pos;
@@ -635,6 +699,93 @@ public class RPGProfessionScreen extends Screen {
         }
     }
 
+    /**
+     * 复合窗特有：在复合职业节点<b>上方</b>水平排列其前置主职业的只读图标，并用虚线连接。
+     * <p>
+     * 这些前置图标仅作展示（让玩家直观看到复合来源），<b>不</b>参与命中检测、
+     * <b>不可</b>进阶/升级/切换。通过不在 {@code pos} 布局 map 中登记实现只读。
+     * <p>
+     * 布局：N 个前置图标水平居中于复合节点上方，间距 {@code COMPOUND_PREREQ_GAP_Y}；
+     * 每个前置图标底部与复合节点顶部之间画一段虚线（短段交替）。
+     *
+     * @param nodeLx 复合节点左上角逻辑 X
+     * @param nodeLy 复合节点左上角逻辑 Y
+     */
+    private void renderCompoundPrereqIcons(GuiGraphicsExtractor graphics, ProfessionStateView state,
+                                           ProfessionNode node, int nodeLx, int nodeLy) {
+        java.util.List<Identifier> prereqs = node.prerequisites();
+        if (prereqs.isEmpty()) return;
+        int n = prereqs.size();
+        int iconSize = COMPOUND_PREREQ_ICON_SIZE;
+        int gapX = 4;                                   // 前置图标之间的水平间距
+        int totalW = n * iconSize + (n - 1) * gapX;     // 整排前置图标的水平总宽
+        // 整排水平居中于复合节点（节点中心 = nodeLx + NODE_SIZE/2）
+        int rowLeftX = nodeLx + (NODE_SIZE - totalW) / 2;
+        int rowTopY = nodeLy - COMPOUND_PREREQ_GAP_Y - iconSize;
+        // 复合节点顶部中点
+        int nodeTopMidX = nodeLx + NODE_SIZE / 2;
+        int nodeTopY = nodeLy;
+
+        for (int i = 0; i < n; i++) {
+            Identifier prereqId = prereqs.get(i);
+            ProfessionNode prereqNode = findNode(state, prereqId);
+            int ix = rowLeftX + i * (iconSize + gapX);
+            int iy = rowTopY;
+            int iconCenterX = ix + iconSize / 2;
+
+            // 虚线：从前置图标底部中点垂直向下连到复合节点顶部中点
+            // （两段不共线时仍画两段：垂直段 + 水平短段收口）
+            drawDashedVertical(graphics, iconCenterX, iy + iconSize, nodeTopMidX, nodeTopY);
+
+            // 前置图标框（暗灰描边，区别于可交互节点的原版 task_frame）
+            graphics.fill(ix - 1, iy - 1, ix + iconSize + 1, iy, COLOR_COMPOUND_PREREQ_FRAME);          // 上
+            graphics.fill(ix - 1, iy + iconSize, ix + iconSize + 1, iy + iconSize + 1, COLOR_COMPOUND_PREREQ_FRAME); // 下
+            graphics.fill(ix - 1, iy, ix, iy + iconSize, COLOR_COMPOUND_PREREQ_FRAME);                   // 左
+            graphics.fill(ix + iconSize, iy, ix + iconSize + 1, iy + iconSize, COLOR_COMPOUND_PREREQ_FRAME); // 右
+
+            // 图标内容：物品图标优先，否则字符
+            if (prereqNode != null) {
+                ItemStack itemIcon = prereqNode.iconItem();
+                if (itemIcon != null && !itemIcon.isEmpty()) {
+                    // 16px 物品图标正好填满 iconSize（=16）
+                    graphics.fakeItem(itemIcon, ix, iy);
+                } else {
+                    String icon = prereqNode.iconChar() != null && !prereqNode.iconChar().isEmpty()
+                            ? prereqNode.iconChar() : "?";
+                    graphics.text(this.font, icon, ix + (iconSize - this.font.width(icon)) / 2,
+                            iy + (iconSize - 9) / 2, COLOR_HINT, false);
+                }
+            } else {
+                // 找不到前置节点元数据：画问号占位
+                String icon = "?";
+                graphics.text(this.font, icon, ix + (iconSize - this.font.width(icon)) / 2,
+                        iy + (iconSize - 9) / 2, COLOR_HINT, false);
+            }
+        }
+    }
+
+    /**
+     * 画一段虚线折线：从 (x1,y1) 到 (x2,y2)，先垂直再水平收口。
+     * 用 2px 实线段 + 2px 间隔模拟虚线，与主职业树实线连接区分。
+     */
+    private void drawDashedVertical(GuiGraphicsExtractor graphics, int x1, int y1, int x2, int y2) {
+        int color = COLOR_COMPOUND_DASH;
+        // 垂直段（前置图标底部 → 复合节点顶部高度）
+        int yStart = y1;
+        int yEnd = y2;
+        for (int yy = yStart; yy < yEnd; yy += 4) {
+            int segEnd = Math.min(yy + 2, yEnd);
+            graphics.fill(x1, yy, x1 + 1, segEnd, color);
+        }
+        // 水平收口段（虚线）
+        int xa = Math.min(x1, x2);
+        int xb = Math.max(x1, x2);
+        for (int xx = xa; xx < xb; xx += 4) {
+            int segEnd = Math.min(xx + 2, xb);
+            graphics.fill(xx, y2 - 1, segEnd, y2, color);
+        }
+    }
+
     /** 标题栏右上角最大化/还原按钮（□ 未最大化 / ⊟ 已最大化）—— 原版按钮精灵 */
     private void renderMaxButton(GuiGraphicsExtractor graphics, FloatingWindow win, int mouseX, int mouseY) {
         int bx = win.maxButtonX();
@@ -644,6 +795,72 @@ public class RPGProfessionScreen extends Screen {
         String glyph = win.maximized ? "⊟" : "□";
         graphics.text(this.font, glyph, bx + (MAX_BUTTON_SIZE - this.font.width(glyph)) / 2,
                 by + centeredGlyphY(MAX_BUTTON_SIZE), COLOR_TEXT, false);
+    }
+
+    /**
+     * 标题栏 ⇌ 切换按钮：在「主/副双窗」与「复合职业单窗」之间切换。
+     * <p>
+     * 类似化学可逆反应符号 ⇌（两支反向半箭头堆叠），表「主职业 ↔ 复合职业」双向切换。
+     * <p>
+     * <b>不用文本字形</b>：Unicode {@code ⇌} 在 Minecraft 默认字体里通常回退为豆腐块，
+     * 其字形 advance 与视觉宽度不一致，基于 {@code font.width()} 居中会偏。
+     * 这里改用手绘两支反向半箭头，几何相对按钮中心计算，居中精确。
+     * 激活态（当前处于复合视图）用强调色高亮，非激活态用普通文字色。
+     *
+     * @param titleWidth 标题文字像素宽度（决定按钮 X 偏移）
+     */
+    private void renderToggleButton(GuiGraphicsExtractor graphics, FloatingWindow win,
+                                    int titleWidth, int mouseX, int mouseY) {
+        int bx = win.toggleButtonX(titleWidth);
+        int by = win.toggleButtonY();
+        int size = TOGGLE_BUTTON_SIZE;
+        boolean hover = isHover(mouseX, mouseY, bx, by, size, size);
+        blitButton(graphics, bx, by, size, size, hover);
+        int color = compoundViewActive ? COLOR_TITLE : COLOR_HINT;
+        drawReversibleArrow(graphics, bx, by, size, color);
+    }
+
+    /**
+     * 手绘双向半箭头符号（类似 ⇌）：上下两支反向的半箭头。
+     * <p>
+     * 几何全部相对按钮矩形中心 {@code (cx, cy)} 计算，保证严格居中。
+     * <pre>
+     *      ←‾        （上半箭头：指向左，半箭头，行 yTop）
+     *      ───
+     *      _→        （下半箭头：指向右，半箭头，行 yBot）
+     * </pre>
+     * 两条水平主线居中重叠，左/右各加一支三角形箭头头。
+     *
+     * @param x    按钮左上角 X
+     * @param y    按钮左上角 Y
+     * @param size 按钮边长
+     * @param color ARGB 颜色
+     */
+    private static void drawReversibleArrow(GuiGraphicsExtractor graphics,
+                                            int x, int y, int size, int color) {
+        int cx = x + size / 2;                      // 按钮水平中心
+        int cy = y + size / 2;                      // 按钮垂直中心
+        int lineLen = 6;                            // 主水平线长度（左右各 3px）
+        int lineHalf = lineLen / 2;
+        int headSize = 2;                           // 箭头头边长（2×2 三角近似）
+        int dy = 2;                                 // 上下两行相对中心的偏移
+        // 上行 Y（指向左的半箭头）与下行 Y（指向右的半箭头）
+        int yTop = cy - dy;
+        int yBot = cy + dy;
+        int left = cx - lineHalf;
+        int right = cx + lineHalf;
+
+        // 上行水平主线（顶行）
+        graphics.fill(left, yTop, right + 1, yTop + 1, color);
+        // 上行左箭头头（指向左的小三角，用两个短段近似）
+        graphics.fill(left, yTop - 1, left + 1, yTop, color);          // 左上短臂
+        graphics.fill(left + 1, yTop - 2, left + 2, yTop - 1, color);  // 更外层短臂（构成斜边）
+
+        // 下行水平主线（底行）
+        graphics.fill(left, yBot, right + 1, yBot + 1, color);
+        // 下行右箭头头（指向右的小三角）
+        graphics.fill(right, yBot + 1, right + 1, yBot + 2, color);    // 右下短臂
+        graphics.fill(right - 1, yBot + 2, right, yBot + 3, color);    // 更外层短臂（构成斜边）
     }
 
     /** 绘制原版 9-slice 按钮：hover 时用高亮态精灵 */
@@ -726,7 +943,14 @@ public class RPGProfessionScreen extends Screen {
         int maxLevel = node.maxLevel();
 
         lines.add(Component.literal(node.displayName()).withStyle(s -> s.withColor(0xFFFFFF)));
-        String typeLabel = node.type() == IProfession.ProfessionType.SECONDARY ? "[副职业]" : "[主职业]";
+        String typeLabel;
+        if (node.type() == IProfession.ProfessionType.SECONDARY) {
+            typeLabel = "[副职业]";
+        } else if (node.type() == IProfession.ProfessionType.COMPOUND) {
+            typeLabel = "[复合职业]";
+        } else {
+            typeLabel = "[主职业]";
+        }
         lines.add(Component.literal(typeLabel).withStyle(s -> s.withColor(0xAAAAAA)));
 
         String status;
@@ -761,28 +985,48 @@ public class RPGProfessionScreen extends Screen {
             // 未解锁副职业：显示解锁条件
             int cost = SECONDARY_UNLOCK_COST;
             boolean canAfford = state.pool() >= cost;
-            boolean prereqOk = true;
-            String prereqHint = "";
-            if (node.prerequisite() != null) {
-                ProfessionNode prereqNode = findNode(state, node.prerequisite());
-                String prereqName = prereqNode != null ? prereqNode.displayName() : node.prerequisite().toString();
+            // 前置提示：逐个检查每个前置的解锁/满级状态
+            for (Identifier prereqId : node.prerequisites()) {
+                ProfessionNode prereqNode = findNode(state, prereqId);
+                String prereqName = prereqNode != null ? prereqNode.displayName() : prereqId.toString();
                 int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
-                int prereqLvl = state.levels().getOrDefault(node.prerequisite(), 0);
-                if (!state.unlocked().contains(node.prerequisite())) {
-                    prereqOk = false;
-                    prereqHint = "需先解锁前置: " + prereqName;
+                int prereqLvl = state.levels().getOrDefault(prereqId, 0);
+                String hint;
+                if (!state.unlocked().contains(prereqId)) {
+                    hint = "需先解锁前置: " + prereqName;
                 } else if (prereqLvl < prereqMax) {
-                    prereqOk = false;
-                    prereqHint = "前置 " + prereqName + " 需达满级 (" + prereqLvl + "/" + prereqMax + ")";
+                    hint = "前置 " + prereqName + " 需达满级 (" + prereqLvl + "/" + prereqMax + ")";
+                } else {
+                    continue; // 该前置已满足，不显示
                 }
-            }
-            if (!prereqOk) {
-                lines.add(Component.literal(prereqHint).withStyle(s -> s.withColor(0xFF8080)));
+                lines.add(Component.literal(hint).withStyle(s -> s.withColor(0xFF8080)));
             }
             String costText = "解锁消耗: " + cost + (canAfford ? " 经验" : " 经验 (不足)");
             lines.add(Component.literal(costText).withStyle(s -> s.withColor(canAfford ? 0xFFFF00 : 0xAAAAAA)));
             if (canUnlockSecondary(state, node)) {
                 lines.add(Component.literal("双击解锁").withStyle(s -> s.withColor(0x55FF55)));
+            }
+        } else if (node.type() == IProfession.ProfessionType.COMPOUND) {
+            // 未解锁复合职业：显示前置要求（多个主职业均需达满级）
+            for (Identifier prereqId : node.prerequisites()) {
+                ProfessionNode prereqNode = findNode(state, prereqId);
+                String prereqName = prereqNode != null ? prereqNode.displayName() : prereqId.toString();
+                int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
+                int prereqLvl = state.levels().getOrDefault(prereqId, 0);
+                String hint;
+                if (!state.unlocked().contains(prereqId)) {
+                    hint = "需先解锁: " + prereqName;
+                } else if (prereqLvl < prereqMax) {
+                    hint = "前置 " + prereqName + " 需达满级 (" + prereqLvl + "/" + prereqMax + ")";
+                } else {
+                    hint = "前置 " + prereqName + " 已满足";
+                    lines.add(Component.literal(hint).withStyle(s -> s.withColor(0x55FF55)));
+                    continue;
+                }
+                lines.add(Component.literal(hint).withStyle(s -> s.withColor(0xFF8080)));
+            }
+            if (canAdvanceFrom(state, node)) {
+                lines.add(Component.literal("双击进阶").withStyle(s -> s.withColor(0x55FF55)));
             }
         }
 
@@ -875,12 +1119,29 @@ public class RPGProfessionScreen extends Screen {
         long now = System.currentTimeMillis();
 
         // 可见窗列表（顺序 = 处理优先级）：
-        // 任一窗最大化 → 只剩该最大化窗；否则两个窗都在（主窗在前）
+        // 复合视图 → 仅主窗（作复合窗）；主/副双窗模式下任一窗最大化 → 只剩该最大化窗；
+        // 否则两个窗都在（主窗在前）
         for (FloatingWindow win : visibleWindows()) {
-            IProfession.ProfessionType type = (win == mainWindow)
-                    ? IProfession.ProfessionType.PRIMARY
-                    : IProfession.ProfessionType.SECONDARY;
+            // 该窗当前渲染的类型与标题（决定 ⇌ 按钮位置 + 节点命中类型）
+            IProfession.ProfessionType type;
+            String title;
+            if (compoundViewActive) {
+                type = IProfession.ProfessionType.COMPOUND;
+                title = "复合职业";
+            } else if (win == mainWindow) {
+                type = IProfession.ProfessionType.PRIMARY;
+                title = "主职业";
+            } else {
+                type = IProfession.ProfessionType.SECONDARY;
+                title = "副职业";
+            }
 
+            // 0. ⇌ 切换按钮（标题栏，标题文字右侧）—— 最高优先级
+            if (isHover(mx, my, win.toggleButtonX(this.font.width(title)),
+                    win.toggleButtonY(), TOGGLE_BUTTON_SIZE, TOGGLE_BUTTON_SIZE)) {
+                toggleCompoundView();
+                return true;
+            }
             // 1. 最大化/还原按钮（标题栏右上角）
             if (isHover(mx, my, win.maxButtonX(), win.maxButtonY(), MAX_BUTTON_SIZE, MAX_BUTTON_SIZE)) {
                 toggleMaximize(win);
@@ -917,12 +1178,40 @@ public class RPGProfessionScreen extends Screen {
     }
 
     /**
+     * 切换主/副双窗 ↔ 复合职业单窗。
+     * <p>
+     * 切换时重置对应视图的居中标记，让下一帧重新居中：
+     * <ul>
+     *   <li>切到复合视图：重置 {@code centeredOnCompound} → 复合树重新居中</li>
+     *   <li>切回主视图：置空 {@code lastCenteredMainId} → 主职业树重新居中。
+     *       必要，因为两个视图共用 {@code mainWindow} 的 panX/panY：在复合视图里
+     *       {@code centerCompoundView} 已把 pan 对齐到 COMPOUND 坐标系，若不重置，
+     *       切回时 pan 仍是 COMPOUND 坐标，而窗又渲染 PRIMARY 树，导致居中错位。</li>
+     * </ul>
+     */
+    private void toggleCompoundView() {
+        compoundViewActive = !compoundViewActive;
+        if (compoundViewActive) {
+            centeredOnCompound = false;
+        } else {
+            // 切回主视图：强制下一帧重新居中主职业树（currentMain 未变，
+            // 故必须手动失效 lastCenteredMainId 才能触发 centerOnCurrentMain）
+            lastCenteredMainId = null;
+        }
+    }
+
+    /**
      * 当前可见、应响应点击的窗口列表（已按优先级排序）。
      * <p>
-     * 任一窗最大化 → 只返回该最大化窗；否则返回 [主窗, 副窗]。
+     * 复合视图 → 仅主窗（作复合窗）；任一窗最大化 → 只剩该最大化窗；
+     * 否则返回 [主窗, 副窗]。
      */
     private List<FloatingWindow> visibleWindows() {
         List<FloatingWindow> out = new ArrayList<>(2);
+        if (compoundViewActive) {
+            if (mainWindow != null) out.add(mainWindow);
+            return out;
+        }
         if (mainWindow != null && mainWindow.maximized) {
             out.add(mainWindow);
             return out;
@@ -964,7 +1253,8 @@ public class RPGProfessionScreen extends Screen {
         boolean unlocked = state.unlocked().contains(nodeId);
         boolean isCurrent = nodeId.equals(state.currentMain());
 
-        if (node.type() == IProfession.ProfessionType.PRIMARY) {
+        if (node.type().isMainLike()) {
+            // 主职业 / 复合职业：可作为当前主职业，复用同一套进阶/切换逻辑
             if (!unlocked) {
                 // 可进阶、未解锁 → 弹确认框
                 if (canAdvanceFrom(state, node)) {
@@ -1026,6 +1316,7 @@ public class RPGProfessionScreen extends Screen {
     }
 
     private void toggleMaximize(FloatingWindow win) {
+        boolean wasMaximized = win.maximized;
         win.maximized = !win.maximized;
         // 互斥：最大化一个窗时取消另一个的最大化
         if (win.maximized) {
@@ -1033,6 +1324,23 @@ public class RPGProfessionScreen extends Screen {
             if (win == secondaryWindow && mainWindow != null) mainWindow.maximized = false;
         }
         applyMaximizedLayout();
+        // 从最大化还原为默认尺寸时，窗口可视区变小，原先在大窗里拖动产生的 pan 偏移
+        // 可能把职业树推出小窗可视区。按被还原窗的类型重新居中，保证还原后对应树可见：
+        //   - 复合视图下的主窗（作复合窗） → 复合树几何中心
+        //   - 普通 mainWindow               → 当前主职业
+        //   - secondaryWindow               → 副职业树几何中心
+        if (wasMaximized) {
+            ProfessionStateView state = ProfessionStateCache.get();
+            if (state != null) {
+                if (compoundViewActive && win == mainWindow) {
+                    centerCompoundView(state);
+                } else if (win == mainWindow) {
+                    centerOnCurrentMain(state);
+                } else if (win == secondaryWindow) {
+                    centerSecondaryView(state);
+                }
+            }
+        }
     }
 
     private void startDragWindow(FloatingWindow win, double mx, double my) {
@@ -1169,17 +1477,95 @@ public class RPGProfessionScreen extends Screen {
     private void centerOnCurrentMain(ProfessionStateView state) {
         if (mainWindow == null) return;
         Identifier mainId = state.currentMain();
-        if (mainId == null) return;
-        Map<Identifier, int[]> pos = computeLayoutForType(state, IProfession.ProfessionType.PRIMARY,
+        // 查找类型由「当前视图」决定 —— mainWindow 实际渲染的就是这棵树，pan 必须对齐它的坐标系：
+        //   复合视图 → COMPOUND 树；主/副双窗视图 → PRIMARY 树。
+        // （不能用 currentMain 自身的类型：主职业可能是复合职业，但主/副双窗视图仍渲染 PRIMARY 树，
+        //  两个布局坐标系不同，pan 设错会导致实际渲染的树不可见。）
+        IProfession.ProfessionType lookupType = compoundViewActive
+                ? IProfession.ProfessionType.COMPOUND
+                : IProfession.ProfessionType.PRIMARY;
+        Map<Identifier, int[]> pos = computeLayoutForType(state, lookupType,
                 mainWindow.contentOriginX(), mainWindow.contentOriginY());
-        int[] p = pos.get(mainId);
-        if (p == null) return;
-        int nodeCenterX = p[0] + NODE_SIZE / 2;
-        int nodeCenterY = p[1] + NODE_SIZE / 2;
+        int[] p = (mainId != null) ? pos.get(mainId) : null;
+        int nodeCenterX, nodeCenterY;
+        if (p != null) {
+            // 当前主职业在本视图树里 → 精确居中到它
+            nodeCenterX = p[0] + NODE_SIZE / 2;
+            nodeCenterY = p[1] + NODE_SIZE / 2;
+        } else if (!pos.isEmpty()) {
+            // 当前主职业不在本视图树里（如主职业是复合职业，但当前在主/副双窗视图）：
+            // 回退到本视图整树几何中心，保证渲染的树可见、pan 不冻结在旧偏移
+            int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+            int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+            for (int[] q : pos.values()) {
+                minX = Math.min(minX, q[0]);
+                maxX = Math.max(maxX, q[0] + NODE_SIZE);
+                minY = Math.min(minY, q[1]);
+                maxY = Math.max(maxY, q[1] + NODE_SIZE);
+            }
+            nodeCenterX = (minX + maxX) / 2;
+            nodeCenterY = (minY + maxY) / 2;
+        } else {
+            return;
+        }
         int visibleCenterX = mainWindow.x + mainWindow.w / 2;
         int visibleCenterY = mainWindow.contentOriginY() + (mainWindow.h - TITLE_BAR_HEIGHT - POOL_ROW_HEIGHT) / 2;
         mainWindow.panX = visibleCenterX - nodeCenterX;
         mainWindow.panY = visibleCenterY - nodeCenterY;
+    }
+
+    /**
+     * 复合视图首次居中：以复合树的几何中心落在窗可见区中心。
+     * <p>
+     * 复合职业通常数量少（可能仅 1 个），直接取其布局位置居中即可。
+     */
+    private void centerCompoundView(ProfessionStateView state) {
+        if (mainWindow == null) return;
+        Map<Identifier, int[]> pos = computeLayoutForType(state, IProfession.ProfessionType.COMPOUND,
+                mainWindow.contentOriginX(), mainWindow.contentOriginY());
+        if (pos.isEmpty()) return;
+        // 取所有复合节点坐标的几何中心
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (int[] p : pos.values()) {
+            minX = Math.min(minX, p[0]);
+            maxX = Math.max(maxX, p[0] + NODE_SIZE);
+            minY = Math.min(minY, p[1]);
+            maxY = Math.max(maxY, p[1] + NODE_SIZE);
+        }
+        int centerX = (minX + maxX) / 2;
+        int centerY = (minY + maxY) / 2;
+        int visibleCenterX = mainWindow.x + mainWindow.w / 2;
+        int visibleCenterY = mainWindow.contentOriginY() + (mainWindow.h - TITLE_BAR_HEIGHT - POOL_ROW_HEIGHT) / 2;
+        mainWindow.panX = visibleCenterX - centerX;
+        mainWindow.panY = visibleCenterY - centerY;
+    }
+
+    /**
+     * 副职业窗居中：以副职业树的几何中心落在副窗可见区中心。
+     * <p>
+     * 副职业可有多个同时激活，无单一「当前」概念，故取整树几何中心居中，
+     * 保证还原小窗后整棵副职业树可见。
+     */
+    private void centerSecondaryView(ProfessionStateView state) {
+        if (secondaryWindow == null) return;
+        Map<Identifier, int[]> pos = computeLayoutForType(state, IProfession.ProfessionType.SECONDARY,
+                secondaryWindow.contentOriginX(), secondaryWindow.contentOriginY());
+        if (pos.isEmpty()) return;
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (int[] p : pos.values()) {
+            minX = Math.min(minX, p[0]);
+            maxX = Math.max(maxX, p[0] + NODE_SIZE);
+            minY = Math.min(minY, p[1]);
+            maxY = Math.max(maxY, p[1] + NODE_SIZE);
+        }
+        int centerX = (minX + maxX) / 2;
+        int centerY = (minY + maxY) / 2;
+        int visibleCenterX = secondaryWindow.x + secondaryWindow.w / 2;
+        int visibleCenterY = secondaryWindow.contentOriginY() + (secondaryWindow.h - TITLE_BAR_HEIGHT - POOL_ROW_HEIGHT) / 2;
+        secondaryWindow.panX = visibleCenterX - centerX;
+        secondaryWindow.panY = visibleCenterY - centerY;
     }
 
     // ====================================================================
@@ -1201,13 +1587,16 @@ public class RPGProfessionScreen extends Screen {
     }
 
     private boolean canAdvanceFrom(ProfessionStateView state, ProfessionNode node) {
-        if (node.prerequisite() == null) return false;
+        if (node.prerequisites().isEmpty()) return false;
         if (state.unlocked().contains(node.id())) return false;
-        if (!state.unlocked().contains(node.prerequisite())) return false;
-        // 前置职业需达到其自身满级（每职业 maxLevel 可不同，取前置节点的 maxLevel）
-        ProfessionNode prereqNode = findNode(state, node.prerequisite());
-        int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
-        return state.levels().getOrDefault(node.prerequisite(), 0) >= prereqMax;
+        // 所有前置职业都须已解锁且达到其自身满级（每职业 maxLevel 可不同）
+        for (Identifier prereqId : node.prerequisites()) {
+            if (!state.unlocked().contains(prereqId)) return false;
+            ProfessionNode prereqNode = findNode(state, prereqId);
+            int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
+            if (state.levels().getOrDefault(prereqId, 0) < prereqMax) return false;
+        }
+        return true;
     }
 
     /**
@@ -1216,19 +1605,19 @@ public class RPGProfessionScreen extends Screen {
      * 规则：
      * <ul>
      *   <li>必须是 SECONDARY 类型且未解锁</li>
-     *   <li>基础副职业（prerequisite=null）：池 ≥ 解锁消耗</li>
-     *   <li>非基础副职业：前置须已解锁且达其满级，池 ≥ 解锁消耗</li>
+     *   <li>基础副职业（无前置）：池 ≥ 解锁消耗</li>
+     *   <li>非基础副职业：所有前置须已解锁且达其满级，池 ≥ 解锁消耗</li>
      * </ul>
      */
     private boolean canUnlockSecondary(ProfessionStateView state, ProfessionNode node) {
         if (node.type() != IProfession.ProfessionType.SECONDARY) return false;
         if (state.unlocked().contains(node.id())) return false;
         if (state.pool() < SECONDARY_UNLOCK_COST) return false;
-        if (node.prerequisite() != null) {
-            if (!state.unlocked().contains(node.prerequisite())) return false;
-            ProfessionNode prereqNode = findNode(state, node.prerequisite());
+        for (Identifier prereqId : node.prerequisites()) {
+            if (!state.unlocked().contains(prereqId)) return false;
+            ProfessionNode prereqNode = findNode(state, prereqId);
             int prereqMax = prereqNode != null ? prereqNode.maxLevel() : 20;
-            if (state.levels().getOrDefault(node.prerequisite(), 0) < prereqMax) return false;
+            if (state.levels().getOrDefault(prereqId, 0) < prereqMax) return false;
         }
         return true;
     }

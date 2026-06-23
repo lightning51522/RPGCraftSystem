@@ -22,9 +22,10 @@ public class PacketHandler {
      * @param event NeoForge 提供的网络包注册事件
      */
     public static void register(final RegisterPayloadHandlersEvent event) {
-        // 创建注册器，参数 "1" 是网络协议版本号。
-        // 如果客户端和服务端的协议版本不匹配，NeoForge 会拒绝连接以防止数据不同步
-        final PayloadRegistrar registrar = event.registrar("1");
+        // 创建注册器，参数是网络协议版本号。
+        // 如果客户端和服务端的协议版本不匹配，NeoForge 会拒绝连接以防止数据不同步。
+        // v2：复合职业引入，SyncProfessionStatePacket 的节点前置字段由单 nullable id 改为 id 列表。
+        final PayloadRegistrar registrar = event.registrar("2");
 
         // 注册从服务端发往客户端的属性同步包（playToClient）
         // 参数说明：

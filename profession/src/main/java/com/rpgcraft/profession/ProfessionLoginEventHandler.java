@@ -51,10 +51,10 @@ public class ProfessionLoginEventHandler {
         ProfessionData data = ProfessionManager.getData(player);
         IProfessionRegistry registry = ProfessionManager.getRegistry();
 
-        // 主职业校验
+        // 主职业校验：主职业必须是「可作为主职业」类型（主职业或复合职业）
         Identifier mainId = data.getProfessionId();
         IProfession main = registry.getProfession(mainId);
-        if (main == null || main.getType() != IProfession.ProfessionType.PRIMARY) {
+        if (main == null || !main.getType().isMainLike()) {
             ProfessionMod.LOGGER.warn("玩家 {} 的主职业 {} 失效或类型异常，回退为 commoner",
                     player.getName().getString(), mainId);
             data.setProfessionId(ProfessionManager.COMMONER_ID);

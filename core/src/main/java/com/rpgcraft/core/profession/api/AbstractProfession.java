@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 职业抽象基类 —— 封装常用静态数据字段，降低职业子类样板代码
@@ -49,13 +50,17 @@ public abstract class AbstractProfession implements IProfession {
     private final String displayName;
     private final String description;
     private final ProfessionType type;
+    /** 单前置 ID（单前置职业的树形画线用）；复合职业为 null */
     private final @Nullable Identifier prerequisite;
     private final int maxLevel;
     private final Map<Identifier, Integer> baseBonuses;
     private final Map<Identifier, Integer> perLevel;
 
     /**
-     * 全参数构造函数
+     * 单前置构造函数（主/副职业通用）。
+     * <p>
+     * 传入 {@code prerequisite} 为 null 表示树根；非 null 表示进阶自该基础职业。
+     * {@link #getPrerequisites()} 默认据此返回单元素（或空）集合。
      *
      * @param id           职业 ID
      * @param displayName  显示名
@@ -107,6 +112,16 @@ public abstract class AbstractProfession implements IProfession {
     @Override
     public @Nullable Identifier getPrerequisite() {
         return prerequisite;
+    }
+
+    /**
+     * 默认从 {@link #getPrerequisite()} 派生：单前置包装成单元素集合，null 返回空集。
+     * <p>
+     * <b>复合职业</b>（多个前置）应直接覆写本方法返回完整前置集合，而非调用本构造。
+     */
+    @Override
+    public Set<Identifier> getPrerequisites() {
+        return prerequisite == null ? Set.of() : Set.of(prerequisite);
     }
 
     @Override

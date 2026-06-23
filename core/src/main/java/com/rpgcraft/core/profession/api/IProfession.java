@@ -43,12 +43,36 @@ public interface IProfession {
 
     /**
      * 职业类型：决定该职业在职业树中的归属、可否做主/副职业。
+     * <p>
+     * <b>序列化注意</b>：本枚举按 {@code ordinal()} 序列化进网络包
+     * （见 {@code SyncProfessionStatePacket}），新增值<b>必须追加在末尾</b>，
+     * 不得插在中间，否则旧客户端反序列化会错位。
      */
     enum ProfessionType {
         /** 主职业：进阶树成员，链根于 commoner；可 advance / switchMain */
         PRIMARY,
         /** 副职业：独立成树；可被选为当前副职业，不可做主职业 */
-        SECONDARY
+        SECONDARY,
+        /**
+         * 复合职业：要求解锁复数主职业（均达满级）作为前置的特殊主职业。
+         * <p>
+         * 行为上等同于 {@link #PRIMARY} —— 可 advance / switchMain / 提供主职业加成；
+         * 区别在于其 {@link #getPrerequisites()} 返回多个前置，{@link #getPrerequisite()} 返回 null。
+         * 在职业面板中单独成树（通过标题栏 ⇌ 切换查看）。
+         */
+        COMPOUND;
+
+        /**
+         * 是否「可作为主职业」—— {@link #PRIMARY} 与 {@link #COMPOUND} 均为 true。
+         * <p>
+         * 集中表达「可 advance / switchMain / 做当前主职业」的判定，避免散落的
+         * {@code == PRIMARY || == COMPOUND}。
+         *
+         * @return {@code true} 表示可作为主职业
+         */
+        public boolean isMainLike() {
+            return this == PRIMARY || this == COMPOUND;
+        }
     }
 
     // ==================================================================
@@ -104,10 +128,14 @@ public interface IProfession {
      * 返回 null 表示该职业是树起点（无前置，如主职业树的平民、副职业树的根）。
      * 返回非 null 表示进阶自某基础职业（如狂战士返回战士 ID）。
      * <p>
+     * <b>复合职业</b>（{@link ProfessionType#COMPOUND}）有多个前置，本方法返回 null，
+     * 需通过 {@link #getPrerequisites()} 获取完整前置集合。
+     * <p>
      * 类型约束（由注册时的校验保证）：
      * <ul>
      *   <li>主职业的 prerequisite 链最终必须追溯到 {@code commoner}</li>
      *   <li>副职业的 prerequisite 只能为 null 或指向其他副职业</li>
+     *   <li>复合职业的 prerequisite 返回 null，其 {@link #getPrerequisites()} 指向多个主职业</li>
      * </ul>
      * 只有前置职业达到 {@link #getMaxLevel()} 满级才能解锁本职业。
      *
@@ -118,10 +146,28 @@ public interface IProfession {
     }
 
     /**
+     * 获取进阶前置职业的完整集合（多前置契约）。
+     * <p>
+     * 单前置职业（绝大多数）返回包含单个元素的集合（即 {@link #getPrerequisite()} 包装）；
+     * 复合职业返回多个前置主职业的 ID；树根职业返回空集合。
+     * <p>
+     * 默认实现从 {@link #getPrerequisite()} 派生，保证既有单前置职业向后兼容；
+     * {@link AbstractProfession} 用显式字段覆盖此默认实现。
+     * <p>
+     * 解锁条件：<b>所有</b>前置职业都必须已解锁且达到其自身 {@link #getMaxLevel()} 满级。
+     *
+     * @return 不可变的前置职业 ID 集合，空集合表示无前置（树根）
+     */
+    default java.util.Set<Identifier> getPrerequisites() {
+        Identifier prereq = getPrerequisite();
+        return prereq == null ? java.util.Set.of() : java.util.Set.of(prereq);
+    }
+
+    /**
      * 是否为进阶职业（即有前置职业）
      */
     default boolean isAdvanced() {
-        return getPrerequisite() != null;
+        return !getPrerequisites().isEmpty();
     }
 
     /**
