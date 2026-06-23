@@ -126,7 +126,8 @@ public class ProfessionManager {
         for (IProfession prof : registry.getAllProfessions()) {
             nodes.add(new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode(
                     prof.getId(), prof.getDisplayName(), prof.getDescription(),
-                    prof.getPrerequisite(), prof.isAdvanced(), prof.getType(), prof.getMaxLevel(),
+                    java.util.List.copyOf(prof.getPrerequisites()), prof.isAdvanced(),
+                    prof.getType(), prof.getMaxLevel(),
                     prof.getIconItem(), prof.getIconChar()));
         }
         return new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView(
@@ -271,16 +272,19 @@ public class ProfessionManager {
 
     public static boolean canAdvance(ServerPlayer player, Identifier professionId) {
         IProfession target = registry.getProfession(professionId);
-        if (target == null || target.getPrerequisite() == null) return false;
-        // 仅主职业可进阶
-        if (target.getType() != IProfession.ProfessionType.PRIMARY) return false;
+        if (target == null || target.getPrerequisites().isEmpty()) return false;
+        // 仅主职业（含复合职业）可进阶
+        if (!target.getType().isMainLike()) return false;
         ProfessionData data = getData(player);
         if (data.isUnlocked(professionId)) return false; // 已进阶
-        Identifier prereq = target.getPrerequisite();
-        if (!data.isUnlocked(prereq)) return false;
-        IProfession prereqProf = registry.getProfession(prereq);
-        int cap = prereqProf != null ? prereqProf.getMaxLevel() : LEVEL_CAP;
-        return data.getProfessionLevel(prereq) >= cap;
+        // 所有前置职业都必须已解锁且达到其自身满级
+        for (Identifier prereq : target.getPrerequisites()) {
+            if (!data.isUnlocked(prereq)) return false;
+            IProfession prereqProf = registry.getProfession(prereq);
+            int cap = prereqProf != null ? prereqProf.getMaxLevel() : LEVEL_CAP;
+            if (data.getProfessionLevel(prereq) < cap) return false;
+        }
+        return true;
     }
 
     public static boolean advance(ServerPlayer player, Identifier professionId) {
@@ -331,10 +335,11 @@ public class ProfessionManager {
         IProfession target = registry.getProfession(professionId);
         IProfession current = registry.getProfession(data.getProfessionId());
         if (target == null || current == null) return false;
-        // 仅主职业可作为主职业切换目标
-        if (target.getType() != IProfession.ProfessionType.PRIMARY) return false;
+        // 仅主职业（含复合职业）可作为主职业切换目标
+        if (!target.getType().isMainLike()) return false;
 
-        // 目标是当前职业的基础职业 → 受切回开关控制
+        // 目标是当前职业的前置之一 → 受切回开关控制（仅对单前置主职业有意义；
+        // 复合职业 getPrerequisite() 返回 null，故不会命中此分支）
         boolean targetIsPrereqOfCurrent = professionId.equals(current.getPrerequisite());
         if (targetIsPrereqOfCurrent && !ProfessionConfigLoader.isAllowDowngradeSwitch()) {
             return false;
@@ -672,8 +677,8 @@ public class ProfessionManager {
     public static void setProfession(ServerPlayer player, Identifier professionId) {
         IProfession prof = registry.getProfession(professionId);
         if (prof == null) return;
-        // 主职业只能设主职业类型的职业（副职业不能通过此命令设为主职业）
-        if (prof.getType() != IProfession.ProfessionType.PRIMARY) {
+        // 主职业只能设「可作为主职业」类型的职业（副职业不能通过此命令设为主职业）
+        if (!prof.getType().isMainLike()) {
             ProfessionMod.LOGGER.warn("setProfession 拒绝将副职业 {} 设为主职业", professionId);
             return;
         }

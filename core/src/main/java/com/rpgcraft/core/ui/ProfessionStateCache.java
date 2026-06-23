@@ -48,21 +48,21 @@ public final class ProfessionStateCache {
     /**
      * 职业树节点元数据
      *
-     * @param id          职业 ID
-     * @param displayName 显示名
-     * @param description 描述
-     * @param prerequisite 前置职业 ID（可为 null）
-     * @param advanced    是否进阶职业
-     * @param type        职业类型（主职业 / 副职业），决定节点归属哪棵树
-     * @param maxLevel    该职业的等级上限
-     * @param iconItem    节点物品图标（{@link IProfession#getIconItem()}），空物品表示回退到字符图标
-     * @param iconChar    节点字符图标（{@link IProfession#getIconChar()}），物品图标为空时使用
+     * @param id            职业 ID
+     * @param displayName   显示名
+     * @param description   描述
+     * @param prerequisites 前置职业 ID 列表（空列表表示树根；单前置职业含 1 个元素；复合职业含多个）
+     * @param advanced      是否进阶职业（即 {@code !prerequisites.isEmpty()}）
+     * @param type          职业类型（主职业 / 副职业 / 复合职业），决定节点归属哪棵树
+     * @param maxLevel      该职业的等级上限
+     * @param iconItem      节点物品图标（{@link IProfession#getIconItem()}），空物品表示回退到字符图标
+     * @param iconChar      节点字符图标（{@link IProfession#getIconChar()}），物品图标为空时使用
      */
     public record ProfessionNode(
             Identifier id,
             String displayName,
             String description,
-            @Nullable Identifier prerequisite,
+            List<Identifier> prerequisites,
             boolean advanced,
             IProfession.ProfessionType type,
             int maxLevel,

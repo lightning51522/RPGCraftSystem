@@ -5,12 +5,16 @@ import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.IProfessionRegistry;
 import com.rpgcraft.profession.ProfessionManager;
 import com.rpgcraft.professions.archer.ArcherProfession;
+import com.rpgcraft.professions.archmage.ArchmageProfession;
 import com.rpgcraft.professions.berserker.BerserkerProfession;
 import com.rpgcraft.professions.commoner.CommonerProfession;
+import com.rpgcraft.professions.witchblade.WitchbladeProfession;
+import com.rpgcraft.professions.mage.MageProfession;
 import com.rpgcraft.professions.marksman.MarksmanProfession;
 import com.rpgcraft.professions.naturalist.NaturalistProfession;
 import com.rpgcraft.professions.researcher.ResearcherProfession;
 import com.rpgcraft.professions.scholar.ScholarProfession;
+import com.rpgcraft.professions.sorcerer.SorcererProfession;
 import com.rpgcraft.professions.warrior.WarriorProfession;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -50,6 +54,12 @@ public class ProfessionsMod {
         register(registry, new ArcherProfession());
         register(registry, new BerserkerProfession());
         register(registry, new MarksmanProfession());
+        // 主职业树（魔法系列）：术士 → 法师 → 大法师
+        register(registry, new SorcererProfession());
+        register(registry, new MageProfession());
+        register(registry, new ArchmageProfession());
+        // 复合职业：要求多个主职业达满级作为前置，单独成树
+        register(registry, new WitchbladeProfession());
         // 副职业树：学者 → 研究员 → 博物学家
         register(registry, new ScholarProfession());
         register(registry, new ResearcherProfession());
