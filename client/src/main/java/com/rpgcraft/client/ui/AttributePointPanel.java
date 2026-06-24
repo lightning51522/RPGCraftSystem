@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  * <p>
  * <h3>数据源</h3>
  * <ul>
- *   <li>可分配属性列表：{@link AttributeManager#getRegistry()} 遍历过滤 {@code !shouldResetOnRespawn()}（客户端动态计算）</li>
+ *   <li>可分配属性列表：{@link AttributeManager#getRegistry()} 遍历过滤 {@link IAttributeEntry#isAllocatable()}（客户端动态计算）</li>
  *   <li>已分配/可分配点数：客户端 {@link PlayerAttributePoints} 附件（服务端同步）</li>
  * </ul>
  * <p>
@@ -103,7 +103,7 @@ public class AttributePointPanel {
         PlayerAttributePoints points = getPlayerPoints();
         int available = points != null ? points.getAvailablePoints() : 0;
         List<IAttributeEntry> entries = AttributeManager.getRegistry().getAllEntries().stream()
-                .filter(entry -> !entry.shouldResetOnRespawn())
+                .filter(IAttributeEntry::isAllocatable)
                 .toList();
 
         // 标题行
@@ -231,7 +231,7 @@ public class AttributePointPanel {
         if (points == null) return false;
 
         List<IAttributeEntry> entries = AttributeManager.getRegistry().getAllEntries().stream()
-                .filter(entry -> !entry.shouldResetOnRespawn())
+                .filter(IAttributeEntry::isAllocatable)
                 .toList();
         // 按钮位置（与 renderRow 一致）
         int plusX = x + width - CONTENT_MARGIN - BUTTON_WIDTH;
