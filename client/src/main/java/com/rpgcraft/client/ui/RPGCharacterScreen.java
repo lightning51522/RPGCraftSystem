@@ -77,7 +77,7 @@ public class RPGCharacterScreen extends Screen {
     private static final int SCROLL_STEP = 15;
 
     /** 滚动条宽度 */
-    private static final int SCROLLBAR_WIDTH = 12;
+    private static final int SCROLLBAR_WIDTH = 8;
 
     // ====================================================================
     // 精灵贴图（原版 + 自定义）
