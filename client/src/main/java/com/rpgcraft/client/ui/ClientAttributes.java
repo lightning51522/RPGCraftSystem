@@ -20,4 +20,8 @@ final class ClientAttributes {
     static final Identifier INTELLIGENCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
     static final Identifier AGILE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
     static final Identifier PRECISION_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
+    static final Identifier FIXED_DAMAGE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
+    static final Identifier RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
+    static final Identifier PHYSICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
+    static final Identifier MAGICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
 }

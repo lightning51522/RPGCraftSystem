@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.berserker;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.profession.ProfessionManager;
@@ -70,16 +71,13 @@ public class BerserkerProfession extends AbstractProfession {
      * 狂战士（战士系列）：物理攻击 = 力量×2.5 + 智力。
      */
     @Override
-    public int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.5 + intelligence);
+    public int computePhysicalAttack(CombatStats s) {
+        return (int) Math.round(s.strength() * 2.5 + s.intelligence());
     }
 
-    /**
-     * 狂战士（战士系列）：物理防御 = 力量×2.5。
-     */
     @Override
-    public int computePhysicalDefense(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.5);
+    public int computePhysicalDefense(CombatStats s) {
+        return (int) Math.round(s.strength() * 2.5);
     }
 
     @Override

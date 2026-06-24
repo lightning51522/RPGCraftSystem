@@ -278,6 +278,16 @@ public interface IProfession {
     }
 
     /**
+     * 物理攻击力派生公式（三参数版，含敏捷）。
+     * <p>
+     * 默认忽略 agile，委托到 {@link #computePhysicalAttack(int, int)}。
+     * 需要敏捷参与计算的职业（如弓箭手系列）可覆写此方法。
+     */
+    default int computePhysicalAttack(int strength, int intelligence, int agile) {
+        return computePhysicalAttack(strength, intelligence);
+    }
+
+    /**
      * 魔法攻击力派生公式（综合属性）。
      * <p>
      * 默认：{@code 智力×2 + 力量}。返回值为四舍五入取整。
@@ -329,6 +339,30 @@ public interface IProfession {
      */
     default int computeEffectiveCritDamage(int critRatio, int precision) {
         return (int) Math.round(critRatio + (precision / 5.0) * 2);
+    }
+
+    // ==================================================================
+    // CombatStats 重载（全属性传入，职业可任意选取）
+    // ==================================================================
+
+    default int computePhysicalAttack(CombatStats s) {
+        return computePhysicalAttack(s.strength(), s.intelligence(), s.agile());
+    }
+
+    default int computeMagicalAttack(CombatStats s) {
+        return computeMagicalAttack(s.strength(), s.intelligence());
+    }
+
+    default int computePhysicalDefense(CombatStats s) {
+        return computePhysicalDefense(s.strength(), s.intelligence());
+    }
+
+    default int computeEffectiveCritRate(CombatStats s) {
+        return computeEffectiveCritRate(s.critRate(), s.agile());
+    }
+
+    default int computeEffectiveCritDamage(CombatStats s) {
+        return computeEffectiveCritDamage(s.critRatio(), s.precision());
     }
 
     // ==================================================================

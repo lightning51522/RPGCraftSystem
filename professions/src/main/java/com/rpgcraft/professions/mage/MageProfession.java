@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.mage;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.professions.sorcerer.SorcererProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -61,15 +62,15 @@ public class MageProfession extends AbstractProfession {
      * 默认公式为 {@code 智力×2 + 力量}，法师通过提高智力系数体现法术优势。
      */
     @Override
-    public int computeMagicalAttack(int strength, int intelligence) {
-        return (int) Math.round(intelligence * 3.0 + strength);
+    public int computeMagicalAttack(CombatStats s) {
+        return (int) Math.round(s.intelligence() * 2.0 + s.agile() * 0.5);
     }
 
     @Override
     public List<Component> getFormulaTooltip() {
         return List.of(
                 Component.literal("物理攻击 = 力量×2 + 智力"),
-                Component.literal("魔法攻击 = 智力×3 + 力量"),
+                Component.literal("魔法攻击 = 智力×2 + 敏捷×0.5"),
                 Component.literal("物理防御 = 力量×2"),
                 Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
                 Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")

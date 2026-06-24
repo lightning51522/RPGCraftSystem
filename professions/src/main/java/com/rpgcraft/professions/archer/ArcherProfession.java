@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.archer;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
 import net.minecraft.network.chat.Component;
@@ -54,8 +55,8 @@ public class ArcherProfession extends AbstractProfession {
      * 弓箭手（射手系列）：物理攻击 = 力量×1.5 + 敏捷×1.5。
      */
     @Override
-    public int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 1.5 + intelligence * 1.5);
+    public int computePhysicalAttack(CombatStats s) {
+        return (int) Math.round(s.strength() * 1.5 + s.agile() * 1.5);
     }
 
     @Override
