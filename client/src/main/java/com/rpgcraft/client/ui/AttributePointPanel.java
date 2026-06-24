@@ -226,18 +226,17 @@ public class AttributePointPanel {
         int cy = btnY + LINE_HEIGHT / 2;
         int c = 0xFFFFFFFF;
 
-        // 环形弧线（半径 4）
-        graphics.fill(cx - 2, cy - 4, cx + 2, cy - 3, c);
-        graphics.fill(cx - 3, cy - 3, cx - 2, cy, c);
-        graphics.fill(cx + 2, cy - 3, cx + 3, cy, c);
-        graphics.fill(cx - 2, cy + 3, cx + 2, cy + 4, c);
-        graphics.fill(cx - 3, cy, cx - 2, cy + 3, c);
-        graphics.fill(cx + 2, cy, cx + 3, cy + 3, c);
+        // 环形弧线（半径 4，开口在右下）
+        graphics.fill(cx - 2, cy - 4, cx + 2, cy - 3, c); // 顶部横线
+        graphics.fill(cx - 3, cy - 3, cx - 2, cy + 1, c); // 左侧竖线
+        graphics.fill(cx + 2, cy - 3, cx + 3, cy + 1, c); // 右侧竖线
+        graphics.fill(cx - 2, cy + 3, cx + 2, cy + 4, c); // 底部横线
+        graphics.fill(cx - 3, cy + 1, cx - 2, cy + 3, c); // 左下圆角
+        graphics.fill(cx + 2, cy + 1, cx + 3, cy + 3, c); // 右下圆角
 
-        // 箭头（右上角）
-        graphics.fill(cx + 2, cy - 4, cx + 4, cy - 3, c);
-        graphics.fill(cx + 2, cy - 3, cx + 2, cy - 2, c);
-        graphics.fill(cx + 3, cy - 4, cx + 3, cy - 3, c);
+        // 箭头（开口处，指向顺时针）
+        graphics.fill(cx + 2, cy - 4, cx + 5, cy - 3, c); // 箭头横杆
+        graphics.fill(cx + 4, cy - 3, cx + 5, cy - 1, c); // 箭头尖（竖）
     }
 
     /**
