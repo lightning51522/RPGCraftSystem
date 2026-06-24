@@ -88,4 +88,17 @@ public interface IAttributeEntry {
     default IAttributeRendererFactory getRendererFactory() {
         return null;
     }
+
+    /**
+     * 是否允许玩家分配属性点到此属性。
+     * <p>
+     * 默认返回 {@code !shouldResetOnRespawn()}：资源型属性（life / skill_point 等
+     * 重生恢复类属性）不可加点，其余属性可加点。
+     * 子类可覆写以支持更多不可加点属性（如暴击率/暴击伤害等综合派生属性）。
+     *
+     * @return {@code true} 表示可加点
+     */
+    default boolean isAllocatable() {
+        return !shouldResetOnRespawn();
+    }
 }

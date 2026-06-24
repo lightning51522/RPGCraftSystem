@@ -128,13 +128,14 @@ public class AttributePointsManager {
     /**
      * 获取所有可分配属性（动态计算，适应属性注册变化）
      * <p>
-     * 过滤条件：{@code !shouldResetOnRespawn()} —— 排除 life/skill_point。
+     * 过滤条件：{@link IAttributeEntry#isAllocatable()} —— 排除 life/skill_point（资源型）
+     * 和暴击率/暴击伤害（综合派生属性，不可加点）。
      *
      * @return 可分配属性条目列表
      */
     public static List<IAttributeEntry> getAllocatableEntries() {
         return AttributeManager.getRegistry().getAllEntries().stream()
-                .filter(entry -> !entry.shouldResetOnRespawn())
+                .filter(IAttributeEntry::isAllocatable)
                 .toList();
     }
 
@@ -143,7 +144,7 @@ public class AttributePointsManager {
      */
     public static boolean isAllocatable(Identifier attrId) {
         IAttributeEntry entry = AttributeManager.getRegistry().getEntry(attrId);
-        return entry != null && !entry.shouldResetOnRespawn();
+        return entry != null && entry.isAllocatable();
     }
 
     // ====================================================================

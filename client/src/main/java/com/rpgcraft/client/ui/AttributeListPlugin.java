@@ -29,10 +29,8 @@ import java.util.Map;
  *   <li>页脚：翻页箭头 + 页码</li>
  * </ol>
  * <p>
- * 特殊着色：
- * <ul>
- *   <li>暴击率：≤100 白色，101-200 橙色，>200 红色</li>
- * </ul>
+ * 仅渲染可加点的能力型属性和资源型属性。综合派生属性（暴击率/暴击伤害等）
+ * 由 {@link CompositeAttributePlugin} 展示。
  *
  * @see ICharacterScreenPlugin
  * @see AttributeSnapshot
@@ -214,7 +212,13 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         int attrsPerPage = MAX_ROWS * 2;
         int idx = currentPage * attrsPerPage + row * 2 + col;
 
-        List<Map.Entry<Identifier, AttributeData>> entries = new ArrayList<>(snapshot.getAll().entrySet());
+        List<Map.Entry<Identifier, AttributeData>> entries = snapshot.getAll().entrySet().stream()
+                .filter(e -> {
+                    IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(e.getKey());
+                    if (attrEntry == null) return false;
+                    return attrEntry.isAllocatable() || attrEntry.shouldResetOnRespawn();
+                })
+                .toList();
         if (idx < 0 || idx >= entries.size()) return null;
 
         Identifier attrId = entries.get(idx).getKey();
@@ -240,14 +244,18 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
      * 渲染两列属性列表
      * <p>
      * 从快照中按页获取属性，每行渲染两个属性。
-     * 暴击率属性使用特殊着色。
-     * <p>
-     * 仅渲染注册的真实属性（能力型 + 资源型）。综合属性（攻击力/防御力）由独立的
-     * {@link CompositeAttributePlugin} 展示，不在此列表中。
+     * 排除不可加点且非资源型属性（由 {@link CompositeAttributePlugin} 展示）。
      */
     private void renderAttributes(GuiGraphicsExtractor graphics, int x, int y,
                                    int width, Minecraft mc, AttributeSnapshot snapshot) {
-        List<Map.Entry<Identifier, AttributeData>> entries = new ArrayList<>(snapshot.getAll().entrySet());
+        // 仅保留可加点或资源型的属性（排除暴击率/暴击伤害等综合派生属性）
+        List<Map.Entry<Identifier, AttributeData>> entries = snapshot.getAll().entrySet().stream()
+                .filter(e -> {
+                    IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(e.getKey());
+                    if (attrEntry == null) return false;
+                    return attrEntry.isAllocatable() || attrEntry.shouldResetOnRespawn();
+                })
+                .toList();
         int columnWidth = (width - COLUMN_GAP) / 2;
         int attrsPerPage = MAX_ROWS * 2;
         int startIdx = currentPage * attrsPerPage;
@@ -265,13 +273,7 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
             SB.setLength(0);
             SB.append(data.displayName()).append(": ").append(data.currentValue());
 
-            // 暴击率颜色：≤100 白色，101-200 橙色，>200 红色
             int textColor = COLOR_TEXT;
-            if (mapEntry.getKey().equals(ClientAttributes.CRITICAL_RATE_ID)) {
-                int critVal = data.currentValue();
-        if (critVal > 200) textColor = COLOR_CRIT_HIGH;
-        else if (critVal > 100) textColor = COLOR_CRIT_MID;
-            }
 
             int attrX = x + col * (columnWidth + COLUMN_GAP);
             int attrY = y + row * LINE_HEIGHT;

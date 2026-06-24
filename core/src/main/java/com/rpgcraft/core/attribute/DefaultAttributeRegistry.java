@@ -36,31 +36,42 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
     /**
      * 属性条目的默认实现
      */
-    public static class DefaultEntry implements IAttributeEntry {
-        private final Identifier id;
-        private final String displayName;
-        private final String description;
-        private final Supplier<AttachmentType<EntityAttribute>> supplier;
-        private final int defaultValue;
-        private final int defaultMaxValue;
-        private final boolean resetOnRespawn;
-        private final boolean equipmentAffectsMax;
-        private final IAttributeRendererFactory rendererFactory;
+	    public static class DefaultEntry implements IAttributeEntry {
+	        private final Identifier id;
+	        private final String displayName;
+	        private final String description;
+	        private final Supplier<AttachmentType<EntityAttribute>> supplier;
+	        private final int defaultValue;
+	        private final int defaultMaxValue;
+	        private final boolean resetOnRespawn;
+	        private final boolean equipmentAffectsMax;
+	        private final boolean allocatable;
+	        private final IAttributeRendererFactory rendererFactory;
 
-        DefaultEntry(Identifier id, String displayName, String description,
-                     Supplier<AttachmentType<EntityAttribute>> supplier,
-                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
-                     boolean equipmentAffectsMax, IAttributeRendererFactory rendererFactory) {
-            this.id = id;
-            this.displayName = displayName;
-            this.description = description;
-            this.supplier = supplier;
-            this.defaultValue = defaultValue;
-            this.defaultMaxValue = defaultMaxValue;
-            this.resetOnRespawn = resetOnRespawn;
-            this.equipmentAffectsMax = equipmentAffectsMax;
-            this.rendererFactory = rendererFactory;
-        }
+	        DefaultEntry(Identifier id, String displayName, String description,
+	                     Supplier<AttachmentType<EntityAttribute>> supplier,
+	                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
+	                     boolean equipmentAffectsMax, IAttributeRendererFactory rendererFactory) {
+	            this(id, displayName, description, supplier, defaultValue, defaultMaxValue,
+	                    resetOnRespawn, equipmentAffectsMax, !resetOnRespawn, rendererFactory);
+	        }
+
+	        DefaultEntry(Identifier id, String displayName, String description,
+	                     Supplier<AttachmentType<EntityAttribute>> supplier,
+	                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
+	                     boolean equipmentAffectsMax, boolean allocatable,
+	                     IAttributeRendererFactory rendererFactory) {
+	            this.id = id;
+	            this.displayName = displayName;
+	            this.description = description;
+	            this.supplier = supplier;
+	            this.defaultValue = defaultValue;
+	            this.defaultMaxValue = defaultMaxValue;
+	            this.resetOnRespawn = resetOnRespawn;
+	            this.equipmentAffectsMax = equipmentAffectsMax;
+	            this.allocatable = allocatable;
+	            this.rendererFactory = rendererFactory;
+	        }
 
         @Override
         public Identifier getId() { return id; }
@@ -94,6 +105,9 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 
         @Override
         public IAttributeRendererFactory getRendererFactory() { return rendererFactory; }
+
+        @Override
+        public boolean isAllocatable() { return allocatable; }
     }
 
     public DefaultAttributeRegistry(String modId) {
@@ -144,6 +158,20 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
                          int defaultValue, int defaultMaxValue,
                          boolean resetOnRespawn, boolean equipmentAffectsMax,
                          IAttributeRendererFactory rendererFactory) {
+        register(id, displayName, description, defaultValue, defaultMaxValue,
+                resetOnRespawn, equipmentAffectsMax, !resetOnRespawn, rendererFactory);
+    }
+
+    /**
+     * 注册属性（完整参数 + allocatable 控制）。
+     *
+     * @param allocatable 是否允许玩家分配属性点到此属性；
+     *                    默认应等于 {@code !resetOnRespawn}（资源型不可加点）
+     */
+    public void register(Identifier id, String displayName, String description,
+                         int defaultValue, int defaultMaxValue,
+                         boolean resetOnRespawn, boolean equipmentAffectsMax,
+                         boolean allocatable, IAttributeRendererFactory rendererFactory) {
         boolean capped = defaultMaxValue < Integer.MAX_VALUE;
         Supplier<AttachmentType<EntityAttribute>> supplier = deferredRegister.register(
                 id.getPath(),
@@ -156,7 +184,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
                         .build()
         );
         DefaultEntry entry = new DefaultEntry(id, displayName, description, supplier, defaultValue, defaultMaxValue,
-                resetOnRespawn, equipmentAffectsMax, rendererFactory);
+                resetOnRespawn, equipmentAffectsMax, allocatable, rendererFactory);
         entries.put(id, entry);
         if (resetOnRespawn) {
             respawnResetEntries.add(entry);

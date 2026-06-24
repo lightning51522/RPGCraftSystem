@@ -309,6 +309,34 @@ public interface IProfession {
         return strength * 2;
     }
 
+    /**
+     * 有效暴击率派生公式（综合属性，不可加点，不注册为真实属性）。
+     * <p>
+     * 默认：{@code 暴击率 + 敏捷/5}（每 5 点敏捷 +1 暴击率）。
+     * 主职业可覆写实现职业特色（如神射手的敏捷对暴击率加成更高）。
+     *
+     * @param critRate 暴击率属性当前值（管线最终值，含装备加成）
+     * @param agile    敏捷属性当前值
+     * @return 有效暴击率
+     */
+    default int computeEffectiveCritRate(int critRate, int agile) {
+        return critRate + agile / 5;
+    }
+
+    /**
+     * 有效暴击伤害派生公式（综合属性，不可加点，不注册为真实属性）。
+     * <p>
+     * 默认：{@code 暴击伤害 + (精准/5)×2}（每 5 点精准 +2 暴击伤害）。
+     * 主职业可覆写实现职业特色（如大法师的精准对暴击伤害加成更高）。
+     *
+     * @param critRatio 暴击伤害属性当前值（管线最终值，含装备加成）
+     * @param precision 精准属性当前值
+     * @return 有效暴击伤害
+     */
+    default int computeEffectiveCritDamage(int critRatio, int precision) {
+        return critRatio + (precision / 5) * 2;
+    }
+
     // ==================================================================
     // UI 展示（钩子）
     // ==================================================================

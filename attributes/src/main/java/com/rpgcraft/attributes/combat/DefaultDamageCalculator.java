@@ -200,8 +200,9 @@ public class DefaultDamageCalculator implements IDamageCalculator {
     /**
      * 多层暴击判定
      * <p>
-     * <b>有效暴击率</b> = 暴击率属性 + 敏捷/5（每 5 点敏捷 +1 暴击率）；
-     * <b>有效暴击伤害</b> = 暴击伤害属性 + (精准/5)×2（每 5 点精准 +2 暴击伤害）。
+     * <b>有效暴击率</b>和<b>有效暴击伤害</b>由当前主职业的公式派生
+     * （{@link IProfession#computeEffectiveCritRate} / {@link IProfession#computeEffectiveCritDamage}），
+     * 怪物或无职业模块回退默认公式（暴击率 + 敏捷/5，暴击伤害 + (精准/5)×2）。
      * <p>
      * 暴击率每 100% 保底增加一层暴击伤害，超出部分作为下一层的触发概率。
      * <ul>
@@ -215,10 +216,10 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @return 暴击倍率（≥1.0，1.0 表示未暴击）
      */
     private double rollCriticalMultiplier(LivingEntity entity) {
-        // 有效暴击率 = 暴击率属性 + 敏捷派生（每 5 敏捷 +1）
+        // 有效暴击率 —— 由当前主职业公式派生（默认 = 暴击率 + 敏捷/5）
         int critRateAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID);
         int agile = getAttributeValue(entity, DefaultAttributes.AGILE_ID);
-        int effectiveCritRate = critRateAttr + agile / 5;
+        int effectiveCritRate = ProfessionFormulas.effectiveCritRate(entity, critRateAttr, agile);
         if (effectiveCritRate <= 0) return 1.0;
 
         // 保底暴击层数 + 额外一层概率
@@ -232,10 +233,10 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
         if (totalCrits == 0) return 1.0;
 
-        // 有效暴击伤害 = 暴击伤害属性 + 精准派生（每 5 精准 +2）
+        // 有效暴击伤害 —— 由当前主职业公式派生（默认 = 暴击伤害 + (精准/5)×2）
         int critRatioAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID);
         int precision = getAttributeValue(entity, DefaultAttributes.PRECISION_ID);
-        int effectiveCritRatio = critRatioAttr + (precision / 5) * 2;
+        int effectiveCritRatio = ProfessionFormulas.effectiveCritDamage(entity, critRatioAttr, precision);
 
         // 每层暴击乘以 (1 + 有效暴击伤害/100)，多层为幂次
         double critMulti = 1.0 + effectiveCritRatio / 100.0;

@@ -47,4 +47,13 @@ public class MarksmanProfession extends AbstractProfession {
     public String getIconChar() {
         return "神";
     }
+
+    /**
+     * 神射手专属：敏捷对暴击率的加成更高 —— {@code 暴击率 + 敏捷/3}。
+     * 默认公式为 {@code 暴击率 + 敏捷/5}，神射手大幅强化敏捷收益。
+     */
+    @Override
+    public int computeEffectiveCritRate(int critRate, int agile) {
+        return critRate + agile / 3;
+    }
 }
