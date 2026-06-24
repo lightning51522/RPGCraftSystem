@@ -259,6 +259,57 @@ public interface IProfession {
     }
 
     // ==================================================================
+    // 综合属性派生公式（主职业可覆写，仅对 isMainLike() 类型生效）
+    // ==================================================================
+
+    /**
+     * 物理攻击力派生公式（综合属性，不注册为真实属性）。
+     * <p>
+     * 默认：{@code 力量×2 + 智力}。
+     * 主职业可覆写实现职业特色（如战士的物理攻击力由力量主导更多，法师的由智力主导）。
+     * <p>
+     * 调用方（战斗计算器 / 客户端 UI）负责从属性管线读取力量/智力最终值后传入；
+     * 本方法为纯函数，不依赖实体引用，可在客户端无实体环境下复用。
+     *
+     * @param strength    物理力量属性当前值（管线最终值，含职业/装备/属性点加成）
+     * @param intelligence 智力属性当前值
+     * @return 物理攻击力
+     */
+    default int computePhysicalAttack(int strength, int intelligence) {
+        return strength * 2 + intelligence;
+    }
+
+    /**
+     * 魔法攻击力派生公式（综合属性）。
+     * <p>
+     * 默认：{@code 智力×2 + 力量}。
+     * 主职业可覆写实现职业特色（如法师的魔法攻击力由智力主导更多）。
+     *
+     * @param strength    物理力量属性当前值
+     * @param intelligence 智力属性当前值
+     * @return 魔法攻击力
+     */
+    default int computeMagicalAttack(int strength, int intelligence) {
+        return intelligence * 2 + strength;
+    }
+
+    /**
+     * 物理防御力派生公式（综合属性）。
+     * <p>
+     * 默认：{@code 力量×2}。
+     * 主职业可覆写实现职业特色（如战士的物理防御力由力量主导更多，法师的由智力提供少量物防）。
+     * <p>
+     * 魔法防御力不从此方法派生 —— 魔法防御仅来自装备，无属性派生。
+     *
+     * @param strength    物理力量属性当前值
+     * @param intelligence 智力属性当前值
+     * @return 物理防御力
+     */
+    default int computePhysicalDefense(int strength, int intelligence) {
+        return strength * 2;
+    }
+
+    // ==================================================================
     // UI 展示（钩子）
     // ==================================================================
 

@@ -4,6 +4,7 @@ import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.profession.api.ProfessionFormulas;
 import com.rpgcraft.attributes.module.DefaultAttributes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
@@ -29,11 +30,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * 对应属性未注册时读取值为 0，公式自动降级（不减免/不暴击/不穿透）。
  *
  * <h3>综合属性（攻击力 / 防御力）</h3>
- * 攻击力和防御力<b>不作为真实属性存储</b>，由本类在计算伤害时根据一般属性动态派生：
+ * 攻击力和防御力<b>不作为真实属性存储</b>，由本类在计算伤害时根据一般属性动态派生。
+ * 派生公式<b>由玩家的当前主职业提供</b>（{@link IProfession#computePhysicalAttack 等}），
+ * 怪物或无职业模块时回退默认公式（见 {@link ProfessionFormulas}）：
  * <ul>
- *   <li><b>物理攻击力</b> = {@code 力量×2 + 智力}</li>
- *   <li><b>魔法攻击力</b> = {@code 智力×2 + 力量}</li>
- *   <li><b>物理防御力</b> = {@code 力量×2}（目标的力量值；魔法防御力仅来自装备，无法从属性获得）</li>
+ *   <li><b>物理攻击力</b>默认 = {@code 力量×2 + 智力}</li>
+ *   <li><b>魔法攻击力</b>默认 = {@code 智力×2 + 力量}</li>
+ *   <li><b>物理防御力</b>默认 = {@code 力量×2}（目标的力量值；魔法防御力仅来自装备）</li>
  * </ul>
  * 装备对一般属性（力量/智力等）的加成会自动通过属性管线计入上式（读取的是管线最终值）。
  *
@@ -140,47 +143,54 @@ public class DefaultDamageCalculator implements IDamageCalculator {
     /**
      * 计算实体的物理攻击力（综合属性，动态派生）。
      * <p>
-     * 公式：{@code 力量×2 + 智力}
+     * 玩家：由当前主职业的 {@link IProfession#computePhysicalAttack} 派生；
+     * 非玩家或无职业模块：回退默认公式。
      * <p>
      * 力量/智力读取的是管线最终值（含装备/职业/属性点加成），故装备对一般属性的加成
      * 会自动计入攻击力。
      *
      * @param entity 攻击实体
      * @return 物理攻击力
+     * @see ProfessionFormulas#physicalAttack
      */
     public static int computePhysicalAttack(LivingEntity entity) {
         int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
         int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
-        return strength * 2 + intelligence;
+        return ProfessionFormulas.physicalAttack(entity, strength, intelligence);
     }
 
     /**
      * 计算实体的魔法攻击力（综合属性，动态派生）。
      * <p>
-     * 公式：{@code 智力×2 + 力量}
+     * 玩家：由当前主职业的 {@link IProfession#computeMagicalAttack} 派生；
+     * 非玩家或无职业模块：回退默认公式。
      *
      * @param entity 攻击实体
      * @return 魔法攻击力
+     * @see ProfessionFormulas#magicalAttack
      */
     public static int computeMagicalAttack(LivingEntity entity) {
         int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
         int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
-        return intelligence * 2 + strength;
+        return ProfessionFormulas.magicalAttack(entity, strength, intelligence);
     }
 
     /**
      * 计算实体的物理防御力（综合属性，动态派生）。
      * <p>
-     * 公式：{@code 力量×2}
+     * 玩家：由当前主职业的 {@link IProfession#computePhysicalDefense} 派生；
+     * 非玩家或无职业模块：回退默认公式。
      * <p>
      * 魔法防御力不从此方法获得（魔法防御仅来自装备，无属性派生）。
      *
      * @param entity 防御实体
      * @return 物理防御力
+     * @see ProfessionFormulas#physicalDefense
      */
     public static int computePhysicalDefense(LivingEntity entity) {
         int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
-        return strength * 2;
+        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
+        return ProfessionFormulas.physicalDefense(entity, strength, intelligence);
     }
 
     // ==================================================================
