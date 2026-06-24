@@ -72,29 +72,29 @@ public class WarriorProfession extends AbstractProfession {
     }
 
     /**
-     * 战士专属物理攻击力公式：{@code 力量×3 + 智力}（强化力量权重）。
+     * 战士专属物理攻击力公式：{@code 力量×2.5 + 智力}（强化力量权重）。
      * 默认公式为 {@code 力量×2 + 智力}，战士通过提高力量系数体现近战优势。
      */
     @Override
     public int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 3.0 + intelligence);
+        return (int) Math.round(strength * 2.5 + intelligence);
     }
 
     /**
-     * 战士专属物理防御力公式：{@code 力量×3}（强化防御系数）。
+     * 战士专属物理防御力公式：{@code 力量×2.5}（强化防御系数）。
      * 默认公式为 {@code 力量×2}，战士获得更高的物理防御派生。
      */
     @Override
     public int computePhysicalDefense(int strength, int intelligence) {
-        return (int) Math.round(strength * 3.0);
+        return (int) Math.round(strength * 2.5);
     }
 
     @Override
     public List<Component> getFormulaTooltip() {
         return List.of(
-                Component.literal("物理攻击 = 力量×3 + 智力"),
+                Component.literal("物理攻击 = 力量×2.5 + 智力"),
                 Component.literal("魔法攻击 = 智力×2 + 力量"),
-                Component.literal("物理防御 = 力量×3"),
+                Component.literal("物理防御 = 力量×2.5"),
                 Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
                 Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
         );
