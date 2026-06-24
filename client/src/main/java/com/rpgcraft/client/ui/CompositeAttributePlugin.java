@@ -11,27 +11,26 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
 /**
- * 综合属性面板插件 —— 角色界面中的攻击力/防御力展示区
+ * 综合属性面板插件 —— 角色界面中的攻击力/防御力/暴击展示区
  * <p>
- * 展示 3 个由一般属性派生的综合属性（不可加点）：
+ * 展示由一般属性派生的综合属性（不可加点）：
  * <ul>
- *   <li>物理攻击、魔法攻击、物理防御</li>
+ *   <li>物理攻击、魔法攻击、物理防御、有效暴击率、有效暴击伤害</li>
  * </ul>
- * 这些属性<b>不作为真实属性注册</b>，由本插件从快照读取力量/智力后，
- * 按<b>当前主职业的公式</b>（{@link IProfession#computePhysicalAttack 等}）动态计算。
- * 若无法解析职业（缓存为空 / 职业模块未加载）：回退默认公式（镜像服务端
- * {@code DefaultDamageCalculator} + {@code ProfessionFormulas} fallback）。
+ * 计算公式由<b>当前主职业</b>提供（{@link IProfession#computePhysicalAttack 等}），
+ * 暴击率/暴击伤害显示有效值（基础 + 派生加成）格式如 "85 (50基础+35敏捷)"。
+ * <p>
+ * 若无法解析职业（缓存为空 / 职业模块未加载）：回退默认公式（镜像服务端）。
  * <p>
  * 布局（从上到下）：
  * <ol>
  *   <li>标题 "综合属性"（居中，黄色）+ 分隔线</li>
- *   <li>三行综合属性（两列布局：物理攻击 | 魔法攻击，第二行单独显示防御）</li>
+ *   <li>物理攻击 / 魔法攻击（两列）</li>
+ *   <li>防御</li>
+ *   <li>暴击率 / 暴击伤害（两列，显示有效值+拆分）</li>
  * </ol>
  * <p>
  * 排在 {@link AttributeListPlugin}（一般属性）<b>之前</b>，由 ClientMod 注册顺序保证。
- *
- * @see ICharacterScreenPlugin
- * @see AttributeListPlugin
  */
 public class CompositeAttributePlugin implements ICharacterScreenPlugin {
 
@@ -45,8 +44,8 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
     private static final int COLUMN_GAP = 8;
     /** 标题区域高度（标题 + 间距 + 分隔线 + 间距） */
     private static final int HEADER_HEIGHT = 20;
-    /** 综合属性行数（物理攻击/魔法攻击同一行两列 + 防御单独一行 = 2 行） */
-    private static final int COMPOSITE_ROWS = 2;
+    /** 综合属性行数（物攻/魔攻 + 防御 + 暴击率/暴击伤害 = 3 行） */
+    private static final int COMPOSITE_ROWS = 3;
     /** 插件总高度 */
     private static final int PLUGIN_HEIGHT = HEADER_HEIGHT + COMPOSITE_ROWS * LINE_HEIGHT;
 
@@ -100,43 +99,68 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
         currentY += HEADER_HEIGHT - 13;
 
-        // 3. 计算综合属性值 —— 当前主职业公式 > 默认公式 fallback
+        // 3. 读取基础属性值
         int strength = snapshotValue(snapshot, ClientAttributes.STRENGTH_ID);
         int intelligence = snapshotValue(snapshot, ClientAttributes.INTELLIGENCE_ID);
+        int critRate = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATE_ID);
+        int critRatio = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATIO_ID);
+        int agile = snapshotValue(snapshot, ClientAttributes.AGILE_ID);
+        int precision = snapshotValue(snapshot, ClientAttributes.PRECISION_ID);
 
+        // 4. 解析主职业（用于公式驱动）
         IProfession prof = resolveCurrentMainProfession();
-        int physAttack;
-        int magicAttack;
-        int defense;
+
+        // 5. 计算综合属性值
+        int physAttack, magicAttack, defense, effectiveCritRate, effectiveCritDamage;
         if (prof != null) {
             physAttack = prof.computePhysicalAttack(strength, intelligence);
             magicAttack = prof.computeMagicalAttack(strength, intelligence);
             defense = prof.computePhysicalDefense(strength, intelligence);
+            effectiveCritRate = prof.computeEffectiveCritRate(critRate, agile);
+            effectiveCritDamage = prof.computeEffectiveCritDamage(critRatio, precision);
         } else {
-            // fallback 默认公式（与服务端 ProfessionFormulas 的怪物回退一致）
             physAttack = strength * 2 + intelligence;
             magicAttack = intelligence * 2 + strength;
             defense = strength * 2;
+            effectiveCritRate = critRate + agile / 5;
+            effectiveCritDamage = critRatio + (precision / 5) * 2;
         }
 
-        // 4. 两列布局：第一行 物理攻击 | 魔法攻击；第二行 防御（占整行）
         int columnWidth = (width - COLUMN_GAP) / 2;
 
-        // 第一行左列：物理攻击
+        // 6. 第一行：物理攻击 | 魔法攻击
         SB.setLength(0);
         SB.append("物理攻击: ").append(physAttack);
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
 
-        // 第一行右列：魔法攻击
         SB.setLength(0);
         SB.append("魔法攻击: ").append(magicAttack);
         graphics.text(mc.font, SB.toString(), x + columnWidth + COLUMN_GAP, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
 
-        // 第二行：防御（左列，与一般属性列表的视觉节奏一致）
+        // 7. 第二行：防御（左列）
         SB.setLength(0);
         SB.append("防御: ").append(defense);
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
+        currentY += LINE_HEIGHT;
+
+        // 8. 第三行：暴击率（有效值+拆分）| 暴击伤害（有效值+拆分）
+        int critRateBonus = effectiveCritRate - critRate;
+        int critRatioBonus = effectiveCritDamage - critRatio;
+
+        SB.setLength(0);
+        SB.append("暴击率: ").append(effectiveCritRate);
+        if (critRateBonus > 0) {
+            SB.append(" (").append(critRate).append("基础+").append(critRateBonus).append("敏捷)");
+        }
+        graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
+
+        SB.setLength(0);
+        SB.append("暴击伤害: ").append(effectiveCritDamage);
+        if (critRatioBonus > 0) {
+            SB.append(" (").append(critRatio).append("基础+").append(critRatioBonus).append("精准)");
+        }
+        graphics.text(mc.font, SB.toString(), x + columnWidth + COLUMN_GAP, currentY, COLOR_TEXT, false);
     }
 
     /** 从快照读取属性值（未注册返回 0） */

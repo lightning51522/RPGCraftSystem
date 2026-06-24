@@ -52,11 +52,11 @@ public class DefaultAttributeModule implements IAttributeModule {
         registry.register(DefaultAttributes.RESISTANCE_ID, "法抗", "减免受到的法术伤害（百分比）。",
                 0, 100, false, false);
 
-        registry.register(DefaultAttributes.CRITICAL_RATE_ID, "暴击率", "攻击触发暴击的百分比概率，另受敏捷派生（每 5 敏捷 +1）。",
-                5, 300, false, false);
+        registry.register(DefaultAttributes.CRITICAL_RATE_ID, "暴击率", "攻击触发暴击的百分比概率，另受敏捷派生（每 5 敏捷 +1）。不可加点，装备加成生效。",
+                5, 300, false, false, false, null);
 
-        registry.register(DefaultAttributes.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害百分比倍率，另受精准派生（每 5 精准 +2）。",
-                50, Integer.MAX_VALUE, false, false);
+        registry.register(DefaultAttributes.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害百分比倍率，另受精准派生（每 5 精准 +2）。不可加点，装备加成生效。",
+                50, Integer.MAX_VALUE, false, false, false, null);
 
         registry.register(DefaultAttributes.FIXED_DAMAGE_ID, "固定伤害", "每次攻击额外附加的固定伤害。",
                 0, Integer.MAX_VALUE, false, false);

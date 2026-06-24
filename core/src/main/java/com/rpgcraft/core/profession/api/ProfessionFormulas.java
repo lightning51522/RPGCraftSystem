@@ -107,4 +107,42 @@ public final class ProfessionFormulas {
         }
         return strength * 2;
     }
+
+    /**
+     * 计算实体的有效暴击率。
+     * <p>
+     * 玩家：由当前主职业的 {@link IProfession#computeEffectiveCritRate} 派生；
+     * 非玩家 或 无职业模块：回退默认公式 {@code 暴击率 + 敏捷/5}。
+     *
+     * @param entity   攻击实体
+     * @param critRate 暴击率属性当前值
+     * @param agile    敏捷属性当前值
+     * @return 有效暴击率
+     */
+    public static int effectiveCritRate(LivingEntity entity, int critRate, int agile) {
+        IProfession prof = resolveMainProfession(entity);
+        if (prof != null) {
+            return prof.computeEffectiveCritRate(critRate, agile);
+        }
+        return critRate + agile / 5;
+    }
+
+    /**
+     * 计算实体的有效暴击伤害。
+     * <p>
+     * 玩家：由当前主职业的 {@link IProfession#computeEffectiveCritDamage} 派生；
+     * 非玩家 或 无职业模块：回退默认公式 {@code 暴击伤害 + (精准/5)×2}。
+     *
+     * @param entity    攻击实体
+     * @param critRatio 暴击伤害属性当前值
+     * @param precision 精准属性当前值
+     * @return 有效暴击伤害
+     */
+    public static int effectiveCritDamage(LivingEntity entity, int critRatio, int precision) {
+        IProfession prof = resolveMainProfession(entity);
+        if (prof != null) {
+            return prof.computeEffectiveCritDamage(critRatio, precision);
+        }
+        return critRatio + (precision / 5) * 2;
+    }
 }

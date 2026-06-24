@@ -52,4 +52,13 @@ public class ArchmageProfession extends AbstractProfession {
     public String getIconChar() {
         return "大";
     }
+
+    /**
+     * 大法师专属：精准对暴击伤害的加成更高 —— {@code 暴击伤害 + (精准/3)×2}。
+     * 默认公式为 {@code 暴击伤害 + (精准/5)×2}，大法师大幅强化精准收益。
+     */
+    @Override
+    public int computeEffectiveCritDamage(int critRatio, int precision) {
+        return critRatio + (precision / 3) * 2;
+    }
 }
