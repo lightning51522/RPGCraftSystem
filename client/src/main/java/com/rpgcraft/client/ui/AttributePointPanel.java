@@ -171,7 +171,7 @@ public class AttributePointPanel {
 
         // [×] 重置按钮（仅已分配 > 0 时渲染）—— 圆弧箭头图标
         if (allocated > 0) {
-            renderResetButton(graphics, resetX, rowY, mouseX, mouseY);
+            renderResetButton(graphics, mc, resetX, rowY, mouseX, mouseY);
         }
         // [-] 按钮（仅 allow_decrease=true 时渲染）
         if (allowDecrease) {
@@ -210,33 +210,15 @@ public class AttributePointPanel {
     }
 
     /**
-     * 渲染重置按钮（圆弧箭头图标，14×14 区域内手绘）。
+     * 渲染重置按钮（圆弧箭头符号）。
      * <p>
-     * 图案：左上弧线 + 右箭头，模拟环形箭头。
+     * 复用 {@link #renderButton} 的渲染路径（blitSprite + text），
+     * 避免不同渲染管线分层导致 fill 被纹理遮挡。
      */
-    private static void renderResetButton(GuiGraphicsExtractor graphics,
+    private static void renderResetButton(GuiGraphicsExtractor graphics, Minecraft mc,
                                           int btnX, int rowY, int mouseX, int mouseY) {
-        int btnY = rowY - 1;
-        boolean hover = isHover(mouseX, mouseY, btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT);
-        Identifier sprite = hover ? BUTTON_HIGHLIGHTED_SPRITE : BUTTON_SPRITE;
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
-                btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT, -1);
-
-        int cx = btnX + BUTTON_WIDTH / 2;
-        int cy = btnY + LINE_HEIGHT / 2;
-        int c = 0xFFFFFFFF;
-
-        // 环形弧线（半径 4，开口在右下）
-        graphics.fill(cx - 2, cy - 4, cx + 2, cy - 3, c); // 顶部横线
-        graphics.fill(cx - 3, cy - 3, cx - 2, cy + 1, c); // 左侧竖线
-        graphics.fill(cx + 2, cy - 3, cx + 3, cy + 1, c); // 右侧竖线
-        graphics.fill(cx - 2, cy + 3, cx + 2, cy + 4, c); // 底部横线
-        graphics.fill(cx - 3, cy + 1, cx - 2, cy + 3, c); // 左下圆角
-        graphics.fill(cx + 2, cy + 1, cx + 3, cy + 3, c); // 右下圆角
-
-        // 箭头（开口处，指向顺时针）
-        graphics.fill(cx + 2, cy - 4, cx + 5, cy - 3, c); // 箭头横杆
-        graphics.fill(cx + 4, cy - 3, cx + 5, cy - 1, c); // 箭头尖（竖）
+        // 用 renderButton 统一渲染：精灵背景 + 居中文字符号
+        renderButton(graphics, mc, "R", btnX, rowY, mouseX, mouseY, true);
     }
 
     /**
