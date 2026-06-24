@@ -8,7 +8,11 @@ import com.rpgcraft.core.ui.ICharacterScreenPlugin;
 import com.rpgcraft.core.ui.ProfessionStateCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 综合属性面板插件 —— 角色界面中的攻击力/防御力/暴击展示区
@@ -17,8 +21,8 @@ import net.minecraft.resources.Identifier;
  * <ul>
  *   <li>物理攻击、魔法攻击、物理防御、有效暴击率、有效暴击伤害</li>
  * </ul>
- * 计算公式由<b>当前主职业</b>提供（{@link IProfession#computePhysicalAttack 等}），
- * 暴击率/暴击伤害显示有效值（基础 + 派生加成）格式如 "85 (50基础+35敏捷)"。
+ * 计算公式由<b>当前主职业</b>提供（{@link IProfession#computePhysicalAttack 等}）。
+ * 暴击率/暴击伤害展示最终有效值；详细组成（基础+派生加成）在鼠标悬停时通过 tooltip 显示。
  * <p>
  * 若无法解析职业（缓存为空 / 职业模块未加载）：回退默认公式（镜像服务端）。
  * <p>
@@ -27,7 +31,7 @@ import net.minecraft.resources.Identifier;
  *   <li>标题 "综合属性"（居中，黄色）+ 分隔线</li>
  *   <li>物理攻击 / 魔法攻击（两列）</li>
  *   <li>防御</li>
- *   <li>暴击率 / 暴击伤害（两列，显示有效值+拆分）</li>
+ *   <li>暴击率 / 暴击伤害（两列，悬停显示基础+派生拆分）</li>
  * </ol>
  * <p>
  * 排在 {@link AttributeListPlugin}（一般属性）<b>之前</b>，由 ClientMod 注册顺序保证。
@@ -62,6 +66,15 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
+
+    /** 上帧渲染的暴击率基础值（供 tooltip 读取） */
+    private int lastCritRateBase;
+    /** 上帧渲染的暴击率派生加成 */
+    private int lastCritRateBonus;
+    /** 上帧渲染的暴击伤害基础值 */
+    private int lastCritRatioBase;
+    /** 上帧渲染的暴击伤害派生加成 */
+    private int lastCritRatioBonus;
 
     /**
      * 获取插件高度（固定值）
@@ -144,23 +157,45 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
 
-        // 8. 第三行：暴击率（有效值+拆分）| 暴击伤害（有效值+拆分）
-        int critRateBonus = effectiveCritRate - critRate;
-        int critRatioBonus = effectiveCritDamage - critRatio;
+        // 8. 第三行：暴击率（有效值）| 暴击伤害（有效值）
+        //    详细组成通过鼠标悬停 tooltip 展示
+        lastCritRateBonus = effectiveCritRate - critRate;
+        lastCritRatioBonus = effectiveCritDamage - critRatio;
+        lastCritRateBase = critRate;
+        lastCritRatioBase = critRatio;
 
         SB.setLength(0);
         SB.append("暴击率: ").append(effectiveCritRate);
-        if (critRateBonus > 0) {
-            SB.append(" (").append(critRate).append("基础+").append(critRateBonus).append("敏捷)");
-        }
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
 
         SB.setLength(0);
         SB.append("暴击伤害: ").append(effectiveCritDamage);
-        if (critRatioBonus > 0) {
-            SB.append(" (").append(critRatio).append("基础+").append(critRatioBonus).append("精准)");
-        }
         graphics.text(mc.font, SB.toString(), x + columnWidth + COLUMN_GAP, currentY, COLOR_TEXT, false);
+    }
+
+    /**
+     * 鼠标悬停在暴击行时显示详细组成（基础值 + 敏捷/精准加成）。
+     */
+    @Override
+    public List<Component> getTooltip(double relX, double relY, int width, AttributeSnapshot snapshot) {
+        int columnWidth = (width - COLUMN_GAP) / 2;
+        int listTop = HEADER_HEIGHT;
+        int row = (int) ((relY - listTop) / LINE_HEIGHT);
+
+        // 仅暴击行（第 3 行）有 tooltip
+        if (row != 2) return null;
+        // 排除列间隙
+        if (relX >= columnWidth && relX < columnWidth + COLUMN_GAP) return null;
+
+        int col = relX < columnWidth ? 0 : 1;
+        int critBonus = col == 0 ? lastCritRateBonus : lastCritRatioBonus;
+        if (critBonus <= 0) return null;
+
+        int base = col == 0 ? lastCritRateBase : lastCritRatioBase;
+        String sourceName = col == 0 ? "敏捷" : "精准";
+        List<Component> lines = new ArrayList<>(1);
+        lines.add(Component.literal(base + "基础 + " + critBonus + sourceName));
+        return lines;
     }
 
     /** 从快照读取属性值（未注册返回 0） */
