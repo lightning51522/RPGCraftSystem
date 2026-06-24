@@ -121,9 +121,9 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         int titleWidth = mc.font.width(title);
         graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
 
-        // ? 图标（标题右侧，灰色，供鼠标悬停查看公式详情）
+        // ? 图标（紧贴标题右侧，灰色，供鼠标悬停查看公式详情）
         if (prof != null) {
-            infoIconX = width - infoIconW - 2;
+            infoIconX = (width + titleWidth) / 2 + 2;
             infoIconY = 2;
             graphics.text(mc.font, "?", x + infoIconX, y + infoIconY, 0xFF888888, false);
         }
