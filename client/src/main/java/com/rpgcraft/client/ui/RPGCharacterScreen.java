@@ -53,7 +53,7 @@ public class RPGCharacterScreen extends Screen {
     private static final int PANEL_WIDTH = 200;
 
     /** 右侧属性点面板宽度（像素） */
-    private static final int RIGHT_PANEL_WIDTH = 130;
+    private static final int RIGHT_PANEL_WIDTH = 150;
 
     /** 左右面板间距（像素） */
     private static final int PANEL_GAP = 8;
