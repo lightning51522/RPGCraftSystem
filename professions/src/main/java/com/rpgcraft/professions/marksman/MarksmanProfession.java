@@ -52,6 +52,14 @@ public class MarksmanProfession extends AbstractProfession {
     }
 
     /**
+     * 神射手（射手系列）：物理攻击 = 力量×1.5 + 敏捷×1.5。
+     */
+    @Override
+    public int computePhysicalAttack(int strength, int intelligence) {
+        return (int) Math.round(strength * 1.5 + intelligence * 1.5);
+    }
+
+    /**
      * 神射手专属：敏捷对暴击率的加成更高 —— {@code 暴击率 + 敏捷/3}。
      * 默认公式为 {@code 暴击率 + 敏捷/5}，神射手大幅强化敏捷收益。
      */
@@ -63,7 +71,7 @@ public class MarksmanProfession extends AbstractProfession {
     @Override
     public List<Component> getFormulaTooltip() {
         return List.of(
-                Component.literal("物理攻击 = 力量×2 + 智力"),
+                Component.literal("物理攻击 = 力量×1.5 + 智力×1.5"),
                 Component.literal("魔法攻击 = 智力×2 + 力量"),
                 Component.literal("物理防御 = 力量×2"),
                 Component.literal("有效暴击率 = 暴击率 + 敏捷/3"),

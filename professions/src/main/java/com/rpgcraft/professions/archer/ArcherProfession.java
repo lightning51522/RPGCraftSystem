@@ -3,9 +3,12 @@ package com.rpgcraft.professions.archer;
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 /**
  * 弓箭手 —— 主职业，进阶自平民
@@ -45,5 +48,24 @@ public class ArcherProfession extends AbstractProfession {
     @Override
     public String getIconChar() {
         return "弓";
+    }
+
+    /**
+     * 弓箭手（射手系列）：物理攻击 = 力量×1.5 + 敏捷×1.5。
+     */
+    @Override
+    public int computePhysicalAttack(int strength, int intelligence) {
+        return (int) Math.round(strength * 1.5 + intelligence * 1.5);
+    }
+
+    @Override
+    public List<Component> getFormulaTooltip() {
+        return List.of(
+                Component.literal("物理攻击 = 力量×1.5 + 敏捷×1.5"),
+                Component.literal("魔法攻击 = 智力×2 + 力量"),
+                Component.literal("物理防御 = 力量×2"),
+                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
+                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
+        );
     }
 }
