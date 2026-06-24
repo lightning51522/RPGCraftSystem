@@ -4,6 +4,51 @@
 
 ---
 
+## [0.7.0-alpha] - 2026-06-24
+
+### 新增
+
+#### 综合属性派生公式下沉到主职业类
+
+物理攻击力/魔法攻击力/物理防御力/有效暴击率/有效暴击伤害的派生公式从全局硬编码迁移到主职业类：
+
+- **`IProfession` 新增 5 个 default 公式方法**：
+  - `computePhysicalAttack(int strength, int intelligence)` 默认 `力量×2+智力`
+  - `computeMagicalAttack(int strength, int intelligence)` 默认 `智力×2+力量`
+  - `computePhysicalDefense(int strength, int intelligence)` 默认 `力量×2`
+  - `computeEffectiveCritRate(int critRate, int agile)` 默认 `暴击率+敏捷/5`
+  - `computeEffectiveCritDamage(int critRatio, int precision)` 默认 `暴击伤害+(精准/5)×2`
+- **`ProfessionFormulas`** 工具类统一封装"实体→主职业→公式→回退"解析链
+- **战士**：`computePhysicalAttack` = `力量×3+智力`，`computePhysicalDefense` = `力量×3`
+- **法师**：`computeMagicalAttack` = `智力×3+力量`
+- **神射手**：`computeEffectiveCritRate` = `暴击率+敏捷/3`
+- **大法师**：`computeEffectiveCritDamage` = `暴击伤害+(精准/3)×2`
+- 其余职业与怪物保留默认公式，零行为变化
+
+#### 暴击率/暴击伤害改为不可加点，移至综合属性区展示
+
+- **`IAttributeEntry` 新增 `isAllocatable()` 标记**（默认 `!shouldResetOnRespawn()`）
+- 暴击率/暴击伤害注册为 `allocatable=false`，属性点系统排除
+- 角色界面「综合属性」区新增**有效暴击率/暴击伤害**行，悬停 tooltip 显示拆分（如 `50基础 + 35敏捷`）
+- `CompositeAttributePlugin` 新增 `getTooltip` 支持
+
+### 修复
+
+#### 属性序列化污染导致重登后数值无限膨胀
+
+`EntityAttribute.CODEC` 原通过 `getValue()/getMaxValue()`（管线计算结果）序列化，
+反序列化构造函数却回填到 `baseValue/baseMaxValue`（管线起点），导致每次退出世界再进入
+`reapplyAllModifiers` 在已污染的基础值上再次叠加修饰符，数值随重登次数无限膨胀。
+
+修复：CODEC 改为序列化 `getBaseValue()/getBaseMaxValue()`，修饰符不持久化，由各模块登录时重建。
+
+### 变更
+
+- 改动模块版本号升级 `0.7.0-alpha`：`core`、`attributes`、`attributepoints`、`client`、`professions`
+- 未触及模块（`profession`/`leveling`/`equipment`/`skills`）保持原版本
+
+---
+
 ## [0.6.1-alpha] - 2026-06-23
 
 ### 新增
