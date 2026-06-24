@@ -154,12 +154,11 @@ public class AttributePointPanel {
                                   boolean canDecrement, int mouseX, int mouseY) {
         boolean allowDecrease = AttributePointClientConfig.isAllowDecrease();
 
-        // 按钮从右到左排列：[+] [-] [×]
+        // 按钮从右到左排列：[+] [-] [R] ；文字始终右对齐到 [R] 左侧
         int plusX = x + width - CONTENT_MARGIN - BUTTON_WIDTH;
         int minusX = allowDecrease ? plusX - BUTTON_GAP - BUTTON_WIDTH : plusX;
         int resetX = minusX - BUTTON_GAP - BUTTON_WIDTH;
-        int buttonAreaLeft = allocated > 0 ? resetX : (allowDecrease ? minusX : plusX);
-        int allocRight = buttonAreaLeft - TEXT_BUTTON_GAP;
+        int allocRight = resetX - TEXT_BUTTON_GAP;
 
         // 属性名（左）
         graphics.text(mc.font, name, x + CONTENT_MARGIN, rowY, COLOR_TEXT, false);
@@ -169,11 +168,9 @@ public class AttributePointPanel {
         int allocColor = allocated > 0 ? COLOR_ALLOCATED : COLOR_HINT;
         graphics.text(mc.font, allocStr, allocRight - mc.font.width(allocStr), rowY, allocColor, false);
 
-        // [×] 重置按钮（仅已分配 > 0 时渲染）—— 圆弧箭头图标
-        if (allocated > 0) {
-            renderResetButton(graphics, mc, resetX, rowY, mouseX, mouseY);
-        }
-        // [-] 按钮（仅 allow_decrease=true 时渲染）
+        // [R] 重置按钮（始终显示；无分配时禁用态，与 [-] 按钮一致）
+        renderButton(graphics, mc, "R", resetX, rowY, mouseX, mouseY, allocated > 0);
+        // [-] 按钮
         if (allowDecrease) {
             renderButton(graphics, mc, "-", minusX, rowY, mouseX, mouseY, canDecrement);
         }
@@ -207,18 +204,6 @@ public class AttributePointPanel {
         // 水平居中 + 原版垂直居中公式
         graphics.text(mc.font, text, btnX + (BUTTON_WIDTH - textWidth) / 2,
                 btnY + (LINE_HEIGHT - 9) / 2 + 1, textColor, false);
-    }
-
-    /**
-     * 渲染重置按钮（圆弧箭头符号）。
-     * <p>
-     * 复用 {@link #renderButton} 的渲染路径（blitSprite + text），
-     * 避免不同渲染管线分层导致 fill 被纹理遮挡。
-     */
-    private static void renderResetButton(GuiGraphicsExtractor graphics, Minecraft mc,
-                                          int btnX, int rowY, int mouseX, int mouseY) {
-        // 用 renderButton 统一渲染：精灵背景 + 居中文字符号
-        renderButton(graphics, mc, "R", btnX, rowY, mouseX, mouseY, true);
     }
 
     /**
