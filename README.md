@@ -3,7 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.7.3--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.8.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -451,6 +451,11 @@ baseValue
 - 每个模块的 `gradle.properties` 中的 `mod_version`
 - README 顶部状态徽章：`![](https://img.shields.io/badge/status-X.Y.Z--alpha-orange)`
 - 每次发版的 Git 提交信息末尾标注 `(vX.Y.Z-alpha)`
+
+### 提交约定
+
+- **未经实际运行手动验证，不得提交代码**。完成改动后必须先在游戏中手动测试确认行为正确，除非明确要求提交，否则不要执行 `git commit`。
+- 版本号升级、文档更新等非代码改动同样遵循此约定。
 
 ---
 
