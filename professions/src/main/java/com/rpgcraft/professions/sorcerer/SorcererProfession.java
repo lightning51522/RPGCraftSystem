@@ -1,7 +1,8 @@
 package com.rpgcraft.professions.sorcerer;
 
-import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.professions.base.MageSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -12,7 +13,7 @@ import net.minecraft.world.item.Items;
  * 智力 +5，力量 -3；每级智力 +1。
  * 魔法修习的起点，以智换力。
  */
-public class SorcererProfession extends AbstractProfession {
+public class SorcererProfession extends MageSeriesProfession {
 
     public static final Identifier ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "sorcerer");
