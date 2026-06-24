@@ -26,11 +26,12 @@ import java.util.function.Supplier;
  * <p>
  * <h3>布局（每行，从左到右）</h3>
  * <pre>
- * [属性名]          +N [-][+]
+ * [属性名]          +N [×][-][+]
  * </pre>
  * <ul>
  *   <li>属性名靠左</li>
  *   <li>{@code +N}（已分配点数）右侧留出按钮区</li>
+ *   <li>{@code [×]} 一键回收该属性全部点数（仅已分配 > 0 时显示）</li>
  *   <li>{@code [-]} 和 {@code [+]} 按钮在最右侧，各有固定宽度，互不重叠</li>
  * </ul>
  * <p>
@@ -151,17 +152,13 @@ public class AttributePointPanel {
                                   int x, int rowY, int width,
                                   String name, int allocated, int available,
                                   boolean canDecrement, int mouseX, int mouseY) {
-        // 配置 allow_decrease=false 时隐藏 [-] 按钮：[+] 直接右对齐到面板右边，
-        // +N 文本右对齐到 [+] 左侧。allow_decrease=true 时保持原有 [+] [-] 双按钮布局。
         boolean allowDecrease = AttributePointClientConfig.isAllowDecrease();
 
-        // [+] 按钮位置（最右）
+        // 按钮从右到左排列：[+] [-] [×]
         int plusX = x + width - CONTENT_MARGIN - BUTTON_WIDTH;
-        // [-] 按钮位置（[+] 左侧）—— 仅 allow_decrease=true 时存在
-        int minusX = plusX - BUTTON_GAP - BUTTON_WIDTH;
-        // 按钮区左边界
-        int buttonAreaLeft = allowDecrease ? minusX : plusX;
-        // +N 文本右边界
+        int minusX = allowDecrease ? plusX - BUTTON_GAP - BUTTON_WIDTH : plusX;
+        int resetX = minusX - BUTTON_GAP - BUTTON_WIDTH;
+        int buttonAreaLeft = allocated > 0 ? resetX : (allowDecrease ? minusX : plusX);
         int allocRight = buttonAreaLeft - TEXT_BUTTON_GAP;
 
         // 属性名（左）
@@ -172,11 +169,15 @@ public class AttributePointPanel {
         int allocColor = allocated > 0 ? COLOR_ALLOCATED : COLOR_HINT;
         graphics.text(mc.font, allocStr, allocRight - mc.font.width(allocStr), rowY, allocColor, false);
 
-        // [-] 按钮（仅 allow_decrease=true 时渲染）—— 无方括号，仅符号
+        // [×] 重置按钮（仅已分配 > 0 时渲染）
+        if (allocated > 0) {
+            renderButton(graphics, mc, "x", resetX, rowY, mouseX, mouseY, true);
+        }
+        // [-] 按钮（仅 allow_decrease=true 时渲染）
         if (allowDecrease) {
             renderButton(graphics, mc, "-", minusX, rowY, mouseX, mouseY, canDecrement);
         }
-        // [+] 按钮 —— 无方括号，仅符号
+        // [+] 按钮
         renderButton(graphics, mc, "+", plusX, rowY, mouseX, mouseY, available > 0);
     }
 
@@ -236,6 +237,7 @@ public class AttributePointPanel {
         // 按钮位置（与 renderRow 一致）
         int plusX = x + width - CONTENT_MARGIN - BUTTON_WIDTH;
         int minusX = plusX - BUTTON_GAP - BUTTON_WIDTH;
+        int resetX = minusX - BUTTON_GAP - BUTTON_WIDTH;
 
         int listY = y + HEADER_HEIGHT;
         int line = 0;
@@ -245,7 +247,13 @@ public class AttributePointPanel {
 
             int btnY = rowY - 1;
             Identifier attrId = entry.getId();
+            int allocated = points.getAllocated(attrId);
 
+            // [×] 重置命中（已分配 > 0）
+            if (allocated > 0 && isHover(mouseX, mouseY, resetX, btnY, BUTTON_WIDTH, LINE_HEIGHT)) {
+                mc.getConnection().send(new AllocateAttributePointPacket(attrId, allocated, false));
+                return true;
+            }
             // [+] 命中（需要可分配点数 > 0）
             if (points.getAvailablePoints() > 0
                     && isHover(mouseX, mouseY, plusX, btnY, BUTTON_WIDTH, LINE_HEIGHT)) {
@@ -254,7 +262,7 @@ public class AttributePointPanel {
             }
             // [-] 命中（需要已分配 > 0，且配置允许减少）
             if (AttributePointClientConfig.isAllowDecrease()
-                    && points.getAllocated(attrId) > 0
+                    && allocated > 0
                     && isHover(mouseX, mouseY, minusX, btnY, BUTTON_WIDTH, LINE_HEIGHT)) {
                 mc.getConnection().send(new AllocateAttributePointPacket(attrId, 1, false));
                 return true;
