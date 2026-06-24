@@ -2,9 +2,12 @@ package com.rpgcraft.professions.mage;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.professions.sorcerer.SorcererProfession;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 /**
  * 法师 —— 主职业，进阶自术士
@@ -60,5 +63,16 @@ public class MageProfession extends AbstractProfession {
     @Override
     public int computeMagicalAttack(int strength, int intelligence) {
         return (int) Math.round(intelligence * 3.0 + strength);
+    }
+
+    @Override
+    public List<Component> getFormulaTooltip() {
+        return List.of(
+                Component.literal("物理攻击 = 力量×2 + 智力"),
+                Component.literal("魔法攻击 = 智力×3 + 力量"),
+                Component.literal("物理防御 = 力量×2"),
+                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
+                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
+        );
     }
 }

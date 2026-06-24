@@ -3,9 +3,12 @@ package com.rpgcraft.professions.marksman;
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 /**
  * 神射手 —— 主职业，进阶自弓箭手（进阶树叶子）
@@ -55,5 +58,16 @@ public class MarksmanProfession extends AbstractProfession {
     @Override
     public int computeEffectiveCritRate(int critRate, int agile) {
         return (int) Math.round(critRate + agile / 3.0);
+    }
+
+    @Override
+    public List<Component> getFormulaTooltip() {
+        return List.of(
+                Component.literal("物理攻击 = 力量×2 + 智力"),
+                Component.literal("魔法攻击 = 智力×2 + 力量"),
+                Component.literal("物理防御 = 力量×2"),
+                Component.literal("有效暴击率 = 暴击率 + 敏捷/3"),
+                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
+        );
     }
 }

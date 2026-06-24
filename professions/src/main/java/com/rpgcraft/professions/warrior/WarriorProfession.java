@@ -4,9 +4,12 @@ import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.profession.ProfessionManager;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 /**
  * 战士 —— 主职业，进阶自平民
@@ -84,5 +87,16 @@ public class WarriorProfession extends AbstractProfession {
     @Override
     public int computePhysicalDefense(int strength, int intelligence) {
         return (int) Math.round(strength * 3.0);
+    }
+
+    @Override
+    public List<Component> getFormulaTooltip() {
+        return List.of(
+                Component.literal("物理攻击 = 力量×3 + 智力"),
+                Component.literal("魔法攻击 = 智力×2 + 力量"),
+                Component.literal("物理防御 = 力量×3"),
+                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
+                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
+        );
     }
 }

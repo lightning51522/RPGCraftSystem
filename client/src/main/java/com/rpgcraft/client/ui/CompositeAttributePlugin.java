@@ -76,6 +76,15 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
     /** 上帧渲染的暴击伤害派生加成 */
     private int lastCritRatioBonus;
 
+    /** ? 图标区域（供 tooltip 碰撞检测），在 render 中更新 */
+    private int infoIconX, infoIconY, infoIconW = 10, infoIconH = 10;
+
+    /** 当前渲染宽度（供 tooltip 碰撞检测） */
+    private int lastRenderWidth;
+
+    /** 上帧渲染时解析的主职业（供 tooltip 复用） */
+    private IProfession lastProfession;
+
     /**
      * 获取插件高度（固定值）
      */
@@ -102,26 +111,35 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         Minecraft mc = Minecraft.getInstance();
         int currentY = y;
 
-        // 1. 标题 "综合属性"
+        // 1. 解析主职业（用于公式驱动 + 标题 ? 图标判定）
+        IProfession prof = resolveCurrentMainProfession();
+        lastProfession = prof;
+
+        // 2. 标题 "综合属性"  + 右侧 ? 详情图标
+        lastRenderWidth = width;
         String title = "综合属性";
         int titleWidth = mc.font.width(title);
         graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
+
+        // ? 图标（标题右侧，灰色，供鼠标悬停查看公式详情）
+        if (prof != null) {
+            infoIconX = width - infoIconW - 2;
+            infoIconY = 2;
+            graphics.text(mc.font, "?", x + infoIconX, y + infoIconY, 0xFF888888, false);
+        }
         currentY += 13;
 
-        // 2. 分隔线
+        // 3. 分隔线
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
         currentY += HEADER_HEIGHT - 13;
 
-        // 3. 读取基础属性值
+        // 4. 读取基础属性值
         int strength = snapshotValue(snapshot, ClientAttributes.STRENGTH_ID);
         int intelligence = snapshotValue(snapshot, ClientAttributes.INTELLIGENCE_ID);
         int critRate = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATE_ID);
         int critRatio = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATIO_ID);
         int agile = snapshotValue(snapshot, ClientAttributes.AGILE_ID);
         int precision = snapshotValue(snapshot, ClientAttributes.PRECISION_ID);
-
-        // 4. 解析主职业（用于公式驱动）
-        IProfession prof = resolveCurrentMainProfession();
 
         // 5. 计算综合属性值
         int physAttack, magicAttack, defense, effectiveCritRate, effectiveCritDamage;
@@ -174,10 +192,17 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
     }
 
     /**
-     * 鼠标悬停在暴击行时显示详细组成（基础值 + 敏捷/精准加成）。
+     * 鼠标悬停时显示 tooltip：? 图标 → 公式详情；暴击行 → 数值拆分。
      */
     @Override
     public List<Component> getTooltip(double relX, double relY, int width, AttributeSnapshot snapshot) {
+        // 检测 ? 图标区域（公式详情）
+        if (lastProfession != null
+                && relX >= infoIconX && relX < infoIconX + infoIconW
+                && relY >= infoIconY && relY < infoIconY + infoIconH) {
+            return lastProfession.getFormulaTooltip();
+        }
+
         int columnWidth = (width - COLUMN_GAP) / 2;
         int listTop = HEADER_HEIGHT;
         int row = (int) ((relY - listTop) / LINE_HEIGHT);
