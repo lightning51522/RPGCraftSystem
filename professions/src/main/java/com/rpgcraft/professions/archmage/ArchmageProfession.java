@@ -59,6 +59,6 @@ public class ArchmageProfession extends AbstractProfession {
      */
     @Override
     public int computeEffectiveCritDamage(int critRatio, int precision) {
-        return critRatio + (precision / 3) * 2;
+        return (int) Math.round(critRatio + (precision / 3.0) * 2);
     }
 }

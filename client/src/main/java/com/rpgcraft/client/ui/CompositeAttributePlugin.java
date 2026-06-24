@@ -132,11 +132,11 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
             effectiveCritRate = prof.computeEffectiveCritRate(critRate, agile);
             effectiveCritDamage = prof.computeEffectiveCritDamage(critRatio, precision);
         } else {
-            physAttack = strength * 2 + intelligence;
-            magicAttack = intelligence * 2 + strength;
-            defense = strength * 2;
-            effectiveCritRate = critRate + agile / 5;
-            effectiveCritDamage = critRatio + (precision / 5) * 2;
+            physAttack = (int) Math.round(strength * 2.0 + intelligence);
+            magicAttack = (int) Math.round(intelligence * 2.0 + strength);
+            defense = (int) Math.round(strength * 2.0);
+            effectiveCritRate = (int) Math.round(critRate + agile / 5.0);
+            effectiveCritDamage = (int) Math.round(critRatio + (precision / 5.0) * 2);
         }
 
         int columnWidth = (width - COLUMN_GAP) / 2;

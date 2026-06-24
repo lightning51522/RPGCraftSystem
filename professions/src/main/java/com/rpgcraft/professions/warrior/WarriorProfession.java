@@ -74,7 +74,7 @@ public class WarriorProfession extends AbstractProfession {
      */
     @Override
     public int computePhysicalAttack(int strength, int intelligence) {
-        return strength * 3 + intelligence;
+        return (int) Math.round(strength * 3.0 + intelligence);
     }
 
     /**
@@ -83,6 +83,6 @@ public class WarriorProfession extends AbstractProfession {
      */
     @Override
     public int computePhysicalDefense(int strength, int intelligence) {
-        return strength * 3;
+        return (int) Math.round(strength * 3.0);
     }
 }

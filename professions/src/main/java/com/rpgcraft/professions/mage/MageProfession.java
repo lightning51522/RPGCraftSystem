@@ -59,6 +59,6 @@ public class MageProfession extends AbstractProfession {
      */
     @Override
     public int computeMagicalAttack(int strength, int intelligence) {
-        return intelligence * 3 + strength;
+        return (int) Math.round(intelligence * 3.0 + strength);
     }
 }
