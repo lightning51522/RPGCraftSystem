@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.warrior;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.profession.ProfessionManager;
@@ -76,17 +77,13 @@ public class WarriorProfession extends AbstractProfession {
      * 默认公式为 {@code 力量×2 + 智力}，战士通过提高力量系数体现近战优势。
      */
     @Override
-    public int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.5 + intelligence);
+    public int computePhysicalAttack(CombatStats s) {
+        return (int) Math.round(s.strength() * 2.5 + s.intelligence());
     }
 
-    /**
-     * 战士专属物理防御力公式：{@code 力量×2.5}（强化防御系数）。
-     * 默认公式为 {@code 力量×2}，战士获得更高的物理防御派生。
-     */
     @Override
-    public int computePhysicalDefense(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.5);
+    public int computePhysicalDefense(CombatStats s) {
+        return (int) Math.round(s.strength() * 2.5);
     }
 
     @Override

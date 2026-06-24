@@ -4,6 +4,7 @@ import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.AttackType;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.ProfessionFormulas;
 import com.rpgcraft.attributes.module.DefaultAttributes;
 import net.minecraft.resources.Identifier;
@@ -154,9 +155,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @see ProfessionFormulas#physicalAttack
      */
     public static int computePhysicalAttack(LivingEntity entity) {
-        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
-        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
-        return ProfessionFormulas.physicalAttack(entity, strength, intelligence);
+        return ProfessionFormulas.physicalAttack(entity, buildCombatStats(entity));
     }
 
     /**
@@ -170,9 +169,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @see ProfessionFormulas#magicalAttack
      */
     public static int computeMagicalAttack(LivingEntity entity) {
-        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
-        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
-        return ProfessionFormulas.magicalAttack(entity, strength, intelligence);
+        return ProfessionFormulas.magicalAttack(entity, buildCombatStats(entity));
     }
 
     /**
@@ -188,9 +185,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @see ProfessionFormulas#physicalDefense
      */
     public static int computePhysicalDefense(LivingEntity entity) {
-        int strength = getAttributeValue(entity, DefaultAttributes.STRENGTH_ID);
-        int intelligence = getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID);
-        return ProfessionFormulas.physicalDefense(entity, strength, intelligence);
+        return ProfessionFormulas.physicalDefense(entity, buildCombatStats(entity));
     }
 
     // ==================================================================
@@ -216,13 +211,10 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @return 暴击倍率（≥1.0，1.0 表示未暴击）
      */
     private double rollCriticalMultiplier(LivingEntity entity) {
-        // 有效暴击率 —— 由当前主职业公式派生（默认 = 暴击率 + 敏捷/5）
-        int critRateAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID);
-        int agile = getAttributeValue(entity, DefaultAttributes.AGILE_ID);
-        int effectiveCritRate = ProfessionFormulas.effectiveCritRate(entity, critRateAttr, agile);
+        CombatStats s = buildCombatStats(entity);
+        int effectiveCritRate = ProfessionFormulas.effectiveCritRate(entity, s);
         if (effectiveCritRate <= 0) return 1.0;
 
-        // 保底暴击层数 + 额外一层概率
         int fullCrits = effectiveCritRate / 100;
         int remainder = effectiveCritRate % 100;
         int totalCrits = fullCrits;
@@ -233,10 +225,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
         if (totalCrits == 0) return 1.0;
 
-        // 有效暴击伤害 —— 由当前主职业公式派生（默认 = 暴击伤害 + (精准/5)×2）
-        int critRatioAttr = getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID);
-        int precision = getAttributeValue(entity, DefaultAttributes.PRECISION_ID);
-        int effectiveCritRatio = ProfessionFormulas.effectiveCritDamage(entity, critRatioAttr, precision);
+        int effectiveCritRatio = ProfessionFormulas.effectiveCritDamage(entity, s);
 
         // 每层暴击乘以 (1 + 有效暴击伤害/100)，多层为幂次
         double critMulti = 1.0 + effectiveCritRatio / 100.0;
@@ -257,6 +246,21 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      * @param attrId 属性标识符
      * @return 属性当前值（未找到返回 0）
      */
+    private static CombatStats buildCombatStats(LivingEntity entity) {
+        return new CombatStats(
+                getAttributeValue(entity, DefaultAttributes.STRENGTH_ID),
+                getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID),
+                getAttributeValue(entity, DefaultAttributes.AGILE_ID),
+                getAttributeValue(entity, DefaultAttributes.PRECISION_ID),
+                getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID),
+                getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID),
+                getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID),
+                getAttributeValue(entity, DefaultAttributes.RESISTANCE_ID),
+                getAttributeValue(entity, DefaultAttributes.PHYSICAL_PENETRATE_ID),
+                getAttributeValue(entity, DefaultAttributes.MAGICAL_PENETRATE_ID)
+        );
+    }
+
     private static int getAttributeValue(LivingEntity entity, Identifier attrId) {
         AttributeSnapshot snapshot = AttributeSnapshotManager.getSnapshot(entity);
         AttributeSnapshot.AttributeData data = snapshot.get(attrId);

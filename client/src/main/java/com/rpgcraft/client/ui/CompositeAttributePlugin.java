@@ -2,6 +2,7 @@ package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot.AttributeData;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.ui.ICharacterScreenPlugin;
@@ -133,28 +134,34 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
         currentY += HEADER_HEIGHT - 13;
 
-        // 4. 读取基础属性值
-        int strength = snapshotValue(snapshot, ClientAttributes.STRENGTH_ID);
-        int intelligence = snapshotValue(snapshot, ClientAttributes.INTELLIGENCE_ID);
-        int critRate = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATE_ID);
-        int critRatio = snapshotValue(snapshot, ClientAttributes.CRITICAL_RATIO_ID);
-        int agile = snapshotValue(snapshot, ClientAttributes.AGILE_ID);
-        int precision = snapshotValue(snapshot, ClientAttributes.PRECISION_ID);
+        // 4. 构建全属性快照
+        CombatStats s = new CombatStats(
+                snapshotValue(snapshot, ClientAttributes.STRENGTH_ID),
+                snapshotValue(snapshot, ClientAttributes.INTELLIGENCE_ID),
+                snapshotValue(snapshot, ClientAttributes.AGILE_ID),
+                snapshotValue(snapshot, ClientAttributes.PRECISION_ID),
+                snapshotValue(snapshot, ClientAttributes.CRITICAL_RATE_ID),
+                snapshotValue(snapshot, ClientAttributes.CRITICAL_RATIO_ID),
+                snapshotValue(snapshot, ClientAttributes.FIXED_DAMAGE_ID),
+                snapshotValue(snapshot, ClientAttributes.RESISTANCE_ID),
+                snapshotValue(snapshot, ClientAttributes.PHYSICAL_PENETRATE_ID),
+                snapshotValue(snapshot, ClientAttributes.MAGICAL_PENETRATE_ID)
+        );
 
         // 5. 计算综合属性值
         int physAttack, magicAttack, defense, effectiveCritRate, effectiveCritDamage;
         if (prof != null) {
-            physAttack = prof.computePhysicalAttack(strength, intelligence);
-            magicAttack = prof.computeMagicalAttack(strength, intelligence);
-            defense = prof.computePhysicalDefense(strength, intelligence);
-            effectiveCritRate = prof.computeEffectiveCritRate(critRate, agile);
-            effectiveCritDamage = prof.computeEffectiveCritDamage(critRatio, precision);
+            physAttack = prof.computePhysicalAttack(s);
+            magicAttack = prof.computeMagicalAttack(s);
+            defense = prof.computePhysicalDefense(s);
+            effectiveCritRate = prof.computeEffectiveCritRate(s);
+            effectiveCritDamage = prof.computeEffectiveCritDamage(s);
         } else {
-            physAttack = (int) Math.round(strength * 2.0 + intelligence);
-            magicAttack = (int) Math.round(intelligence * 2.0 + strength);
-            defense = (int) Math.round(strength * 2.0);
-            effectiveCritRate = (int) Math.round(critRate + agile / 5.0);
-            effectiveCritDamage = (int) Math.round(critRatio + (precision / 5.0) * 2);
+            physAttack = (int) Math.round(s.strength() * 2.0 + s.intelligence());
+            magicAttack = (int) Math.round(s.intelligence() * 2.0 + s.strength());
+            defense = (int) Math.round(s.strength() * 2.0);
+            effectiveCritRate = (int) Math.round(s.critRate() + s.agile() / 5.0);
+            effectiveCritDamage = (int) Math.round(s.critRatio() + (s.precision() / 5.0) * 2);
         }
 
         int columnWidth = (width - COLUMN_GAP) / 2;
@@ -177,10 +184,10 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
 
         // 8. 第三行：暴击率（有效值）| 暴击伤害（有效值）
         //    详细组成通过鼠标悬停 tooltip 展示
-        lastCritRateBonus = effectiveCritRate - critRate;
-        lastCritRatioBonus = effectiveCritDamage - critRatio;
-        lastCritRateBase = critRate;
-        lastCritRatioBase = critRatio;
+        lastCritRateBonus = effectiveCritRate - s.critRate();
+        lastCritRatioBonus = effectiveCritDamage - s.critRatio();
+        lastCritRateBase = s.critRate();
+        lastCritRatioBase = s.critRatio();
 
         SB.setLength(0);
         SB.append("暴击率: ").append(effectiveCritRate);

@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.archmage;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.professions.mage.MageProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -57,19 +58,26 @@ public class ArchmageProfession extends AbstractProfession {
     }
 
     /**
-     * 大法师专属：精准对暴击伤害的加成更高 —— {@code 暴击伤害 + (精准/3)×2}。
-     * 默认公式为 {@code 暴击伤害 + (精准/5)×2}，大法师大幅强化精准收益。
+     * 大法师（法师系列）：魔法攻击 = 智力×2 + 敏捷×0.5。
      */
     @Override
-    public int computeEffectiveCritDamage(int critRatio, int precision) {
-        return (int) Math.round(critRatio + (precision / 3.0) * 2);
+    public int computeMagicalAttack(CombatStats s) {
+        return (int) Math.round(s.intelligence() * 2.0 + s.agile() * 0.5);
+    }
+
+    /**
+     * 大法师专属：精准对暴击伤害的加成更高 —— {@code 暴击伤害 + (精准/3)×2}。
+     */
+    @Override
+    public int computeEffectiveCritDamage(CombatStats s) {
+        return (int) Math.round(s.critRatio() + (s.precision() / 3.0) * 2);
     }
 
     @Override
     public List<Component> getFormulaTooltip() {
         return List.of(
                 Component.literal("物理攻击 = 力量×2 + 智力"),
-                Component.literal("魔法攻击 = 智力×2 + 力量"),
+                Component.literal("魔法攻击 = 智力×2 + 敏捷×0.5"),
                 Component.literal("物理防御 = 力量×2"),
                 Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
                 Component.literal("有效暴击伤害 = 暴击伤害 + (精准/3)×2")

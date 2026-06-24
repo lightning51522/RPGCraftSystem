@@ -1,6 +1,7 @@
 package com.rpgcraft.professions.marksman;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
+import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
 import net.minecraft.network.chat.Component;
@@ -55,23 +56,22 @@ public class MarksmanProfession extends AbstractProfession {
      * 神射手（射手系列）：物理攻击 = 力量×1.5 + 敏捷×1.5。
      */
     @Override
-    public int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 1.5 + intelligence * 1.5);
+    public int computePhysicalAttack(CombatStats s) {
+        return (int) Math.round(s.strength() * 1.5 + s.agile() * 1.5);
     }
 
     /**
      * 神射手专属：敏捷对暴击率的加成更高 —— {@code 暴击率 + 敏捷/3}。
-     * 默认公式为 {@code 暴击率 + 敏捷/5}，神射手大幅强化敏捷收益。
      */
     @Override
-    public int computeEffectiveCritRate(int critRate, int agile) {
-        return (int) Math.round(critRate + agile / 3.0);
+    public int computeEffectiveCritRate(CombatStats s) {
+        return (int) Math.round(s.critRate() + s.agile() / 3.0);
     }
 
     @Override
     public List<Component> getFormulaTooltip() {
         return List.of(
-                Component.literal("物理攻击 = 力量×1.5 + 智力×1.5"),
+                Component.literal("物理攻击 = 力量×1.5 + 敏捷×1.5"),
                 Component.literal("魔法攻击 = 智力×2 + 力量"),
                 Component.literal("物理防御 = 力量×2"),
                 Component.literal("有效暴击率 = 暴击率 + 敏捷/3"),
