@@ -336,6 +336,23 @@ public interface IProfession {
     // ==================================================================
 
     /**
+     * 获取综合属性公式的描述文本（供角色界面公式详情 tooltip）。
+     * <p>
+     * 默认返回 5 个综合属性公式的描述。主职业 override 时替换对应的行。
+     *
+     * @return 公式描述行列表（每行一个公式）
+     */
+    default List<Component> getFormulaTooltip() {
+        return List.of(
+                Component.literal("物理攻击 = 力量×2 + 智力"),
+                Component.literal("魔法攻击 = 智力×2 + 力量"),
+                Component.literal("物理防御 = 力量×2"),
+                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
+                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
+        );
+    }
+
+    /**
      * 职业面板节点图标 —— 原版物品形式（推荐）
      * <p>
      * 框架优先用本物品渲染节点图标（fakeItem，原版 advancement 节点风格）。
