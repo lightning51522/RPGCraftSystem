@@ -169,9 +169,9 @@ public class AttributePointPanel {
         int allocColor = allocated > 0 ? COLOR_ALLOCATED : COLOR_HINT;
         graphics.text(mc.font, allocStr, allocRight - mc.font.width(allocStr), rowY, allocColor, false);
 
-        // [×] 重置按钮（仅已分配 > 0 时渲染）
+        // [×] 重置按钮（仅已分配 > 0 时渲染）—— 圆弧箭头图标
         if (allocated > 0) {
-            renderButton(graphics, mc, "x", resetX, rowY, mouseX, mouseY, true);
+            renderResetButton(graphics, resetX, rowY, mouseX, mouseY);
         }
         // [-] 按钮（仅 allow_decrease=true 时渲染）
         if (allowDecrease) {
@@ -207,6 +207,37 @@ public class AttributePointPanel {
         // 水平居中 + 原版垂直居中公式
         graphics.text(mc.font, text, btnX + (BUTTON_WIDTH - textWidth) / 2,
                 btnY + (LINE_HEIGHT - 9) / 2 + 1, textColor, false);
+    }
+
+    /**
+     * 渲染重置按钮（圆弧箭头图标，14×14 区域内手绘）。
+     * <p>
+     * 图案：左上弧线 + 右箭头，模拟环形箭头。
+     */
+    private static void renderResetButton(GuiGraphicsExtractor graphics,
+                                          int btnX, int rowY, int mouseX, int mouseY) {
+        int btnY = rowY - 1;
+        boolean hover = isHover(mouseX, mouseY, btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT);
+        Identifier sprite = hover ? BUTTON_HIGHLIGHTED_SPRITE : BUTTON_SPRITE;
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
+                btnX, btnY, BUTTON_WIDTH, LINE_HEIGHT, -1);
+
+        int cx = btnX + BUTTON_WIDTH / 2;
+        int cy = btnY + LINE_HEIGHT / 2;
+        int c = 0xFFFFFFFF;
+
+        // 环形弧线（半径 4）
+        graphics.fill(cx - 2, cy - 4, cx + 2, cy - 3, c);
+        graphics.fill(cx - 3, cy - 3, cx - 2, cy, c);
+        graphics.fill(cx + 2, cy - 3, cx + 3, cy, c);
+        graphics.fill(cx - 2, cy + 3, cx + 2, cy + 4, c);
+        graphics.fill(cx - 3, cy, cx - 2, cy + 3, c);
+        graphics.fill(cx + 2, cy, cx + 3, cy + 3, c);
+
+        // 箭头（右上角）
+        graphics.fill(cx + 2, cy - 4, cx + 4, cy - 3, c);
+        graphics.fill(cx + 2, cy - 3, cx + 2, cy - 2, c);
+        graphics.fill(cx + 3, cy - 4, cx + 3, cy - 3, c);
     }
 
     /**
