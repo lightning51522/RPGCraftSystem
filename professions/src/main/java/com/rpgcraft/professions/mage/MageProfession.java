@@ -52,4 +52,13 @@ public class MageProfession extends AbstractProfession {
     public String getIconChar() {
         return "法";
     }
+
+    /**
+     * 法师专属魔法攻击力公式：{@code 智力×3 + 力量}（强化智力权重）。
+     * 默认公式为 {@code 智力×2 + 力量}，法师通过提高智力系数体现法术优势。
+     */
+    @Override
+    public int computeMagicalAttack(int strength, int intelligence) {
+        return intelligence * 3 + strength;
+    }
 }

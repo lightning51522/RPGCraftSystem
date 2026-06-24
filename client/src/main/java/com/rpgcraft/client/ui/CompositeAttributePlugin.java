@@ -2,21 +2,25 @@ package com.rpgcraft.client.ui;
 
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot.AttributeData;
+import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.ui.ICharacterScreenPlugin;
+import com.rpgcraft.core.ui.ProfessionStateCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 
 /**
  * 综合属性面板插件 —— 角色界面中的攻击力/防御力展示区
  * <p>
  * 展示 3 个由一般属性派生的综合属性（不可加点）：
  * <ul>
- *   <li>物理攻击 = 力量×2 + 智力</li>
- *   <li>魔法攻击 = 智力×2 + 力量</li>
- *   <li>防御 = 力量×2</li>
+ *   <li>物理攻击、魔法攻击、物理防御</li>
  * </ul>
- * 这些属性<b>不作为真实属性注册</b>，由本插件从快照读取力量/智力后按公式动态计算
- * （公式镜像服务端 {@code DefaultDamageCalculator}，仅用于客户端展示）。
+ * 这些属性<b>不作为真实属性注册</b>，由本插件从快照读取力量/智力后，
+ * 按<b>当前主职业的公式</b>（{@link IProfession#computePhysicalAttack 等}）动态计算。
+ * 若无法解析职业（缓存为空 / 职业模块未加载）：回退默认公式（镜像服务端
+ * {@code DefaultDamageCalculator} + {@code ProfessionFormulas} fallback）。
  * <p>
  * 布局（从上到下）：
  * <ol>
@@ -96,12 +100,24 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
         currentY += HEADER_HEIGHT - 13;
 
-        // 3. 计算综合属性值
+        // 3. 计算综合属性值 —— 当前主职业公式 > 默认公式 fallback
         int strength = snapshotValue(snapshot, ClientAttributes.STRENGTH_ID);
         int intelligence = snapshotValue(snapshot, ClientAttributes.INTELLIGENCE_ID);
-        int physAttack = strength * 2 + intelligence;
-        int magicAttack = intelligence * 2 + strength;
-        int defense = strength * 2;
+
+        IProfession prof = resolveCurrentMainProfession();
+        int physAttack;
+        int magicAttack;
+        int defense;
+        if (prof != null) {
+            physAttack = prof.computePhysicalAttack(strength, intelligence);
+            magicAttack = prof.computeMagicalAttack(strength, intelligence);
+            defense = prof.computePhysicalDefense(strength, intelligence);
+        } else {
+            // fallback 默认公式（与服务端 ProfessionFormulas 的怪物回退一致）
+            physAttack = strength * 2 + intelligence;
+            magicAttack = intelligence * 2 + strength;
+            defense = strength * 2;
+        }
 
         // 4. 两列布局：第一行 物理攻击 | 魔法攻击；第二行 防御（占整行）
         int columnWidth = (width - COLUMN_GAP) / 2;
@@ -127,5 +143,22 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
     private static int snapshotValue(AttributeSnapshot snapshot, net.minecraft.resources.Identifier id) {
         AttributeData d = snapshot.get(id);
         return d != null ? d.currentValue() : 0;
+    }
+
+    /**
+     * 从客户端缓存解析当前主职业实例。
+     * <p>
+     * 通过 {@link ProfessionStateCache} 读取当前主职业 ID，
+     * 再通过 {@link RPGSystems#getProfessionSystem()} 查找职业实例。
+     *
+     * @return 主职业实例，若缓存为空 / 职业模块未加载 / ID 不匹配则返回 null
+     */
+    private static IProfession resolveCurrentMainProfession() {
+        ProfessionStateCache.ProfessionStateView state = ProfessionStateCache.get();
+        if (state == null) return null;
+        if (!RPGSystems.hasProfessionSystem()) return null;
+        Identifier mainId = state.currentMain();
+        if (mainId == null) return null;
+        return RPGSystems.getProfessionSystem().getProfessionById(mainId);
     }
 }

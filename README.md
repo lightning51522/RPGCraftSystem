@@ -3,7 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
-[![Status](https://img.shields.io/badge/status-0.6.2--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.6.3--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -148,11 +148,11 @@ baseValue
 
 ### 综合属性（不注册，由公式计算）
 
-| 综合属性 | 公式 | 说明 |
+| 综合属性 | 公式（默认） | 说明 |
 |---------|------|------|
-| 物理攻击力 | `力量×2 + 智力` | 装备对力量/智力的加成自动计入 |
-| 魔法攻击力 | `智力×2 + 力量` | 装备对智力/力量的加成自动计入 |
-| 物理防御力 | `力量×2` | 魔法防御力仅来自装备，无属性派生 |
+| 物理攻击力 | `力量×2 + 智力` | 当前主职业可覆写（如战士 `力量×3 + 智力`） |
+| 魔法攻击力 | `智力×2 + 力量` | 当前主职业可覆写（如法师 `智力×3 + 力量`） |
+| 物理防御力 | `力量×2` | 当前主职业可覆写（如战士 `力量×3`）；魔法防御力仅来自装备 |
 
 ### 属性分类
 
@@ -164,6 +164,8 @@ baseValue
 ### 默认伤害公式
 
 **输出伤害（攻击方）**：
+
+> 综合属性（攻击力）由当前主职业的公式派生（默认见上表），详见 `IProfession#computePhysicalAttack` / `computeMagicalAttack`。怪物使用默认公式。
 
 ```
 物理：(力量×2 + 智力) × 暴击倍率 + 固定伤害
@@ -186,7 +188,7 @@ baseValue
 混合：物理半伤 + 魔法半伤
 ```
 
-> 物理防御力 = 力量×2（综合属性）；魔法防御力仅来自装备，无属性派生。
+> 物理防御力由目标的当前主职业公式派生（默认 `力量×2`），魔法防御力仅来自装备，无属性派生。
 
 ---
 

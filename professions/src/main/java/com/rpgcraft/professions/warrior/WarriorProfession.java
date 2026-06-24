@@ -67,4 +67,22 @@ public class WarriorProfession extends AbstractProfession {
             // 当前保留钩子骨架，具体效果待效果系统接入
         }
     }
+
+    /**
+     * 战士专属物理攻击力公式：{@code 力量×3 + 智力}（强化力量权重）。
+     * 默认公式为 {@code 力量×2 + 智力}，战士通过提高力量系数体现近战优势。
+     */
+    @Override
+    public int computePhysicalAttack(int strength, int intelligence) {
+        return strength * 3 + intelligence;
+    }
+
+    /**
+     * 战士专属物理防御力公式：{@code 力量×3}（强化防御系数）。
+     * 默认公式为 {@code 力量×2}，战士获得更高的物理防御派生。
+     */
+    @Override
+    public int computePhysicalDefense(int strength, int intelligence) {
+        return strength * 3;
+    }
 }
