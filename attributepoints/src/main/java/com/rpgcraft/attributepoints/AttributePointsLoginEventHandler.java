@@ -8,8 +8,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 /**
  * 属性点登录处理
  * <p>
- * 修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存计算后的值），玩家重新登录后
- * 附件的 allocations 数据仍在（附件序列化保留），但对应的属性修饰符已丢失。
+ * 属性点修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存基础值，不存修饰符），
+ * 玩家重新登录后附件的 allocations 数据仍在（附件序列化保留），但对应的属性修饰符已丢失。
  * <p>
  * 此处理器在玩家登录时从附件的 allocations 重建所有修饰符，并同步点数数据到客户端。
  * 这与装备模块的 {@code restoreBonusTracking}、职业模块的 {@code applyProfessionBonuses}

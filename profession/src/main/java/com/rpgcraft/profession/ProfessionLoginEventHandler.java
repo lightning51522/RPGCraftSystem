@@ -18,8 +18,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
  *       失效或违反类型规则；激活的副职业集合可能包含已失效/类型违规/与主职业相同的项。
  *       登录时检测并修复：主职业失效回退 commoner 并打 WARN，副职业集合中违规项剔除，
  *       避免加成应用逻辑抛 NPE。</li>
- *   <li><b>加成重建</b>：职业加成修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存计算后
- *       的值），重新登录后从当前主职业等级与所有已激活副职业等级重新应用全部加成。</li>
+ *   <li><b>加成重建</b>：职业加成修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存
+ *       基础值，不存修饰符），重新登录后从当前主职业等级与所有已激活副职业等级重新应用全部加成。</li>
  * </ol>
  * 与 {@code com.rpgcraft.attributepoints.AttributePointsLoginEventHandler} 对称。
  */
