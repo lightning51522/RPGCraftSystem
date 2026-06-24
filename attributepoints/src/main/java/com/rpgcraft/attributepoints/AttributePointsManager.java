@@ -35,7 +35,7 @@ import java.util.function.Supplier;
  * 满足"适应属性增减"的需求。
  * <p>
  * <h3>修饰符生命周期</h3>
- * 修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存计算后的值），因此：
+ * 修饰符不参与序列化（{@code EntityAttribute.CODEC} 只存基础值），因此：
  * <ul>
  *   <li>分配/重置时：{@code removeModifier} + {@code addModifier} 重算</li>
  *   <li>登录时：由 {@code AttributePointsLoginEventHandler} 调用 {@link #reapplyAllModifiers}</li>

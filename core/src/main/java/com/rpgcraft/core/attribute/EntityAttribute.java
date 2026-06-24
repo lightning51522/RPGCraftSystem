@@ -28,6 +28,9 @@ import net.minecraft.resources.Identifier;
  * 之前的直接设置会被覆盖。
  * <p>
  * 该类同时提供 {@link #CODEC} 用于 NeoForge AttachmentType 的存档序列化。
+ * <p>
+ * <b>序列化策略</b>：CODEC 只序列化管线起点（基础值），不序列化计算结果或修饰符。
+ * 修饰符由各模块（职业、属性点、装备）在登录时从各自附件重建。详见 {@link #CODEC}。
  */
 public class EntityAttribute implements IAttribute {
 
@@ -94,7 +97,16 @@ public class EntityAttribute implements IAttribute {
     /**
      * 存档反序列化用构造函数（简化参数）
      * <p>
-     * 保持与旧版序列化格式的兼容性。
+     * <b>参数语义为管线起点（基础值），不是计算后的最终值。</b>
+     * {@link #CODEC} 通过 {@link #getBaseValue()} / {@link #getBaseMaxValue()} 写入，
+     * 反序列化时回填到 {@link #baseValue} / {@link #baseMaxValue}。
+     * <p>
+     * <b>切勿</b>把 {@link #getValue()} / {@link #getMaxValue()}（含修饰符的计算结果）
+     * 序列化后回填为基础值——否则每次退出世界再进入时，{@code reapplyAllModifiers}
+     * 会在「已被污染的基础值」上再次叠加修饰符，导致数值无限膨胀。
+     * <p>
+     * 反序列化时 {@link #cachedValue} / {@link #cachedMaxValue} 初始化为基础值（满血状态）；
+     * 登录流程随后通过 {@code reapplyAllModifiers} 重新应用修饰符使缓存失效并重算。
      */
     public EntityAttribute(String name, int currentValue, int maxValue) {
         this.name = name;
@@ -359,15 +371,29 @@ public class EntityAttribute implements IAttribute {
     // ====================================================================
 
     /**
-     * MapCodec 序列化器，用于 AttachmentType 的存档读写
+     * MapCodec 序列化器，用于 NeoForge AttachmentType 的存档读写
      * <p>
-     * 序列化基础值和修饰符，反序列化时恢复完整状态。
+     * <b>序列化管线起点（基础值），不序列化计算结果，也不序列化修饰符。</b>
+     * <ul>
+     *   <li>基础值（baseValue / baseMaxValue）：由等级提升、种族加成等永久性来源设置，
+     *       需要跨会话保留，故序列化。</li>
+     *   <li>修饰符（职业加成、属性点、装备加成）：不参与序列化。它们由各自模块
+     *       （{@code ProfessionManager.reapplyAllBonuses}、
+     *       {@code AttributePointsManager.reapplyAllModifiers}、
+     *       {@code EquipmentManager.restoreBonusTracking}）在登录时从各自附件
+     *       （职业等级、属性点 allocations、当前装备）重建。</li>
+     * </ul>
+     * <p>
+     * <b>历史教训：</b>早期版本曾通过 {@link #getValue()} / {@link #getMaxValue()}
+     * 序列化管线计算结果。由于反序列化把这些值回填到 {@link #baseValue}，
+     * 每次退出世界再进入时，{@code reapplyAllModifiers} 会在「已被污染的基础值」
+     * 上再次叠加修饰符，导致数值随重登次数无限膨胀。本版本改为只序列化基础值。
      */
     public static final MapCodec<EntityAttribute> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
                     Codec.STRING.fieldOf("name").forGetter(EntityAttribute::getName),
-                    Codec.INT.fieldOf("current").forGetter(EntityAttribute::getValue),
-                    Codec.INT.fieldOf("max").forGetter(EntityAttribute::getMaxValue)
+                    Codec.INT.fieldOf("current").forGetter(EntityAttribute::getBaseValue),
+                    Codec.INT.fieldOf("max").forGetter(EntityAttribute::getBaseMaxValue)
             ).apply(instance, EntityAttribute::new)
     );
 }
