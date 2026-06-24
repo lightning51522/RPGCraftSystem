@@ -1,7 +1,8 @@
 package com.rpgcraft.professions.archmage;
 
-import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.CombatStats;
+import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.professions.base.MageSeriesProfession;
 import com.rpgcraft.professions.mage.MageProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -16,7 +17,7 @@ import java.util.List;
  * 智力 +7，暴击伤害 +5；每级智力 +1、暴击伤害 +1。
  * 魔法修习的巅峰，法术兼具威力与致命性。
  */
-public class ArchmageProfession extends AbstractProfession {
+public class ArchmageProfession extends MageSeriesProfession {
 
     public static final Identifier ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "archmage");
@@ -55,14 +56,6 @@ public class ArchmageProfession extends AbstractProfession {
     @Override
     public String getIconChar() {
         return "大";
-    }
-
-    /**
-     * 大法师（法师系列）：魔法攻击 = 智力×2 + 敏捷×0.5。
-     */
-    @Override
-    public int computeMagicalAttack(CombatStats s) {
-        return (int) Math.round(s.intelligence() * 2.0 + s.agile() * 0.5);
     }
 
     /**

@@ -1,9 +1,9 @@
 package com.rpgcraft.professions.marksman;
 
-import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.professions.base.ArcherSeriesProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -16,7 +16,7 @@ import java.util.List;
  * <p>
  * 敏捷 +6，暴击率 +3；每级敏捷 +1、暴击率 +1。
  */
-public class MarksmanProfession extends AbstractProfession {
+public class MarksmanProfession extends ArcherSeriesProfession {
 
     private static final Identifier AGILE_ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
@@ -50,14 +50,6 @@ public class MarksmanProfession extends AbstractProfession {
     @Override
     public String getIconChar() {
         return "神";
-    }
-
-    /**
-     * 神射手（射手系列）：物理攻击 = 力量×1.5 + 敏捷×1.5。
-     */
-    @Override
-    public int computePhysicalAttack(CombatStats s) {
-        return (int) Math.round(s.strength() * 1.5 + s.agile() * 1.5);
     }
 
     /**

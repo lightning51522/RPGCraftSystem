@@ -1,16 +1,12 @@
 package com.rpgcraft.professions.warrior;
 
-import com.rpgcraft.core.profession.api.AbstractProfession;
-import com.rpgcraft.core.profession.api.CombatStats;
-import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
+import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.profession.ProfessionManager;
-import net.minecraft.network.chat.Component;
+import com.rpgcraft.professions.base.WarriorSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-
-import java.util.List;
 
 /**
  * 战士 —— 主职业，进阶自平民
@@ -18,7 +14,7 @@ import java.util.List;
  * 力量 +5，敏捷 -3；每级力量 +1。
  * 战斗特性：攻击有一定概率触发额外伤害（暴怒之力）。
  */
-public class WarriorProfession extends AbstractProfession {
+public class WarriorProfession extends WarriorSeriesProfession {
 
     /** 力量属性 ID */
     private static final Identifier STRENGTH_ID =
@@ -59,41 +55,12 @@ public class WarriorProfession extends AbstractProfession {
      * 战士战斗钩子示例：每次攻击有一定概率追加额外伤害。
      * <p>
      * 概率随等级线性增长（1 级 1% → 20 级 10%）。
-     * 实际额外伤害效果可通过修改目标属性或发射子事件实现，
-     * 当前仅作为钩子调用的演示（具体效果由子类或后续实现补全）。
      */
     @Override
     public void onAttack(ProfessionCombatContext ctx) {
-        // 概率 = 0.005 × level，1 级 0.5%，20 级 10%
         float chance = 0.005f * ctx.level();
         if (ctx.player().getRandom().nextFloat() < chance) {
-            // TODO: 触发额外伤害（如对目标施加固定值伤害修饰符）
-            // 当前保留钩子骨架，具体效果待效果系统接入
+            // TODO: 触发额外伤害
         }
-    }
-
-    /**
-     * 战士专属物理攻击力公式：{@code 力量×2.5 + 智力}（强化力量权重）。
-     * 默认公式为 {@code 力量×2 + 智力}，战士通过提高力量系数体现近战优势。
-     */
-    @Override
-    public int computePhysicalAttack(CombatStats s) {
-        return (int) Math.round(s.strength() * 2.5 + s.intelligence());
-    }
-
-    @Override
-    public int computePhysicalDefense(CombatStats s) {
-        return (int) Math.round(s.strength() * 2.5);
-    }
-
-    @Override
-    public List<Component> getFormulaTooltip() {
-        return List.of(
-                Component.literal("物理攻击 = 力量×2.5 + 智力"),
-                Component.literal("魔法攻击 = 智力×2 + 力量"),
-                Component.literal("物理防御 = 力量×2.5"),
-                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
-                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
-        );
     }
 }

@@ -1,14 +1,11 @@
 package com.rpgcraft.professions.mage;
 
-import com.rpgcraft.core.profession.api.AbstractProfession;
-import com.rpgcraft.core.profession.api.CombatStats;
+import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.professions.base.MageSeriesProfession;
 import com.rpgcraft.professions.sorcerer.SorcererProfession;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-
-import java.util.List;
 
 /**
  * 法师 —— 主职业，进阶自术士
@@ -16,7 +13,7 @@ import java.util.List;
  * 智力 +6，法术穿透 +3；每级智力 +1、法术穿透 +1。
  * 法术造诣加深，开始能穿透法抗。
  */
-public class MageProfession extends AbstractProfession {
+public class MageProfession extends MageSeriesProfession {
 
     public static final Identifier ID =
             Identifier.fromNamespaceAndPath("rpgcraftcore", "mage");
@@ -55,25 +52,5 @@ public class MageProfession extends AbstractProfession {
     @Override
     public String getIconChar() {
         return "法";
-    }
-
-    /**
-     * 法师专属魔法攻击力公式：{@code 智力×3 + 力量}（强化智力权重）。
-     * 默认公式为 {@code 智力×2 + 力量}，法师通过提高智力系数体现法术优势。
-     */
-    @Override
-    public int computeMagicalAttack(CombatStats s) {
-        return (int) Math.round(s.intelligence() * 2.0 + s.agile() * 0.5);
-    }
-
-    @Override
-    public List<Component> getFormulaTooltip() {
-        return List.of(
-                Component.literal("物理攻击 = 力量×2 + 智力"),
-                Component.literal("魔法攻击 = 智力×2 + 敏捷×0.5"),
-                Component.literal("物理防御 = 力量×2"),
-                Component.literal("有效暴击率 = 暴击率 + 敏捷/5"),
-                Component.literal("有效暴击伤害 = 暴击伤害 + (精准/5)×2")
-        );
     }
 }
