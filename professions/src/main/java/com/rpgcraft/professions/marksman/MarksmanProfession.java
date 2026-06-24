@@ -54,6 +54,6 @@ public class MarksmanProfession extends AbstractProfession {
      */
     @Override
     public int computeEffectiveCritRate(int critRate, int agile) {
-        return critRate + agile / 3;
+        return (int) Math.round(critRate + agile / 3.0);
     }
 }

@@ -65,7 +65,7 @@ public final class ProfessionFormulas {
             return prof.computePhysicalAttack(strength, intelligence);
         }
         // fallback：IProfession 接口的默认公式
-        return strength * 2 + intelligence;
+        return (int) Math.round(strength * 2.0 + intelligence);
     }
 
     /**
@@ -84,7 +84,7 @@ public final class ProfessionFormulas {
         if (prof != null) {
             return prof.computeMagicalAttack(strength, intelligence);
         }
-        return intelligence * 2 + strength;
+        return (int) Math.round(intelligence * 2.0 + strength);
     }
 
     /**
@@ -105,7 +105,7 @@ public final class ProfessionFormulas {
         if (prof != null) {
             return prof.computePhysicalDefense(strength, intelligence);
         }
-        return strength * 2;
+        return (int) Math.round(strength * 2.0);
     }
 
     /**
@@ -124,7 +124,7 @@ public final class ProfessionFormulas {
         if (prof != null) {
             return prof.computeEffectiveCritRate(critRate, agile);
         }
-        return critRate + agile / 5;
+        return (int) Math.round(critRate + agile / 5.0);
     }
 
     /**
@@ -143,6 +143,6 @@ public final class ProfessionFormulas {
         if (prof != null) {
             return prof.computeEffectiveCritDamage(critRatio, precision);
         }
-        return critRatio + (precision / 5) * 2;
+        return (int) Math.round(critRatio + (precision / 5.0) * 2);
     }
 }
