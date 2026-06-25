@@ -3,8 +3,9 @@ package com.rpgcraft.leveling;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.rpgcraft.core.level.ExpFormula;
+import com.rpgcraft.core.level.api.ExpThresholdCurveManager;
 import com.rpgcraft.core.level.api.ILevelRegistry;
+import com.rpgcraft.core.level.api.IExpThresholdCurve;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -35,6 +36,10 @@ import java.util.TreeMap;
  * 最大等级 = 最大键值 + 1。默认经验表由公式 {@code round(50 * L^1.5)} 生成（L=1..299），
  * 最大等级 300。
  * <p>
+ * <b>SPI 覆盖</b>：玩家等级阈值曲线可经 {@link ExpThresholdCurveManager#setCurve} 替换
+ * （详见 {@link IExpThresholdCurve}）。当注册了自定义曲线后，{@link #loadFromJson} 会忽略
+ * JSON 并改用 SPI 曲线重建表（SPI 公式级覆盖优先于 JSON 数据级微调）。
+ * <p>
  * 支持 {@code /reload} 热重载。
  */
 @EventBusSubscriber(modid = LevelingMod.MODID)
@@ -44,19 +49,15 @@ public class LevelConfig implements ILevelRegistry {
     private static final Identifier CONFIG_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "rpg/level_config.json");
 
     /**
-     * 默认经验表（JSON 加载失败时的兜底）
+     * 默认最大等级（曲线/JSON 缺省时使用）。
      * <p>
-     * 使用平滑递增曲线公式 {@code round(50 * L^1.5)} 生成 299 项（L=1..299），
-     * 最大等级 = 300。与 {@code data/rpgcraftcore/rpg/level_config.json} 一致。
-     * <p>
-     * 示例：1→2 需 50；10→11 需 1581；50→51 需 17678；100→101 需 50000；299→300 需 258510。
-     * <p>
-     * 公式由 {@link ExpFormula} 统一提供（与职业等级系统共用，避免多处拷贝漂移）。
+     * 曲线生成 {@code expForNextLevel} 覆盖 1..{@code DEFAULT_MAX_LEVEL-1}（299 项），
+     * 即从 1 级可一路升到 {@code DEFAULT_MAX_LEVEL}（300）。
      */
-    private static final int[] DEFAULT_EXP_TABLE = ExpFormula.generateExpTable(300);
+    static final int DEFAULT_MAX_LEVEL = 300;
 
     /** 经验表快照：expTable[0] = 等级 1 升到 2 所需经验，长度 = 最大等级 - 1 */
-    private volatile int[] expTable = DEFAULT_EXP_TABLE.clone();
+    private volatile int[] expTable;
 
     private static final Gson GSON = new Gson();
 
@@ -65,6 +66,10 @@ public class LevelConfig implements ILevelRegistry {
 
     public LevelConfig() {
         instance = this;
+        // 初始表从当前生效曲线生成（此时若未注册自定义曲线，使用 core 默认 round(50×L^1.5)，
+        // 与原 static-final 烘焙行为一致；若 SPI 已在更早的 mod 构造期注册，则用 SPI 曲线）。
+        // 延迟到构造期而非 static-final，避免类加载时序导致 SPI override 来不及生效。
+        expTable = generateTableFromCurve();
     }
 
     /**
@@ -72,6 +77,36 @@ public class LevelConfig implements ILevelRegistry {
      */
     public static LevelConfig getInstance() {
         return instance;
+    }
+
+    /**
+     * 用当前生效的阈值曲线生成默认经验表（1..{@link #DEFAULT_MAX_LEVEL}-1）。
+     * <p>
+     * 表项 {@code table[i]} = {@code curve.expForNextLevel(i+1)}，长度 {@code DEFAULT_MAX_LEVEL - 1}。
+     */
+    private static int[] generateTableFromCurve() {
+        IExpThresholdCurve curve = ExpThresholdCurveManager.getCurve();
+        int[] table = new int[DEFAULT_MAX_LEVEL - 1];
+        for (int i = 0; i < table.length; i++) {
+            table[i] = curve.expForNextLevel(i + 1);
+        }
+        return table;
+    }
+
+    /**
+     * 用当前生效曲线重建经验表（替换 {@link #expTable} 快照）。
+     * <p>
+     * 由两条路径调用：
+     * <ul>
+     *   <li>{@link #loadFromJson}：当 SPI 已接管（{@link ExpThresholdCurveManager#isOverridden()}）
+     *       时忽略 JSON 并改用 SPI 曲线重建；</li>
+     *   <li>{@link ExpThresholdCurveManager#setCurve} 经回调桥触发（见 core 的
+     *       {@code LevelConfigHooks}）：SPI 在运行期替换曲线后立即重建表。</li>
+     * </ul>
+     */
+    void rebuildFromCurve() {
+        expTable = generateTableFromCurve();
+        LevelingMod.LOGGER.info("已按阈值曲线重建玩家等级经验表（最大等级 {}）", DEFAULT_MAX_LEVEL);
     }
 
     /**
@@ -110,9 +145,16 @@ public class LevelConfig implements ILevelRegistry {
 
     @Override
     public void loadFromJson(JsonObject json) {
+        // SPI 优先：注册了自定义阈值曲线时，忽略 JSON 并改用 SPI 曲线重建表
+        if (ExpThresholdCurveManager.isOverridden()) {
+            LevelingMod.LOGGER.info("等级经验曲线已被 SPI 覆盖，忽略 level_config.json 并按曲线重建表");
+            rebuildFromCurve();
+            return;
+        }
+
         if (json.size() == 0) {
-            expTable = DEFAULT_EXP_TABLE.clone();
-            LevelingMod.LOGGER.info("等级经验表为空，使用默认配置（最大等级 {}）", DEFAULT_EXP_TABLE.length + 1);
+            expTable = generateTableFromCurve();
+            LevelingMod.LOGGER.info("等级经验表为空，使用默认曲线配置（最大等级 {}）", DEFAULT_MAX_LEVEL);
             return;
         }
 
@@ -133,8 +175,8 @@ public class LevelConfig implements ILevelRegistry {
         }
 
         if (sorted.isEmpty()) {
-            expTable = DEFAULT_EXP_TABLE.clone();
-            LevelingMod.LOGGER.warn("等级经验表无有效条目，使用默认配置（最大等级 {}）", DEFAULT_EXP_TABLE.length + 1);
+            expTable = generateTableFromCurve();
+            LevelingMod.LOGGER.warn("等级经验表无有效条目，使用默认曲线配置（最大等级 {}）", DEFAULT_MAX_LEVEL);
             return;
         }
 

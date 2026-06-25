@@ -53,6 +53,10 @@ public class LevelManager {
      */
     public static void init() {
         registry = new LevelConfig();
+        // 注册曲线变更回调：第三方通过 ExpThresholdCurveManager.setCurve 替换玩家等级阈值曲线时，
+        // 回拨 LevelConfig 重建经验表（SPI 优先于 JSON）。core 经 LevelConfigHooks 解耦调用，不依赖 leveling。
+        com.rpgcraft.core.level.api.LevelConfigHooks.setOnThresholdCurveChanged(
+                ((LevelConfig) registry)::rebuildFromCurve);
         calculator = new DefaultLevelCalculator();
         mobScaler = new DefaultMobAttributeScaler();
 

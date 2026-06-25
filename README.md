@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.9.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.9.1--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -338,6 +338,16 @@ baseValue
 - **`exp_bonus` 属性**（`rpgcraftcore:exp_bonus`）：按整数百分比叠加在曲线之上，装备/职业/属性点可通过属性管道注入。默认 0。属性未注册时优雅降级为 0。
 - **`IExperienceCurve`** SPI：替换整条等级差曲线（通过 `ExperienceCurveManager.setCurve()`，与 `IDamageCalculator` 同型策略模式）。`ILevelCalculator` 仍可整体替换包含属性加成在内的完整经验计算。
 
+### 玩家等级经验曲线
+
+玩家从 `level` 升到 `level+1` 所需的增量经验由阈值曲线决定，默认公式 `round(50 × level^1.5)`（如 1→2 需 50、10→11 需 1581、100→101 需 50000，最大等级 300）。实现在 `core` 的 `ExpFormula`，玩家等级系统（`leveling`）与职业等级系统（`profession`）共用此默认公式。
+
+**扩展入口**（仅影响玩家等级，职业等级不受影响）：
+- **`IExpThresholdCurve`** SPI：替换玩家等级阈值曲线（通过 `ExpThresholdCurveManager.setCurve()`，与 `IExperienceCurve` 同型策略模式）。
+- **与 JSON 的优先级**：默认情况下 `data/rpgcraftcore/rpg/level_config.json` 提供每级精确经验值；**一旦注册了自定义 SPI 曲线（非 core 默认实现），JSON 将被忽略并改用 SPI 曲线重建经验表**（日志提示"已被 SPI 覆盖"）。即 SPI（公式级覆盖）优先于 JSON（数据级微调）。
+- **运行时替换**：SPI 曲线可在任何时机替换，`LevelConfig` 会自动重建经验表（无需重启）。
+- **职业等级**仍直调 `ExpFormula`，并有 per-profession `getExpTable()` 钩子，与本 SPI 正交。
+
 ### 进阶与副职业
 
 | 操作 | 规则 |
@@ -629,6 +639,7 @@ baseValue
 |------|------|
 | `ILevelCalculator` | 自定义经验公式 |
 | `IExperienceCurve` | 自定义等级差经验倍率曲线（`ExperienceCurveManager.setCurve()`） |
+| `IExpThresholdCurve` | 自定义玩家等级升下一级所需经验曲线（`ExpThresholdCurveManager.setCurve()`，注册后 JSON 失效） |
 | `ILevelProvider` | 自定义经验表 |
 | `IMobAttributeScaler` | 自定义怪物属性按等级缩放 |
 | `IEquipmentHandler` | 自定义装备加成处理逻辑 |

@@ -1580,10 +1580,13 @@ public class RPGProfessionScreen extends Screen {
         return state.pool() >= costForNextLevel(level, node.maxLevel());
     }
 
-    /** 升下一级所需经验（与服务端公式镜像，仅用于 UI 显示）。委托 {@link ExpFormula} 统一公式 */
+    /**
+     * 升下一级所需经验（用于 UI 显示）。委托 core 共享阈值曲线管理器
+     * （与服务端默认公式同源，消除客户端与服务端公式漂移）。
+     */
     private static int costForNextLevel(int level, int maxLevel) {
         if (level < 1 || level >= maxLevel) return Integer.MAX_VALUE;
-        return com.rpgcraft.core.level.ExpFormula.expForNextLevel(level);
+        return com.rpgcraft.core.level.api.ExpThresholdCurveManager.getCurve().expForNextLevel(level);
     }
 
     private boolean canAdvanceFrom(ProfessionStateView state, ProfessionNode node) {
