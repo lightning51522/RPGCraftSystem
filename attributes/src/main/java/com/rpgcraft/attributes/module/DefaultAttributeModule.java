@@ -66,5 +66,8 @@ public class DefaultAttributeModule implements IAttributeModule {
 
         registry.register(DefaultAttributes.MAGICAL_PENETRATE_ID, "法术穿透", "攻击时无视目标法抗的值。",
                 0, Integer.MAX_VALUE, false, false);
+
+        registry.register(DefaultAttributes.EXP_BONUS_ID, "经验加成", "按百分比提升击杀获得的经验（叠加在等级差曲线之上）。不可加点，装备/职业加成生效。",
+                0, Integer.MAX_VALUE, false, false, false, null);
     }
 }

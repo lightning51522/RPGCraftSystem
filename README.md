@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.8.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.9.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -319,6 +319,25 @@ baseValue
 - 在职业面板中可将经验池投入某职业升级，每升一级消耗该职业经验表对应值点（职业无专属 `exp_table` 时用全局公式 `round(50×L^1.5)`）
 - 投入规则：目标职业需已解锁、未满级、池内经验足够
 
+### 击杀经验倍率曲线
+
+玩家击杀怪物获得的等级经验 = `baseExp × 等级差倍率 × (1 + 经验加成%)`，其中 `baseExp` 来自 `mob_attributes.json` 的 `base_exp`。等级差倍率按玩家与怪物等级的差值 `d = 玩家等级 − 怪物等级` 分段线性计算（实现在 `core` 的 `ExperienceGainCurve`，服务端发放与客户端悬停预览共用同一公式）：
+
+| 差值 d（玩家−怪） | 倍率 | 含义 |
+|------------------|------|------|
+| `\|d\| ≤ 5` | **5.0×** | 甜区峰值（玩家与怪等级相仿，收益最高） |
+| `d = +12.5`（中点） | ≈ 2.5× | 低级怪端线性下降中 |
+| `d ≥ +20` | 保底 **1 点经验** | 玩家远高于怪，防止刷低级怪 |
+| `d = −27.5`（中点） | ≈ 2.55× | 高级怪端线性下降中 |
+| `d = −50` | **0.1×** | 玩家远低于怪，开始封顶保护 |
+| `d ≤ −50` | 恒 0.1× | 高级怪封顶保护（防止越级秒杀） |
+
+曲线**不对称**：低级怪端（玩家高）在 15 级跨度内从 5× 跌到保底（衰减更快），高级怪端（玩家低）在 45 级跨度内从 5× 跌到 0.1×（衰减较缓）——鼓励挑战与自身等级相仿或略高的怪物。
+
+**两个扩展入口**（均可由第三方替换）：
+- **`exp_bonus` 属性**（`rpgcraftcore:exp_bonus`）：按整数百分比叠加在曲线之上，装备/职业/属性点可通过属性管道注入。默认 0。属性未注册时优雅降级为 0。
+- **`IExperienceCurve`** SPI：替换整条等级差曲线（通过 `ExperienceCurveManager.setCurve()`，与 `IDamageCalculator` 同型策略模式）。`ILevelCalculator` 仍可整体替换包含属性加成在内的完整经验计算。
+
 ### 进阶与副职业
 
 | 操作 | 规则 |
@@ -609,6 +628,7 @@ baseValue
 | 接口 | 用途 |
 |------|------|
 | `ILevelCalculator` | 自定义经验公式 |
+| `IExperienceCurve` | 自定义等级差经验倍率曲线（`ExperienceCurveManager.setCurve()`） |
 | `ILevelProvider` | 自定义经验表 |
 | `IMobAttributeScaler` | 自定义怪物属性按等级缩放 |
 | `IEquipmentHandler` | 自定义装备加成处理逻辑 |

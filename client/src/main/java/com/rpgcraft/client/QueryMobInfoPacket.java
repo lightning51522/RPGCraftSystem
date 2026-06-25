@@ -89,11 +89,10 @@ public record QueryMobInfoPacket(int entityId) implements CustomPacketPayload {
                         .orElse(100);
             }
 
-            // 计算实际可获得经验（委托给可替换的计算器 — 通过 RPGSystems 查询等级系统获取）
-            // 注意：ILevelCalculator 目前不在 core 接口中，此处使用简单公式估算
-            // 精确计算由 leveling 模块的 LevelEventHandler 处理
+            // 计算实际可获得经验：调用 core 共享的等级差曲线工具，与服务端 DefaultLevelCalculator 同源，
+            // 从根上避免预览值与实际发放经验漂移（注：此处不计入 exp_bonus 属性加成，仅为基准预览）
             int playerLevel = RPGSystems.getLevelSystem().getLevel(player);
-            int expGain = (int) (Math.sqrt((double) mobLevel / Math.max(1, playerLevel)) * baseExp);
+            int expGain = com.rpgcraft.core.level.ExperienceGainCurve.gain(playerLevel, mobLevel, baseExp);
 
             // 读取属性快照（包含所有已注册属性的计算值）
             AttributeSnapshot snapshot = AttributeSnapshotManager.getSnapshot(livingEntity);

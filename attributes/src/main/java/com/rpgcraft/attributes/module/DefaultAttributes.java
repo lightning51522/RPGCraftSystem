@@ -43,6 +43,7 @@ public final class DefaultAttributes {
     public static final Identifier FIXED_DAMAGE_ID          = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
     public static final Identifier PHYSICAL_PENETRATE_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
     public static final Identifier MAGICAL_PENETRATE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
+    public static final Identifier EXP_BONUS_ID             = Identifier.fromNamespaceAndPath("rpgcraftcore", "exp_bonus");
 
     // === 综合属性 ID（仅用于 UI 展示标识，不注册为真实属性，由公式动态计算） ===
     /** 物理攻击力综合属性 ID（仅用于 UI 标识，伤害公式动态计算） */
