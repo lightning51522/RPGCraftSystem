@@ -3,6 +3,7 @@
 > 一套基于 **微内核 + 插件** 架构的 Minecraft RPG 核心系统模组。
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Status](https://img.shields.io/badge/status-0.8.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
@@ -12,6 +13,16 @@
 
 ## 碎碎念
 &emsp;&emsp;本人有一定的软件开发经验，但是日常使用的语言是C/C++，几乎没有Java的经验，故本模组采用了大量的AI辅助开发。我个人不是很容易找出里面不健康的部分，所以如果有大佬能指出项目上的缺陷，在此先行谢过。这个模组在我的想象中应该是一个所有子系统都可插拔自定义的RPG系统核心，计划中包括实体属性、实体等级、职业系统、词条系统、附魔/宝石系统、副本系统等等很多子系统，通过一个核心将这些系统连接起来形成一个完整的传统RPG系统。不过理想和现实总是有很大的差距，先写一步是一步。另外，由于日常需要忙于工作可能不是经常上git看消息，而且实际上我也没有经营公开仓库的经验，也算是一种锻炼了吧(如果有人看这个仓库的话XD)。
+
+---
+
+## 第三方依赖
+
+本项目使用了以下第三方开源库，许可证详见 [THIRDPARTY_LICENSES.md](./THIRDPARTY_LICENSES.md)：
+
+| 库 | 用途 | 许可证 |
+|----|------|--------|
+| [Player Animation Library (PAL)](https://github.com/ZigyTheBird/PlayerAnimationLib) | skills 模块技能动画 | MIT |
 
 ---
 
