@@ -24,7 +24,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -51,31 +51,8 @@ public class ProfessionManager {
     private static ProfessionRegistry registry;
     private static DeferredRegister<AttachmentType<?>> deferredRegister;
 
-    // ====================================================================
-    // 职业标识符常量
-    // ====================================================================
-
-    public static final Identifier COMMONER_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "commoner");
-    /** 占位副职业 ID（当 professions 子模块未提供任何 secondary 职业时由子模块注入） */
-    public static final Identifier APPRENTICE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "apprentice");
-    /**
-     * @deprecated 具体职业已迁移到 professions 子模块的 Java 类，这些 ID 常量仅保留供历史代码引用兼容；
-     * 新代码应通过 {@link #getRegistry()} 按需查找。
-     */
-    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
-    public static final Identifier WARRIOR_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "warrior");
-    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
-    public static final Identifier ARCHER_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "archer");
-    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
-    public static final Identifier BERSERKER_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "berserker");
-    @Deprecated(since = "0.4.0-alpha", forRemoval = false)
-    public static final Identifier MARKSMAN_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "marksman");
+    // 注：职业 ID 常量（COMMONER_ID/APPRENTICE_ID/WARRIOR_ID/...）已上提到 core 的
+    // com.rpgcraft.core.profession.api.ProfessionIds，供内容模块只依赖 core 即可引用。
 
     // ====================================================================
     // AttachmentType Supplier
@@ -108,6 +85,9 @@ public class ProfessionManager {
         RPGSystems.registerPlayerProfessionAttachment(PLAYER_PROFESSION);
 
         RPGSystems.registerProfessionSystem(new ProfessionSystemImpl());
+
+        // 暴露注册中心到 core 门面，供内容模块（professions）及第三方内容包只依赖 core 即可注册职业
+        RPGSystems.registerProfessionRegistry(registry);
 
         // 注册职业状态组装器（供 core 的 RequestProfessionStatePacket 组装完整状态推送给客户端）
         ProfessionStateAssembler.register(ProfessionManager::buildStateView);
@@ -203,23 +183,30 @@ public class ProfessionManager {
         return com.rpgcraft.core.level.ExpFormula.generateExpTable(cap);
     }
 
-    /** 全局默认公式：从 level 升到 level+1 所需经验（不含职业专属表，向后兼容旧接口） */
+    /**
+     * 全局默认公式：从 level 升到 level+1 所需经验（不含职业专属表，向后兼容旧接口）。
+     * <p>
+     * 返回 {@code -1} 表示等级无效或已达上限（与 {@code ILevelRegistry.getExpForLevel}、
+     * {@code ExpFormula.expForNextLevel} 的约定一致）。
+     */
     public static int getExpForNextLevel(int level) {
-        if (level < 1) return Integer.MAX_VALUE;
-        if (level - 1 >= DEFAULT_EXP_TABLE.length) return Integer.MAX_VALUE;
+        if (level < 1) return -1;
+        if (level - 1 >= DEFAULT_EXP_TABLE.length) return -1;
         return DEFAULT_EXP_TABLE[level - 1];
     }
 
     /**
      * 指定职业升到下一级所需经验。优先用职业专属经验表 {@link IProfession#getExpTable()}，
      * 缺失则回退到全局默认公式。
+     * <p>
+     * 返回 {@code -1} 表示职业/等级无效或已达上限。
      */
     public static int getExpForNextLevel(IProfession prof, int level) {
-        if (prof == null || level < 1 || level >= prof.getMaxLevel()) return Integer.MAX_VALUE;
+        if (prof == null || level < 1 || level >= prof.getMaxLevel()) return -1;
         int[] table = prof.getExpTable();
         if (table != null) {
             int idx = level - 1;
-            if (idx < 0 || idx >= table.length) return Integer.MAX_VALUE;
+            if (idx < 0 || idx >= table.length) return -1;
             return table[idx];
         }
         return getExpForNextLevel(level);

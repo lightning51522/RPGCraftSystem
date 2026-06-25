@@ -1,7 +1,7 @@
 package com.rpgcraft.professions.sorcerer;
 
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.MageSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -31,7 +31,7 @@ public class SorcererProfession extends MageSeriesProfession {
                 "术士",
                 "魔法修习的起点，智力提升而力量降低",
                 ProfessionType.PRIMARY,
-                ProfessionManager.COMMONER_ID,
+                ProfessionIds.COMMONER_ID,
                 20,
                 java.util.Map.of(
                         INTELLIGENCE_ID, 5,

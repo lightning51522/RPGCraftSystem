@@ -8,9 +8,13 @@ import net.minecraft.server.level.ServerPlayer;
  * 每个需要参与死亡/重生数据恢复的模块实现此接口，
  * 并在初始化时通过 {@link SnapshotCoordinator#registerContributor(ISnapshotContributor)} 注册。
  * <p>
- * 快照数据使用泛型 {@link Object} 类型，由各贡献者自行决定数据格式（record、map 等）。
+ * 快照数据类型由泛型参数 {@code T} 指定（通常为实现者定义的 record / map），
+ * {@link #captureSnapshot} 返回 {@code T}，{@link #restoreSnapshot} 接收 {@code T}，
+ * 从而消除每处实现中的未检查强转——{@link SnapshotCoordinator} 在异构存储边界统一处理擦除。
+ *
+ * @param <T> 快照数据类型
  */
-public interface ISnapshotContributor {
+public interface ISnapshotContributor<T> {
 
     /**
      * 获取贡献者的唯一标识符
@@ -27,9 +31,9 @@ public interface ISnapshotContributor {
      * 在玩家死亡时调用。返回的快照对象会在 {@link #restoreSnapshot} 中原样传回。
      *
      * @param player 即将死亡的玩家
-     * @return 包含快照数据的对象（可为任意类型，由实现者定义）
+     * @return 包含快照数据的对象（类型由实现者定义），{@code null} 表示不捕获
      */
-    Object captureSnapshot(ServerPlayer player);
+    T captureSnapshot(ServerPlayer player);
 
     /**
      * 从快照恢复数据
@@ -40,7 +44,7 @@ public interface ISnapshotContributor {
      * @param data      死亡时捕获的快照对象（即 {@link #captureSnapshot} 的返回值）
      * @param mode      恢复模式
      */
-    void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode);
+    void restoreSnapshot(ServerPlayer newPlayer, T data, DeathRestoreMode mode);
 
     /**
      * 同步数据到客户端

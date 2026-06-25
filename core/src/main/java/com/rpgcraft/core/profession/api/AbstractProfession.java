@@ -1,7 +1,7 @@
 package com.rpgcraft.core.profession.api;
 
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

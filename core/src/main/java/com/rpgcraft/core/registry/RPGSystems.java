@@ -57,6 +57,17 @@ public final class RPGSystems {
      */
     public static final int OVERRIDE_PRIORITY = 100;
 
+    /**
+     * core 兜底实现的优先级
+     * <p>
+     * 低于 {@link #DEFAULT_PRIORITY}，用于在无任何插件加载时为各系统槽预填充 no-op 兜底实现，
+     * 保证 core 能独立运行不抛 {@link IllegalStateException}（与 {@code IDamageCalculator} 的
+     * 透传兜底、{@code ExperienceCurveManager} 的默认曲线同一哲学）。
+     * <p>
+     * 官方模块以 {@link #DEFAULT_PRIORITY}（0）注册时优先级更高，会正常覆盖此兜底。
+     */
+    public static final int FALLBACK_PRIORITY = -100;
+
     // ====================================================================
     // 注册条目（实现 + 优先级）
     // ====================================================================
@@ -71,21 +82,44 @@ public final class RPGSystems {
     private static Registration<ILevelSystem> levelSystem;
     private static Registration<IEquipmentSystem> equipmentSystem;
     private static Registration<IProfessionSystem> professionSystem;
+    private static Registration<com.rpgcraft.core.profession.api.IProfessionRegistry> professionRegistry;
     private static Registration<ICombatSystem> combatSystem;
     private static Registration<IAttackTypeResolver> attackTypeResolver;
     private static Registration<IMobDataProvider> mobDataProvider;
     private static Registration<IClientSystem> clientSystem;
     private static Registration<IAttributeModule> attributeModule;
-    private static Supplier<?> playerLevelAttachment;
-    private static Supplier<?> playerProfessionAttachment;
+    private static Registration<Supplier<?>> playerLevelAttachment;
+
+    // 职业系统
+    private static Registration<Supplier<?>> playerProfessionAttachment;
 
     // 属性点系统
     private static Registration<IAttributePointSystem> attributePointSystem;
-    private static Supplier<?> playerAttributePointsAttachment;
+    private static Registration<Supplier<?>> playerAttributePointsAttachment;
 
     // 技能系统
     private static Registration<ISkillSystem> skillSystem;
-    private static Supplier<?> playerSkillsAttachment;
+    private static Registration<Supplier<?>> playerSkillsAttachment;
+
+    /**
+     * 静态初始化：为缺乏官方实现的 6 个系统槽预填充 no-op 兜底（优先级 {@link #FALLBACK_PRIORITY}）。
+     * <p>
+     * 这样无对应插件时 core 仍能独立运行（getter 不抛 {@link IllegalStateException}），
+     * 官方模块以 {@link #DEFAULT_PRIORITY} 注册时优先级更高，会正常覆盖兜底。
+     * <ul>
+     *   <li>professionSystem / attributePointSystem / skillSystem 已有 {@code has*()} 守卫，
+     *       且调用方约定缺失即跳过，故<b>不</b>预填充（保留 has*() 语义）。</li>
+     *   <li>attributeModule 的 getter 已是 null 容忍，也<b>不</b>预填充。</li>
+     * </ul>
+     */
+    static {
+        levelSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpLevelSystem(), FALLBACK_PRIORITY);
+        equipmentSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpEquipmentSystem(), FALLBACK_PRIORITY);
+        combatSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpCombatSystem(), FALLBACK_PRIORITY);
+        attackTypeResolver = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpAttackTypeResolver(), FALLBACK_PRIORITY);
+        mobDataProvider = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpMobDataProvider(), FALLBACK_PRIORITY);
+        clientSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpClientSystem(), FALLBACK_PRIORITY);
+    }
 
     private RPGSystems() {
         // 禁止实例化
@@ -138,20 +172,22 @@ public final class RPGSystems {
 
     /**
      * 查询附件 Supplier，未注册时抛 {@link IllegalStateException}，并集中处理 raw {@code Supplier<?>}
-     * 到 {@code Supplier<AttachmentType<T>>} 的泛型强转（消除 3 处 {@code @SuppressWarnings("unchecked")}）。
+     * 到 {@code Supplier<AttachmentType<T>>} 的泛型强转（消除各调用处的 {@code @SuppressWarnings("unchecked")}）。
+     * <p>
+     * 入参为 {@link Registration}（附件槽已纳入优先级机制），从中取出实现并强转。
      *
      * @param name 附件名（用于异常信息）
-     * @param raw  原始 raw supplier
+     * @param reg  注册条目（持有 raw supplier）
      * @param <T>  附件数据类型
      * @return 附件类型 Supplier
      */
     @SuppressWarnings("unchecked")
     private static <T> java.util.function.Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>
-            requireAttachment(String name, java.util.function.Supplier<?> raw) {
-        if (raw == null) {
+            requireAttachment(String name, Registration<java.util.function.Supplier<?>> reg) {
+        if (reg == null) {
             throw new IllegalStateException(name + " 未注册，请先由对应模块初始化");
         }
-        return (java.util.function.Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) raw;
+        return (java.util.function.Supplier<net.neoforged.neoforge.attachment.AttachmentType<T>>) reg.implementation();
     }
 
     // ====================================================================
@@ -218,6 +254,31 @@ public final class RPGSystems {
     public static void registerProfessionSystem(IProfessionSystem system, int priority) {
         if (shouldOverride("IProfessionSystem", professionSystem, priority)) {
             professionSystem = new Registration<>(system, priority);
+        }
+    }
+
+    /**
+     * 注册职业注册中心实现（默认优先级）
+     * <p>
+     * 由 {@code profession} 模块调用，供内容模块（{@code professions}）及第三方内容包通过
+     * {@link #getProfessionRegistry()} 获取注册中心并注册自定义职业，而无需编译期依赖
+     * {@code profession} 插件（只依赖 core）。
+     *
+     * @param registry 职业注册中心实例
+     */
+    public static void registerProfessionRegistry(com.rpgcraft.core.profession.api.IProfessionRegistry registry) {
+        registerProfessionRegistry(registry, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册职业注册中心实现（指定优先级）
+     *
+     * @param registry 职业注册中心实例
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerProfessionRegistry(com.rpgcraft.core.profession.api.IProfessionRegistry registry, int priority) {
+        if (shouldOverride("IProfessionRegistry", professionRegistry, priority)) {
+            professionRegistry = new Registration<>(registry, priority);
         }
     }
 
@@ -341,25 +402,49 @@ public final class RPGSystems {
     }
 
     /**
-     * 注册玩家等级附件类型 Supplier
+     * 注册玩家等级附件类型 Supplier（默认优先级）
      * <p>
      * 由 leveling 模块调用，供客户端代码通过 {@link #getPlayerLevelAttachment()} 获取附件类型。
      *
      * @param supplier AttachmentType<PlayerLevelData> 的 Supplier
      */
     public static void registerPlayerLevelAttachment(Supplier<?> supplier) {
-        playerLevelAttachment = supplier;
+        registerPlayerLevelAttachment(supplier, DEFAULT_PRIORITY);
     }
 
     /**
-     * 注册玩家职业附件类型 Supplier
+     * 注册玩家等级附件类型 Supplier（指定优先级）
+     *
+     * @param supplier AttachmentType<PlayerLevelData> 的 Supplier
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerPlayerLevelAttachment(Supplier<?> supplier, int priority) {
+        if (shouldOverride("playerLevelAttachment", playerLevelAttachment, priority)) {
+            playerLevelAttachment = new Registration<>(supplier, priority);
+        }
+    }
+
+    /**
+     * 注册玩家职业附件类型 Supplier（默认优先级）
      * <p>
      * 由 profession 模块调用，供客户端代码通过 {@link #getPlayerProfessionAttachment()} 获取附件类型。
      *
      * @param supplier AttachmentType<ProfessionData> 的 Supplier
      */
     public static void registerPlayerProfessionAttachment(Supplier<?> supplier) {
-        playerProfessionAttachment = supplier;
+        registerPlayerProfessionAttachment(supplier, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册玩家职业附件类型 Supplier（指定优先级）
+     *
+     * @param supplier AttachmentType<ProfessionData> 的 Supplier
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerPlayerProfessionAttachment(Supplier<?> supplier, int priority) {
+        if (shouldOverride("playerProfessionAttachment", playerProfessionAttachment, priority)) {
+            playerProfessionAttachment = new Registration<>(supplier, priority);
+        }
     }
 
     /**
@@ -384,14 +469,26 @@ public final class RPGSystems {
     }
 
     /**
-     * 注册玩家属性点附件类型 Supplier
+     * 注册玩家属性点附件类型 Supplier（默认优先级）
      * <p>
      * 由 attributepoints 模块调用，供客户端 UI 通过 {@link #getPlayerAttributePointsAttachment()} 获取附件类型。
      *
      * @param supplier AttachmentType<PlayerAttributePoints> 的 Supplier
      */
     public static void registerPlayerAttributePointsAttachment(Supplier<?> supplier) {
-        playerAttributePointsAttachment = supplier;
+        registerPlayerAttributePointsAttachment(supplier, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册玩家属性点附件类型 Supplier（指定优先级）
+     *
+     * @param supplier AttachmentType<PlayerAttributePoints> 的 Supplier
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerPlayerAttributePointsAttachment(Supplier<?> supplier, int priority) {
+        if (shouldOverride("playerAttributePointsAttachment", playerAttributePointsAttachment, priority)) {
+            playerAttributePointsAttachment = new Registration<>(supplier, priority);
+        }
     }
 
     /**
@@ -416,14 +513,26 @@ public final class RPGSystems {
     }
 
     /**
-     * 注册玩家技能附件类型 Supplier
+     * 注册玩家技能附件类型 Supplier（默认优先级）
      * <p>
      * 由 skills 模块调用，供客户端 UI 通过 {@link #getPlayerSkillsAttachment()} 获取附件类型。
      *
      * @param supplier AttachmentType<PlayerSkillData> 的 Supplier
      */
     public static void registerPlayerSkillsAttachment(Supplier<?> supplier) {
-        playerSkillsAttachment = supplier;
+        registerPlayerSkillsAttachment(supplier, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册玩家技能附件类型 Supplier（指定优先级）
+     *
+     * @param supplier AttachmentType<PlayerSkillData> 的 Supplier
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerPlayerSkillsAttachment(Supplier<?> supplier, int priority) {
+        if (shouldOverride("playerSkillsAttachment", playerSkillsAttachment, priority)) {
+            playerSkillsAttachment = new Registration<>(supplier, priority);
+        }
     }
 
     // ====================================================================
@@ -467,6 +576,28 @@ public final class RPGSystems {
      */
     public static IProfessionSystem getProfessionSystem() {
         return requireSystem("IProfessionSystem", professionSystem);
+    }
+
+    /**
+     * 获取职业注册中心
+     * <p>
+     * 供内容模块（{@code professions}）及第三方内容包注册自定义职业。
+     * 由 {@code profession} 模块注册。
+     *
+     * @return 职业注册中心实例
+     * @throws IllegalStateException 未注册时抛出（{@code profession} 模块未加载）
+     */
+    public static com.rpgcraft.core.profession.api.IProfessionRegistry getProfessionRegistry() {
+        return requireSystem("IProfessionRegistry", professionRegistry);
+    }
+
+    /**
+     * 查询职业注册中心是否已注册（避免内容模块在引擎未加载时空指针）
+     *
+     * @return {@code true} 已注册
+     */
+    public static boolean hasProfessionRegistry() {
+        return professionRegistry != null;
     }
 
     /**

@@ -25,6 +25,33 @@ public final class ProfessionFormulas {
     private ProfessionFormulas() {
     }
 
+    /**
+     * 全默认 {@link IProfession} 实例（仅用接口 {@code compute*} 默认方法）。
+     * <p>
+     * 作为「无职业时的默认公式」的单一真相源：所有默认公式集中在 {@link IProfession} 的
+     * {@code compute*} 默认方法中，本类不再重复内联公式，避免三处拷贝漂移
+     *（服务端 {@code DefaultDamageCalculator}、客户端 {@code CompositeAttributePlugin}）。
+     * <p>
+     * 三个抽象方法（getId/getDisplayName/getDescription）返回占位值——本实例<b>仅</b>用于
+     * 调用 {@code compute*} 默认方法，从不作为真实职业参与注册/查询。
+     */
+    private static final IProfession DEFAULTS = new IProfession() {
+        @Override
+        public net.minecraft.resources.Identifier getId() {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return "";
+        }
+
+        @Override
+        public String getDescription() {
+            return "";
+        }
+    };
+
     private static IProfession resolveMainProfession(LivingEntity entity) {
         if (!(entity instanceof ServerPlayer player)) return null;
         if (!RPGSystems.hasProfessionSystem()) return null;
@@ -32,41 +59,69 @@ public final class ProfessionFormulas {
     }
 
     // ==================================================================
-    // 综合属性查询（对外 API）
+    // 默认公式（无职业时的综合属性，单一真相源 = IProfession 默认方法）
+    // ==================================================================
+
+    /**
+     * 默认物理攻击力（无职业时），委托 {@link IProfession#computePhysicalAttack(CombatStats)} 默认实现。
+     * <p>
+     * 供客户端（{@code CompositeAttributePlugin}）等无实体上下文的场景直接复用，消除内联公式拷贝。
+     */
+    public static int physicalAttack(CombatStats s) {
+        return DEFAULTS.computePhysicalAttack(s);
+    }
+
+    /** 默认魔法攻击力（无职业时），委托 {@link IProfession#computeMagicalAttack(CombatStats)}。 */
+    public static int magicalAttack(CombatStats s) {
+        return DEFAULTS.computeMagicalAttack(s);
+    }
+
+    /** 默认物理防御力（无职业时），委托 {@link IProfession#computePhysicalDefense(CombatStats)}。 */
+    public static int physicalDefense(CombatStats s) {
+        return DEFAULTS.computePhysicalDefense(s);
+    }
+
+    /** 默认有效暴击率（无职业时），委托 {@link IProfession#computeEffectiveCritRate(CombatStats)}。 */
+    public static int effectiveCritRate(CombatStats s) {
+        return DEFAULTS.computeEffectiveCritRate(s);
+    }
+
+    /** 默认有效暴击伤害（无职业时），委托 {@link IProfession#computeEffectiveCritDamage(CombatStats)}。 */
+    public static int effectiveCritDamage(CombatStats s) {
+        return DEFAULTS.computeEffectiveCritDamage(s);
+    }
+
+    // ==================================================================
+    // 综合属性查询（带实体的对外 API，解析活跃主职业并回退默认）
     // ==================================================================
 
     /** 物理攻击力 */
     public static int physicalAttack(LivingEntity entity, CombatStats s) {
         IProfession prof = resolveMainProfession(entity);
-        if (prof != null) return prof.computePhysicalAttack(s);
-        return (int) Math.round(s.strength() * 2.0 + s.intelligence());
+        return prof != null ? prof.computePhysicalAttack(s) : physicalAttack(s);
     }
 
     /** 魔法攻击力 */
     public static int magicalAttack(LivingEntity entity, CombatStats s) {
         IProfession prof = resolveMainProfession(entity);
-        if (prof != null) return prof.computeMagicalAttack(s);
-        return (int) Math.round(s.intelligence() * 2.0 + s.strength());
+        return prof != null ? prof.computeMagicalAttack(s) : magicalAttack(s);
     }
 
     /** 物理防御力 */
     public static int physicalDefense(LivingEntity entity, CombatStats s) {
         IProfession prof = resolveMainProfession(entity);
-        if (prof != null) return prof.computePhysicalDefense(s);
-        return (int) Math.round(s.strength() * 2.0);
+        return prof != null ? prof.computePhysicalDefense(s) : physicalDefense(s);
     }
 
     /** 有效暴击率 */
     public static int effectiveCritRate(LivingEntity entity, CombatStats s) {
         IProfession prof = resolveMainProfession(entity);
-        if (prof != null) return prof.computeEffectiveCritRate(s);
-        return (int) Math.round(s.critRate() + s.agile() / 5.0);
+        return prof != null ? prof.computeEffectiveCritRate(s) : effectiveCritRate(s);
     }
 
     /** 有效暴击伤害 */
     public static int effectiveCritDamage(LivingEntity entity, CombatStats s) {
         IProfession prof = resolveMainProfession(entity);
-        if (prof != null) return prof.computeEffectiveCritDamage(s);
-        return (int) Math.round(s.critRatio() + (s.precision() / 5.0) * 2);
+        return prof != null ? prof.computeEffectiveCritDamage(s) : effectiveCritDamage(s);
     }
 }

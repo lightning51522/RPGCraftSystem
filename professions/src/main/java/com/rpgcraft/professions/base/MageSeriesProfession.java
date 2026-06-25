@@ -5,7 +5,7 @@ import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;

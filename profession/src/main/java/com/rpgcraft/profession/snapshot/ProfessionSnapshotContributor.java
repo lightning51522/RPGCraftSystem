@@ -28,7 +28,7 @@ import java.util.Set;
  * <p>
  * 两种死亡恢复模式下行为相同：恢复完整职业数据 + 重新应用加成。
  */
-public class ProfessionSnapshotContributor implements ISnapshotContributor {
+public class ProfessionSnapshotContributor implements ISnapshotContributor<ProfessionSnapshotContributor.ProfSnapshot> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftprofession:profession";
 
@@ -49,7 +49,7 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public Object captureSnapshot(ServerPlayer player) {
+    public ProfSnapshot captureSnapshot(ServerPlayer player) {
         ProfessionData data = player.getData(ProfessionManager.PLAYER_PROFESSION);
         return new ProfSnapshot(
                 data.getProfessionId(),
@@ -61,8 +61,7 @@ public class ProfessionSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
-        ProfSnapshot snap = (ProfSnapshot) data;
+    public void restoreSnapshot(ServerPlayer newPlayer, ProfSnapshot snap, DeathRestoreMode mode) {
         ProfessionData newData = newPlayer.getData(ProfessionManager.PLAYER_PROFESSION);
         newData.setProfessionId(snap.professionId());
         newData.setSkillPointPool(snap.skillPointPool());

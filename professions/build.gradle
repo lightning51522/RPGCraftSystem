@@ -36,10 +36,10 @@ configurations {
 }
 
 dependencies {
+    // 仅依赖 core：职业 ID 常量在 core.profession.api.ProfessionIds，
+    // 职业注册中心通过 core.RPGSystems.getProfessionRegistry() 获取。
+    // 运行时通过 neoforge.mods.toml 的 AFTER 依赖保证 rpgcraftprofession 引擎在本模块之前初始化。
     implementation project(':core')
-    // 编译期依赖 profession 模块以访问 ProfessionManager.COMMONER_ID 等常量；
-    // 运行时通过 neoforge.mods.toml 的 AFTER 依赖保证本模块在 profession 之后初始化
-    implementation project(':profession')
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

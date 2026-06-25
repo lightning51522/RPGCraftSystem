@@ -35,7 +35,7 @@ import java.util.Map;
  * <b>客户端同步</b>：本贡献者的 {@link #syncToClient} 是空操作 —— 装备重扫引起的属性
  * 变化由 {@code AttributeSnapshotContributor.syncToClient} 统一同步全量属性到客户端。
  */
-public class EquipmentSnapshotContributor implements ISnapshotContributor {
+public class EquipmentSnapshotContributor implements ISnapshotContributor<Object> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftequipment:equipment";
 

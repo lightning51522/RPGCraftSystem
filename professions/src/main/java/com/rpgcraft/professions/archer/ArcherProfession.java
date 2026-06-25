@@ -1,7 +1,7 @@
 package com.rpgcraft.professions.archer;
 
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.ArcherSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -21,11 +21,11 @@ public class ArcherProfession extends ArcherSeriesProfession {
 
     public ArcherProfession() {
         super(
-                ProfessionManager.ARCHER_ID,
+                ProfessionIds.ARCHER_ID,
                 "弓箭手",
                 "敏捷提升，力量降低",
                 ProfessionType.PRIMARY,
-                ProfessionManager.COMMONER_ID,
+                ProfessionIds.COMMONER_ID,
                 20,
                 java.util.Map.of(
                         AGILE_ID, 5,

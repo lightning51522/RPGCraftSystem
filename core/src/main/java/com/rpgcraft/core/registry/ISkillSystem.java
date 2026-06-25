@@ -3,7 +3,7 @@ package com.rpgcraft.core.registry;
 import com.rpgcraft.core.skill.api.ISkill;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 

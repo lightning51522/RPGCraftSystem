@@ -2,7 +2,7 @@ package com.rpgcraft.core.network;
 
 import com.rpgcraft.core.ui.ProfessionStateCache;
 import net.minecraft.server.level.ServerPlayer;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 职业状态组装器 —— core 与 profession 模块之间的解耦回调

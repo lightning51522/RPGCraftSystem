@@ -27,7 +27,7 @@ import java.util.Map;
  * 两种死亡恢复模式下行为相同：恢复 allocations + 重建修饰符。属性点是玩家拥有的持久数据，
  * 不参与"死亡装备加成剥离"语义，因此忽略 {@link DeathRestoreMode}（与 leveling 模块一致）。
  */
-public class AttributePointsSnapshotContributor implements ISnapshotContributor {
+public class AttributePointsSnapshotContributor implements ISnapshotContributor<AttributePointsSnapshotContributor.PointsData> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftattributepoints:attribute_points";
 
@@ -45,7 +45,7 @@ public class AttributePointsSnapshotContributor implements ISnapshotContributor 
     }
 
     @Override
-    public Object captureSnapshot(ServerPlayer player) {
+    public PointsData captureSnapshot(ServerPlayer player) {
         PlayerAttributePoints data = player.getData(AttributePointsManager.PLAYER_ATTRIBUTE_POINTS);
         // 复制 allocations 到新 Map（原数据是不可变视图或会被回收）
         return new PointsData(
@@ -55,8 +55,7 @@ public class AttributePointsSnapshotContributor implements ISnapshotContributor 
     }
 
     @Override
-    public void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
-        PointsData pointsData = (PointsData) data;
+    public void restoreSnapshot(ServerPlayer newPlayer, PointsData pointsData, DeathRestoreMode mode) {
         PlayerAttributePoints newData = newPlayer.getData(AttributePointsManager.PLAYER_ATTRIBUTE_POINTS);
         newData.setAvailablePoints(pointsData.available());
         // 重建 allocations

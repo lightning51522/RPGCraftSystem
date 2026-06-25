@@ -32,6 +32,8 @@ public class ProfessionLoginEventHandler {
         validateAndRepairProfessionData(player);
         ProfessionManager.reapplyAllBonuses(player);
         ProfessionManager.syncToClient(player);
+        // 推送职业全局配置到客户端（解锁消耗/等级上限/降级开关），供职业面板显示与判断
+        ProfessionConfigLoader.syncToClient(player);
         // 生命周期钩子：登录（加成重建后触发）
         ProfessionManager.notifyLoginHooks(player);
     }
@@ -57,10 +59,10 @@ public class ProfessionLoginEventHandler {
         if (main == null || !main.getType().isMainLike()) {
             ProfessionMod.LOGGER.warn("玩家 {} 的主职业 {} 失效或类型异常，回退为 commoner",
                     player.getName().getString(), mainId);
-            data.setProfessionId(ProfessionManager.COMMONER_ID);
-            data.unlock(ProfessionManager.COMMONER_ID);
-            data.setProfessionLevel(ProfessionManager.COMMONER_ID,
-                    Math.max(1, data.getProfessionLevel(ProfessionManager.COMMONER_ID)));
+            data.setProfessionId(com.rpgcraft.core.profession.api.ProfessionIds.COMMONER_ID);
+            data.unlock(com.rpgcraft.core.profession.api.ProfessionIds.COMMONER_ID);
+            data.setProfessionLevel(com.rpgcraft.core.profession.api.ProfessionIds.COMMONER_ID,
+                    Math.max(1, data.getProfessionLevel(com.rpgcraft.core.profession.api.ProfessionIds.COMMONER_ID)));
         }
 
         // 已激活副职业集合校验：剔除失效 / 类型违规 / 等于主职业的项

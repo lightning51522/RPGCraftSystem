@@ -25,10 +25,11 @@ public final class ExpFormula {
      * 计算从 {@code level} 升到 {@code level+1} 所需经验：{@code round(50 × level^1.5)}。
      *
      * @param level 当前等级（≥ 1）
-     * @return 升下一级所需经验；{@code level < 1} 返回 {@link Integer#MAX_VALUE}（视为不可升级）
+     * @return 升下一级所需经验；{@code level < 1} 返回 {@code -1}（视为不可升级/已满级，
+     *         与 {@code ILevelRegistry.getExpForLevel} 及 {@code PlayerLevelData.addExperience} 的约定一致）
      */
     public static int expForNextLevel(int level) {
-        if (level < 1) return Integer.MAX_VALUE;
+        if (level < 1) return -1;
         return (int) Math.round(BASE_COEFFICIENT * Math.pow(level, EXPONENT));
     }
 

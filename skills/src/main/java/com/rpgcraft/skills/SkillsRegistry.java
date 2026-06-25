@@ -4,7 +4,7 @@ import com.rpgcraft.core.skill.api.ISkill;
 import com.rpgcraft.core.skill.api.ISkillRegistry;
 import com.rpgcraft.skills.SkillsMod;
 import net.minecraft.resources.Identifier;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;

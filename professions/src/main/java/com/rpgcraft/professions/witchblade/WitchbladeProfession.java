@@ -1,7 +1,7 @@
 package com.rpgcraft.professions.witchblade;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.mage.MageProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -54,7 +54,7 @@ public class WitchbladeProfession extends AbstractProfession {
     @Override
     public java.util.Set<Identifier> getPrerequisites() {
         return java.util.Set.of(
-                ProfessionManager.BERSERKER_ID,
+                ProfessionIds.BERSERKER_ID,
                 MageProfession.ID
         );
     }

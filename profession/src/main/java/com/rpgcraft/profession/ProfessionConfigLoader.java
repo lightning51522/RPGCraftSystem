@@ -11,7 +11,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -110,6 +110,31 @@ public class ProfessionConfigLoader {
         }
         ProfessionMod.LOGGER.info("职业全局配置已加载：allow_downgrade_switch={}, default_max_level={}, secondary_unlock_cost={}",
                 allowDowngradeSwitch, defaultMaxLevel, secondaryUnlockCost);
+        // /reload 后向所有在线玩家推送新配置，保持客户端显示与服务端一致
+        pushToOnlinePlayers();
+    }
+
+    // ==================================================================
+    // 客户端配置同步
+    // ==================================================================
+
+    /**
+     * 将当前配置推送给指定玩家（登录时调用）。
+     */
+    public static void syncToClient(net.minecraft.server.level.ServerPlayer player) {
+        com.rpgcraft.core.network.SyncProfessionConfigPacket.sendToClient(
+                player, secondaryUnlockCost, defaultMaxLevel, allowDowngradeSwitch);
+    }
+
+    /**
+     * 向所有在线玩家推送当前配置（{@code /reload} 后调用）。
+     */
+    public static void pushToOnlinePlayers() {
+        net.minecraft.server.MinecraftServer server = ProfessionManager.getCurrentServer();
+        if (server == null) return;
+        for (net.minecraft.server.level.ServerPlayer player : server.getPlayerList().getPlayers()) {
+            syncToClient(player);
+        }
     }
 
     private static boolean parseBoolean(JsonObject json, String key, boolean def) {

@@ -4,6 +4,7 @@ import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot.AttributeData;
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
+import com.rpgcraft.core.profession.api.ProfessionFormulas;
 import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.core.ui.ICharacterScreenPlugin;
 import com.rpgcraft.core.ui.ProfessionStateCache;
@@ -157,11 +158,12 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
             effectiveCritRate = prof.computeEffectiveCritRate(s);
             effectiveCritDamage = prof.computeEffectiveCritDamage(s);
         } else {
-            physAttack = (int) Math.round(s.strength() * 2.0 + s.intelligence());
-            magicAttack = (int) Math.round(s.intelligence() * 2.0 + s.strength());
-            defense = (int) Math.round(s.strength() * 2.0);
-            effectiveCritRate = (int) Math.round(s.critRate() + s.agile() / 5.0);
-            effectiveCritDamage = (int) Math.round(s.critRatio() + (s.precision() / 5.0) * 2);
+            // 无职业时回退默认公式：委托 core 共享公式（与战斗伤害计算同源，消除内联拷贝漂移）
+            physAttack = ProfessionFormulas.physicalAttack(s);
+            magicAttack = ProfessionFormulas.magicalAttack(s);
+            defense = ProfessionFormulas.physicalDefense(s);
+            effectiveCritRate = ProfessionFormulas.effectiveCritRate(s);
+            effectiveCritDamage = ProfessionFormulas.effectiveCritDamage(s);
         }
 
         int columnWidth = (width - COLUMN_GAP) / 2;

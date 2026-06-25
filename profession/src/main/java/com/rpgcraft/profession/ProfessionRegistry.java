@@ -83,6 +83,6 @@ public class ProfessionRegistry implements IProfessionRegistry {
      * @return 平民职业实例
      */
     public IProfession getDefault() {
-        return professions.get(ProfessionManager.COMMONER_ID);
+        return professions.get(com.rpgcraft.core.profession.api.ProfessionIds.COMMONER_ID);
     }
 }

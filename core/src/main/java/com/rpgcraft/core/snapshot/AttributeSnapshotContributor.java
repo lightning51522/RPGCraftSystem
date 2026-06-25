@@ -17,7 +17,7 @@ import java.util.Map;
  * 捕获和恢复玩家的所有 RPG 属性数据（包括基础值和管线计算后的最终值）。
  * 快照模式下直接恢复最终值；重扫模式下只恢复基础值。
  */
-public class AttributeSnapshotContributor implements ISnapshotContributor {
+public class AttributeSnapshotContributor implements ISnapshotContributor<Map<Identifier, AttributeSnapshotContributor.AttrData>> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftcore:attributes";
 
@@ -38,7 +38,7 @@ public class AttributeSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public Object captureSnapshot(ServerPlayer player) {
+    public Map<Identifier, AttrData> captureSnapshot(ServerPlayer player) {
         Map<Identifier, AttrData> snapshot = new LinkedHashMap<>();
         for (IAttributeEntry entry : AttributeManager.getRegistry().getAllEntries()) {
             IAttribute attr = player.getData(entry.getSupplier());
@@ -53,11 +53,8 @@ public class AttributeSnapshotContributor implements ISnapshotContributor {
         return snapshot;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
-        Map<Identifier, AttrData> snapshot = (Map<Identifier, AttrData>) data;
-
+    public void restoreSnapshot(ServerPlayer newPlayer, Map<Identifier, AttrData> snapshot, DeathRestoreMode mode) {
         for (Map.Entry<Identifier, AttrData> entry : snapshot.entrySet()) {
             IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(entry.getKey());
             if (attrEntry == null) continue;

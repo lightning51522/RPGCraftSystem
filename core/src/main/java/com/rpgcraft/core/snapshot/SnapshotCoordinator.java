@@ -25,10 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class SnapshotCoordinator {
 
-    /** 已注册的快照贡献者，按注册顺序排列 */
-    private static final Map<String, ISnapshotContributor> contributors = new LinkedHashMap<>();
+    /** 已注册的快照贡献者，按注册顺序排列（各贡献者快照数据类型不同，用通配符） */
+    private static final Map<String, ISnapshotContributor<?>> contributors = new LinkedHashMap<>();
 
-    /** 死亡快照缓存：玩家 UUID → 贡献者 ID → 快照数据 */
+    /** 死亡快照缓存：玩家 UUID → 贡献者 ID → 快照数据（异构存储边界，擦除为 Object） */
     private static final Map<UUID, Map<String, Object>> deathSnapshots = new ConcurrentHashMap<>();
 
     /**
@@ -36,7 +36,7 @@ public class SnapshotCoordinator {
      *
      * @param contributor 贡献者实例
      */
-    public static void registerContributor(ISnapshotContributor contributor) {
+    public static void registerContributor(ISnapshotContributor<?> contributor) {
         contributors.put(contributor.getContributorId(), contributor);
         RPGCraftCore.LOGGER.debug("快照贡献者已注册: {}", contributor.getContributorId());
     }
@@ -44,8 +44,20 @@ public class SnapshotCoordinator {
     /**
      * 获取所有已注册的贡献者
      */
-    public static Collection<ISnapshotContributor> getContributors() {
+    public static Collection<ISnapshotContributor<?>> getContributors() {
         return Collections.unmodifiableCollection(contributors.values());
+    }
+
+    /**
+     * 类型安全的恢复桥：把从异构 Map 取出的 {@code Object} 强转回贡献者的 {@code T}。
+     * <p>
+     * 这是全工程<b>唯一</b>的未检查强转，集中于此并附 sound 论证：同一贡献者实例既生产又消费自己的快照，
+     * 类型必然一致。各贡献者实现因此无需自行强转。
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> void restoreTyped(ISnapshotContributor<T> contributor,
+                                         ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
+        contributor.restoreSnapshot(newPlayer, (T) data, mode);
     }
 
     /**
@@ -79,7 +91,7 @@ public class SnapshotCoordinator {
         // 如果已有快照（由 captureIfDying 提前捕获），跳过重复捕获
         if (!snapshot.isEmpty()) return;
 
-        for (ISnapshotContributor contributor : contributors.values()) {
+        for (ISnapshotContributor<?> contributor : contributors.values()) {
             try {
                 Object data = contributor.captureSnapshot(player);
                 if (data != null) {
@@ -106,12 +118,12 @@ public class SnapshotCoordinator {
 
         DeathRestoreMode mode = DeathRestoreMode.getCurrentMode();
 
-        for (ISnapshotContributor contributor : contributors.values()) {
+        for (ISnapshotContributor<?> contributor : contributors.values()) {
             Object data = snapshot.get(contributor.getContributorId());
             if (data == null) continue;
 
             try {
-                contributor.restoreSnapshot(newPlayer, data, mode);
+                restoreTyped(contributor, newPlayer, data, mode);
             } catch (Exception e) {
                 RPGCraftCore.LOGGER.error("快照恢复失败 [{}]: {}",
                         contributor.getContributorId(), e.getMessage(), e);
@@ -131,7 +143,7 @@ public class SnapshotCoordinator {
      * @param player 重生后的玩家
      */
     public static void syncOnRespawn(ServerPlayer player) {
-        for (ISnapshotContributor contributor : contributors.values()) {
+        for (ISnapshotContributor<?> contributor : contributors.values()) {
             try {
                 contributor.syncToClient(player);
             } catch (Exception e) {

@@ -3,7 +3,7 @@ package com.rpgcraft.professions;
 import com.mojang.logging.LogUtils;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.IProfessionRegistry;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.registry.RPGSystems;
 import com.rpgcraft.professions.archer.ArcherProfession;
 import com.rpgcraft.professions.archmage.ArchmageProfession;
 import com.rpgcraft.professions.berserker.BerserkerProfession;
@@ -26,15 +26,18 @@ import org.slf4j.Logger;
  * <p>
  * 本模块（{@code rpgcraftprofessions}）是 RPGCraftSystem 职业内容的具体定义。
  * 所有内置职业由本模块的 Java 类描述，在 {@code @Mod} 构造函数中通过
- * {@link ProfessionManager#getRegistry()} 注册到 {@code rpgcraftprofession} 模块维护的
- * 职业注册中心。
+ * {@link RPGSystems#getProfessionRegistry()} 获取 {@code rpgcraftprofession} 模块注册的
+ * 职业注册中心，并注册自定义职业。
+ * <p>
+ * <b>仅依赖 core</b>：本模块不编译期依赖 {@code rpgcraftprofession} 插件，职业 ID 常量
+ * 取自 {@code core.profession.api.ProfessionIds}，注册中心取自 core 门面。
  * <p>
  * <b>加载顺序</b>：通过 {@code neoforge.mods.toml} 声明 {@code rpgcraftprofession} 为
- * {@code AFTER} 依赖，保证 {@code ProfessionManager.init()} 在本模块构造函数之前执行，
+ * {@code AFTER} 依赖，保证 {@code ProfessionManager.init()}（注册中心注册）在本模块构造函数之前执行，
  * 因此注册中心此时一定已就绪。
  * <p>
- * 第三方扩展职业：实现自己的 {@code @Mod} 模块，依赖 {@code rpgcraftprofession}，
- * 在构造函数中调用 {@code ProfessionManager.getRegistry().register(new MyProfession())}。
+ * 第三方扩展职业：实现自己的 {@code @Mod} 模块，仅依赖 core，
+ * 在构造函数中调用 {@code RPGSystems.getProfessionRegistry().register(new MyProfession())}。
  */
 @Mod(ProfessionsMod.MODID)
 public class ProfessionsMod {
@@ -43,7 +46,7 @@ public class ProfessionsMod {
 
     public ProfessionsMod(IEventBus modEventBus, ModContainer modContainer) {
         LOGGER.info("RPG Professions 模块初始化：注册内置职业");
-        IProfessionRegistry registry = ProfessionManager.getRegistry();
+        IProfessionRegistry registry = RPGSystems.getProfessionRegistry();
         if (registry == null) {
             LOGGER.error("职业注册中心未就绪！请确认 rpgcraftprofession 模块已加载且其构造函数先于本模块执行");
             return;

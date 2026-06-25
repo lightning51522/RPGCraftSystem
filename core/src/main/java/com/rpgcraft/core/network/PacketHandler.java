@@ -85,6 +85,14 @@ public class PacketHandler {
                 SyncProfessionStatePacket::handle
         );
 
+        // 职业模块配置同步包（服务端 → 客户端）
+        // 推送副职业解锁消耗/默认等级上限/降级开关，由 profession 模块在登录/reload 时发送
+        registrar.playToClient(
+                SyncProfessionConfigPacket.TYPE,
+                SyncProfessionConfigPacket.STREAM_CODEC,
+                SyncProfessionConfigPacket::handle
+        );
+
         // 职业动作请求包（客户端 → 服务端）
         // 投入经验/进阶/切换主职/设置副职/切换副职业开关，服务端权威校验
         registrar.playToServer(

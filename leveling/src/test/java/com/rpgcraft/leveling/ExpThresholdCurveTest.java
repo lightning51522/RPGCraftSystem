@@ -51,11 +51,11 @@ class ExpThresholdCurveTest {
     }
 
     @Test
-    @DisplayName("level < 1 时返回 Integer.MAX_VALUE（视为不可升级）")
+    @DisplayName("level < 1 时返回 -1（视为不可升级/已满级，统一 sentinel 约定）")
     void defaultCurve_invalidLevel() {
         IExpThresholdCurve curve = ExpThresholdCurveManager.getCurve();
-        assertEquals(Integer.MAX_VALUE, curve.expForNextLevel(0));
-        assertEquals(Integer.MAX_VALUE, curve.expForNextLevel(-1));
+        assertEquals(-1, curve.expForNextLevel(0));
+        assertEquals(-1, curve.expForNextLevel(-1));
     }
 
     @Test

@@ -2,7 +2,7 @@ package com.rpgcraft.professions.warrior;
 
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.WarriorSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -25,11 +25,11 @@ public class WarriorProfession extends WarriorSeriesProfession {
 
     public WarriorProfession() {
         super(
-                ProfessionManager.WARRIOR_ID,
+                ProfessionIds.WARRIOR_ID,
                 "战士",
                 "力量提升，敏捷降低",
                 ProfessionType.PRIMARY,
-                ProfessionManager.COMMONER_ID,
+                ProfessionIds.COMMONER_ID,
                 20,
                 java.util.Map.of(
                         STRENGTH_ID, 5,

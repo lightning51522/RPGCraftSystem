@@ -23,7 +23,7 @@ import java.util.Map;
  * <b>执行顺序</b>：无严格顺序依赖（不依赖其他模块的属性基础值），但仍遵循工程约定
  * 在模组入口构造函数中尽早注册。
  */
-public class SkillSnapshotContributor implements ISnapshotContributor {
+public class SkillSnapshotContributor implements ISnapshotContributor<SkillSnapshotContributor.SkillSnapshotData> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftskills:skills";
 
@@ -41,7 +41,7 @@ public class SkillSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public Object captureSnapshot(ServerPlayer player) {
+    public SkillSnapshotData captureSnapshot(ServerPlayer player) {
         PlayerSkillData data = player.getData(SkillsManager.PLAYER_SKILLS);
         return new SkillSnapshotData(
                 new LinkedHashMap<>(data.getCooldowns()),
@@ -50,8 +50,7 @@ public class SkillSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
-        SkillSnapshotData snapshot = (SkillSnapshotData) data;
+    public void restoreSnapshot(ServerPlayer newPlayer, SkillSnapshotData snapshot, DeathRestoreMode mode) {
         PlayerSkillData newData = newPlayer.getData(SkillsManager.PLAYER_SKILLS);
         // 重建冷却
         newData.clearCooldowns();

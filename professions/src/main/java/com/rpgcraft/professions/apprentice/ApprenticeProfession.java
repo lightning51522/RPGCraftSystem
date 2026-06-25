@@ -2,7 +2,7 @@ package com.rpgcraft.professions.apprentice;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -16,7 +16,7 @@ public class ApprenticeProfession extends AbstractProfession {
 
     public ApprenticeProfession() {
         super(
-                ProfessionManager.APPRENTICE_ID,
+                ProfessionIds.APPRENTICE_ID,
                 "学徒",
                 "无特殊加成的副职业占位",
                 ProfessionType.SECONDARY,

@@ -2,7 +2,7 @@ package com.rpgcraft.professions.berserker;
 
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.WarriorSeriesProfession;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -23,11 +23,11 @@ public class BerserkerProfession extends WarriorSeriesProfession {
 
     public BerserkerProfession() {
         super(
-                ProfessionManager.BERSERKER_ID,
+                ProfessionIds.BERSERKER_ID,
                 "狂战士",
                 "极致的力量与生命，进阶自战士",
                 ProfessionType.PRIMARY,
-                ProfessionManager.WARRIOR_ID,
+                ProfessionIds.WARRIOR_ID,
                 20,
                 java.util.Map.of(
                         STRENGTH_ID, 6,

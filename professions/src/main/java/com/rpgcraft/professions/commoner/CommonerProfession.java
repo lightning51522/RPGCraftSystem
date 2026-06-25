@@ -2,7 +2,7 @@ package com.rpgcraft.professions.commoner;
 
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -17,7 +17,7 @@ public class CommonerProfession extends AbstractProfession {
 
     public CommonerProfession() {
         super(
-                ProfessionManager.COMMONER_ID,
+                ProfessionIds.COMMONER_ID,
                 "平民",
                 "无特殊加成的普通职业",
                 ProfessionType.PRIMARY,

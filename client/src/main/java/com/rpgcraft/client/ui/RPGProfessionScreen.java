@@ -101,13 +101,8 @@ public class RPGProfessionScreen extends Screen {
     private static final int PLUS_BUTTON_SIZE = 14;
     /** 节点下方 + 按钮宽度 —— 加宽以容纳「Lv.NN +」文本（字体宽度约 36px，留余量到 40） */
     private static final int PLUS_BUTTON_WIDTH = 40;
-    /**
-     * 解锁副职业消耗的职业经验（与服务端 {@code ProfessionConfigLoader.secondaryUnlockCost} 默认值镜像）。
-     * <p>
-     * 仅用于客户端 UI 显示/灰显判定；实际扣费由服务端权威处理。
-     * 服务端配置可改，客户端若未同步会显示偏差但不影响实际扣费正确性。
-     */
-    private static final int SECONDARY_UNLOCK_COST = 50000;
+    // 解锁副职业消耗：读取服务端同步的 ProfessionClientConfig（见 core），不再硬编码 50000。
+    // 服务端在登录/reload 时通过 SyncProfessionConfigPacket 推送，保持客户端显示与服务端一致。
     /** 节点下升级按钮行与节点的垂直间距 */
     private static final int PLUS_BUTTON_GAP = 1;
     /** 标题栏右上角最大化按钮尺寸 */
@@ -182,7 +177,7 @@ public class RPGProfessionScreen extends Screen {
      * 首次拿到状态时居中一次；之后当 {@code currentMain} 变化（如进阶、切换主职业）时重新居中，
      * 让新当前职业落在窗可见区中心。手动平移（pan）后此值同步更新，避免被刷新冲掉。
      */
-    private @org.jetbrains.annotations.Nullable Identifier lastCenteredMainId = null;
+    private @org.jspecify.annotations.Nullable Identifier lastCenteredMainId = null;
     /**
      * 是否处于「复合职业」视图（标题栏 ⇌ 切换）。
      * <p>
@@ -983,7 +978,7 @@ public class RPGProfessionScreen extends Screen {
             }
         } else if (node.type() == IProfession.ProfessionType.SECONDARY) {
             // 未解锁副职业：显示解锁条件
-            int cost = SECONDARY_UNLOCK_COST;
+            int cost = com.rpgcraft.core.ui.ProfessionClientConfig.getSecondaryUnlockCost();
             boolean canAfford = state.pool() >= cost;
             // 前置提示：逐个检查每个前置的解锁/满级状态
             for (Identifier prereqId : node.prerequisites()) {
@@ -1289,7 +1284,7 @@ public class RPGProfessionScreen extends Screen {
                     mc.setScreen(parent);
                 },
                 Component.literal("解锁 " + node.displayName() + "?"),
-                Component.literal("将消耗 " + SECONDARY_UNLOCK_COST + " 职业经验解锁此副职业"),
+                Component.literal("将消耗 " + com.rpgcraft.core.ui.ProfessionClientConfig.getSecondaryUnlockCost() + " 职业经验解锁此副职业"),
                 Component.literal("解锁"),
                 Component.literal("取消")
         );
@@ -1577,15 +1572,19 @@ public class RPGProfessionScreen extends Screen {
         if (!state.unlocked().contains(node.id())) return false;
         int level = state.levels().getOrDefault(node.id(), 0);
         if (level < 1 || level >= node.maxLevel()) return false;
-        return state.pool() >= costForNextLevel(level, node.maxLevel());
+        int cost = costForNextLevel(level, node.maxLevel());
+        if (cost < 0) return false; // 防御：无效/已满级（costForNextLevel 返回 -1）
+        return state.pool() >= cost;
     }
 
     /**
      * 升下一级所需经验（用于 UI 显示）。委托 core 共享阈值曲线管理器
      * （与服务端默认公式同源，消除客户端与服务端公式漂移）。
+     * <p>
+     * 返回 {@code -1} 表示等级无效或已达上限（与 {@code ExpFormula.expForNextLevel} 约定一致）。
      */
     private static int costForNextLevel(int level, int maxLevel) {
-        if (level < 1 || level >= maxLevel) return Integer.MAX_VALUE;
+        if (level < 1 || level >= maxLevel) return -1;
         return com.rpgcraft.core.level.api.ExpThresholdCurveManager.getCurve().expForNextLevel(level);
     }
 
@@ -1615,7 +1614,7 @@ public class RPGProfessionScreen extends Screen {
     private boolean canUnlockSecondary(ProfessionStateView state, ProfessionNode node) {
         if (node.type() != IProfession.ProfessionType.SECONDARY) return false;
         if (state.unlocked().contains(node.id())) return false;
-        if (state.pool() < SECONDARY_UNLOCK_COST) return false;
+        if (state.pool() < com.rpgcraft.core.ui.ProfessionClientConfig.getSecondaryUnlockCost()) return false;
         for (Identifier prereqId : node.prerequisites()) {
             if (!state.unlocked().contains(prereqId)) return false;
             ProfessionNode prereqNode = findNode(state, prereqId);

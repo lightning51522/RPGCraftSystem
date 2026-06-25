@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>
  * 捕获和恢复玩家的等级和经验数据。
  */
-public class LevelSnapshotContributor implements ISnapshotContributor {
+public class LevelSnapshotContributor implements ISnapshotContributor<LevelSnapshotContributor.LevelData> {
 
     private static final String CONTRIBUTOR_ID = "rpgcraftcore:level";
 
@@ -24,14 +24,13 @@ public class LevelSnapshotContributor implements ISnapshotContributor {
     }
 
     @Override
-    public Object captureSnapshot(ServerPlayer player) {
+    public LevelData captureSnapshot(ServerPlayer player) {
         PlayerLevelData data = player.getData(LevelManager.PLAYER_LEVEL);
         return new LevelData(data.getLevel(), data.getExperience());
     }
 
     @Override
-    public void restoreSnapshot(ServerPlayer newPlayer, Object data, DeathRestoreMode mode) {
-        LevelData levelData = (LevelData) data;
+    public void restoreSnapshot(ServerPlayer newPlayer, LevelData levelData, DeathRestoreMode mode) {
         PlayerLevelData newLevelData = newPlayer.getData(LevelManager.PLAYER_LEVEL);
         newLevelData.setLevel(levelData.level());
         newLevelData.setExperience(levelData.experience());

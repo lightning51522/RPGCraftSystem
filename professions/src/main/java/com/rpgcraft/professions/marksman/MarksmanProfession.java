@@ -2,7 +2,7 @@ package com.rpgcraft.professions.marksman;
 
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
-import com.rpgcraft.profession.ProfessionManager;
+import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.ArcherSeriesProfession;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -25,11 +25,11 @@ public class MarksmanProfession extends ArcherSeriesProfession {
 
     public MarksmanProfession() {
         super(
-                ProfessionManager.MARKSMAN_ID,
+                ProfessionIds.MARKSMAN_ID,
                 "神射手",
                 "极致的敏捷与暴击，进阶自弓箭手",
                 ProfessionType.PRIMARY,
-                ProfessionManager.ARCHER_ID,
+                ProfessionIds.ARCHER_ID,
                 20,
                 java.util.Map.of(
                         AGILE_ID, 6,

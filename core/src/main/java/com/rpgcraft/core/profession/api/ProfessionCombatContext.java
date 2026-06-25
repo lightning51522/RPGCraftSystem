@@ -3,7 +3,7 @@ package com.rpgcraft.core.profession.api;
 import com.rpgcraft.core.attribute.AttackType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 职业战斗钩子参数

@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.9.1--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.10.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -47,11 +47,12 @@ RPGCraftSystem/
 | leveling | `rpgcraftleveling` | `LevelingMod` | core |
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |
+| professions | `rpgcraftprofessions` | `ProfessionsMod` | core |
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
 | skills | `rpgcraftskills` | `SkillsMod` | core + PAL(playeranimator) |
 | client | `rpgcraftclient` | `ClientMod` | core |
 
-> 插件模块**互不依赖**，跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。
+> 插件模块**互不依赖**（依赖图为严格星形，所有插件只依赖 core），跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。`profession`（引擎）与 `professions`（内置职业内容）虽运行时有 `AFTER` 加载顺序约束，但编译期同样只依赖 core——`professions` 通过 `RPGSystems.getProfessionRegistry()` 获取注册中心注册职业。
 
 ---
 
@@ -70,15 +71,18 @@ RPGCraftSystem/
 | `registerEquipmentSystem()` | equipment | `IEquipmentSystem` |
 | `registerAttackTypeResolver()` | equipment | `IAttackTypeResolver` |
 | `registerProfessionSystem()` | profession | `IProfessionSystem` |
+| `registerProfessionRegistry()` | profession | `IProfessionRegistry`（供内容模块注册职业） |
 | `registerAttributePointSystem()` | attributepoints | `IAttributePointSystem` |
 | `registerSkillSystem()` | skills | `ISkillSystem` |
 | `registerClientSystem()` | client | `IClientSystem` |
 
-所有 `register` 方法都接受可选的 `priority` 参数，`OVERRIDE_PRIORITY (100) > DEFAULT_PRIORITY (0)`，第三方模组可借此完全覆盖官方实现：
+所有 `register` 方法都接受可选的 `priority` 参数，优先级三档：`OVERRIDE_PRIORITY (100) > DEFAULT_PRIORITY (0) > FALLBACK_PRIORITY (-100)`。第三方模组用 `OVERRIDE_PRIORITY` 完全覆盖官方实现；core 自身用 `FALLBACK_PRIORITY` 为各系统槽预置 **no-op 兜底实现**，使 core 在无任何插件时也能独立运行（getter 不抛异常，静默降级）：
 
 ```java
 RPGSystems.registerLevelSystem(myLevelSystem, RPGSystems.OVERRIDE_PRIORITY);
 ```
+
+> 附件类型 Supplier（`registerPlayerLevelAttachment` 等）同样纳入优先级机制。`profession`/`attributePoint`/`skill` 系统已有 `has*()` 守卫，其余系统由 core no-op 兜底保证安全。
 
 ### 属性管线（5 阶段）
 
@@ -607,7 +611,7 @@ baseValue
 | `data/rpgcraftcore/rpg/level_config.json` | 等级经验表（上限 300 级） |
 | `data/rpgcraftcore/rpg/mob_attributes.json` | 怪物属性配置（基础值 / 等级缩放 / 攻击类型 / 掉落经验 / 自然刷新权重） |
 | `data/rpgcraftcore/rpg/equipment_attributes.json` | 装备加成配置（稀有度 / 属性加成 / 攻击类型） |
-| `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`） |
+| `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`；`secondary_unlock_cost`：解锁副职业消耗，默认 `50000`）。三项均在登录/`/reload` 时通过 `SyncProfessionConfigPacket` 推送客户端，职业面板显示与服务端一致 |
 | `data/rpgcraftcore/rpg/professions/*.json` | **具体职业定义**（每个文件一个职业，文件名即职业 ID；含 name/type/prerequisite/bonuses/per_level/exp_table）。详见[职业系统](#-职业系统)章节 |
 | `data/rpgcraftcore/rpg/attribute_points_config.json` | 属性点配置（`allow_decrease`：是否允许回收已分配点数，默认 `true`） |
 
@@ -644,8 +648,10 @@ baseValue
 | `IMobAttributeScaler` | 自定义怪物属性按等级缩放 |
 | `IEquipmentHandler` | 自定义装备加成处理逻辑 |
 | `IEquipmentProvider` | 自定义装备加成数据 |
-| `IProfessionProvider` | 自定义职业 |
+| `IProfessionRegistry`（经 `RPGSystems.getProfessionRegistry()`） | 注册自定义职业（实现 `IProfession` 或继承 `AbstractProfession`）；ID 常量取 `core` 的 `ProfessionIds` |
 | `ISkillProvider` | 自定义技能（ServiceLoader 追加） |
+
+> **添加职业的正确模式**（仅依赖 core）：在自己的 `@Mod` 构造函数中调用 `RPGSystems.getProfessionRegistry().register(new MyProfession())`，并通过 `neoforge.mods.toml` 声明 `rpgcraftprofession` 为 `AFTER` 依赖保证引擎先初始化。内置 `professions` 模块即采用此模式，可作为参考。
 
 ### UI 扩展
 
