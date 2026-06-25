@@ -457,7 +457,9 @@ public class RPGProfessionScreen extends Screen {
 
         // scissor 裁剪窗内内容区（标题栏+经验池行下方到窗口底部）
         int scissorY0 = win.contentOriginY() - 4;
-        graphics.enableScissor(win.x, scissorY0, win.x + win.w, win.y + win.h);
+        // 左/右/底三边内缩 2px（= drawContainerBorder 的边框厚度），让内容在边框内侧裁剪，
+        // 避免平移画布时内容覆盖到装饰边框上（出框）；顶边 scissorY0 已在标题栏内，无需内缩。
+        graphics.enableScissor(win.x + 2, scissorY0, win.x + win.w - 2, win.y + win.h - 2);
         // pose 平移窗内画布
         graphics.pose().pushMatrix();
         graphics.pose().translate(win.panX, win.panY);
