@@ -205,6 +205,10 @@ public class RPGCharacterScreen extends Screen {
         // 鼠标悬停命中的 tooltip（一次只显示一个，取首个命中插件）
         List<Component> hoverTooltip = null;
 
+        // scissor 裁剪左侧可滚动面板内容区到边框内侧（左/右/底内缩 2px = drawContainerBorder 边框厚度），
+        // 避免滚动到底部时插件行与滚动条覆盖/越过底边框（出框）。tooltip 由原版顶层渲染，留在 scissor 外。
+        graphics.enableScissor(panelX + 2, contentStartY, panelX + PANEL_WIDTH - 2, panelY + panelHeight - 2);
+
         for (ICharacterScreenPlugin plugin : plugins) {
             int pluginTop = currentY;
             int pluginBottom = currentY + plugin.getHeight();
@@ -230,11 +234,6 @@ public class RPGCharacterScreen extends Screen {
             currentY += plugin.getHeight();
         }
 
-        // 9.1 渲染悬停命中的 tooltip（原版风格气泡框，锚点为鼠标位置）
-        if (hoverTooltip != null) {
-            graphics.setComponentTooltipForNextFrame(this.font, hoverTooltip, mouseX, mouseY);
-        }
-
         // 10. 绘制滚动条指示器（内容超出可见区域时显示）—— 原版 scroller 精灵
         if (maxScroll > 0) {
             int scrollbarTrackHeight = maxVisibleHeight;
@@ -251,6 +250,14 @@ public class RPGCharacterScreen extends Screen {
             // 滑块
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_SPRITE,
                     scrollbarX, scrollbarY, SCROLLBAR_WIDTH, scrollbarThumbHeight, -1);
+        }
+
+        // 结束左侧可滚动面板的 scissor（内容循环 + 滚动条已绘制完毕）
+        graphics.disableScissor();
+
+        // 9.1 渲染悬停命中的 tooltip（原版风格气泡框，锚点为鼠标位置；在 scissor 之外，由原版顶层渲染不被裁剪）
+        if (hoverTooltip != null) {
+            graphics.setComponentTooltipForNextFrame(this.font, hoverTooltip, mouseX, mouseY);
         }
 
         // 11. 渲染右侧属性点面板（屏幕足够宽时显示）
