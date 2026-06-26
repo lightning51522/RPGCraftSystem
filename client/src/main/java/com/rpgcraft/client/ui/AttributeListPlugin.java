@@ -47,8 +47,12 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     /** 两列间距 */
     private static final int COLUMN_GAP = 8;
 
-    /** 顶部区域高度（分隔线上方间距 + 1px 分隔线，无标题） */
-    private static final int HEADER_HEIGHT = 5;
+    /** 分隔线上方间距 */
+    private static final int SEPARATOR_TOP_GAP = 4;
+    /** 分隔线下方间距（与文字之间的留白，优化视觉呼吸感） */
+    private static final int SEPARATOR_BOTTOM_GAP = 4;
+    /** 顶部区域高度（上方间距 + 1px 分隔线 + 下方间距，无标题） */
+    private static final int HEADER_HEIGHT = SEPARATOR_TOP_GAP + 1 + SEPARATOR_BOTTOM_GAP;
 
     /** 两列布局，每行容纳的属性数 */
     private static final int COLUMNS = 2;
@@ -108,7 +112,8 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         int currentY = y;
 
         // 1. 分隔线（顶部，无标题）
-        int separatorY = currentY + HEADER_HEIGHT - 1;
+        // 分隔线放在 SEPARATOR_TOP_GAP 之后，SEPARATOR_BOTTOM_GAP 落在分隔线与文字之间
+        int separatorY = currentY + SEPARATOR_TOP_GAP;
         graphics.fill(x, separatorY, x + width, separatorY + 1, COLOR_SEPARATOR);
         currentY += HEADER_HEIGHT;
 

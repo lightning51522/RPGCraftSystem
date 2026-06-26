@@ -55,6 +55,15 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
     /** 插件总高度 */
     private static final int PLUGIN_HEIGHT = HEADER_HEIGHT + COMPOSITE_ROWS * LINE_HEIGHT;
 
+    /** 标题右侧 ? 详情图标字符 */
+    private static final String INFO_ICON = "?";
+    /** ? 图标颜色（灰色） */
+    private static final int COLOR_INFO_ICON = 0xFF888888;
+    /** 标题与 ? 图标之间的水平间距 */
+    private static final int ICON_GAP = 2;
+    /** ? 图标相对标题顶部的垂直偏移（与较高中文标题光学居中） */
+    private static final int ICON_Y_OFFSET = 1;
+
     // ====================================================================
     // 颜色常量（ARGB 格式）
     // ====================================================================
@@ -117,17 +126,21 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         IProfession prof = resolveCurrentMainProfession();
         lastProfession = prof;
 
-        // 2. 标题 "属性"  + 右侧 ? 详情图标
+        // 2. 标题 "属性" + 右侧 ? 详情图标
+        // 将「标题 + 间距 + ?」整体居中，避免 ? 出现时标题偏左、视觉重心右移。
         lastRenderWidth = width;
         String title = "属性";
         int titleWidth = mc.font.width(title);
-        graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
+        int iconWidth = prof != null ? mc.font.width(INFO_ICON) : 0;
+        int blockWidth = titleWidth + (prof != null ? ICON_GAP + iconWidth : 0);
+        int blockStartX = x + (width - blockWidth) / 2;
+        graphics.text(mc.font, title, blockStartX, currentY, COLOR_TITLE, true);
 
         // ? 图标（紧贴标题右侧，灰色，供鼠标悬停查看公式详情）
         if (prof != null) {
-            infoIconX = (width + titleWidth) / 2 + 2;
-            infoIconY = 2;
-            graphics.text(mc.font, "?", x + infoIconX, y + infoIconY, 0xFF888888, false);
+            infoIconX = blockStartX - x + titleWidth + ICON_GAP;
+            infoIconY = currentY - y + ICON_Y_OFFSET;
+            graphics.text(mc.font, INFO_ICON, x + infoIconX, y + infoIconY, COLOR_INFO_ICON, false);
         }
         currentY += 13;
 
