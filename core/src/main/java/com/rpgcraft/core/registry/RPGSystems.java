@@ -37,6 +37,7 @@ import java.util.function.Supplier;
  * @see IProfessionSystem
  * @see ICombatSystem
  * @see IAttackTypeResolver
+ * @see IElementResolver
  * @see IMobDataProvider
  */
 public final class RPGSystems {
@@ -85,6 +86,7 @@ public final class RPGSystems {
     private static Registration<com.rpgcraft.core.profession.api.IProfessionRegistry> professionRegistry;
     private static Registration<ICombatSystem> combatSystem;
     private static Registration<IAttackTypeResolver> attackTypeResolver;
+    private static Registration<IElementResolver> elementResolver;
     private static Registration<IMobDataProvider> mobDataProvider;
     private static Registration<IClientSystem> clientSystem;
     private static Registration<IAttributeModule> attributeModule;
@@ -117,6 +119,7 @@ public final class RPGSystems {
         equipmentSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpEquipmentSystem(), FALLBACK_PRIORITY);
         combatSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpCombatSystem(), FALLBACK_PRIORITY);
         attackTypeResolver = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpAttackTypeResolver(), FALLBACK_PRIORITY);
+        elementResolver = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpElementResolver(), FALLBACK_PRIORITY);
         mobDataProvider = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpMobDataProvider(), FALLBACK_PRIORITY);
         clientSystem = new Registration<>(new com.rpgcraft.core.registry.defaults.NoOpClientSystem(), FALLBACK_PRIORITY);
     }
@@ -321,6 +324,30 @@ public final class RPGSystems {
     public static void registerAttackTypeResolver(IAttackTypeResolver resolver, int priority) {
         if (shouldOverride("IAttackTypeResolver", attackTypeResolver, priority)) {
             attackTypeResolver = new Registration<>(resolver, priority);
+        }
+    }
+
+    /**
+     * 注册攻击元素解析器（默认优先级）
+     * <p>
+     * 将武器物品 ID 解析为攻击 {@link com.rpgcraft.core.attribute.Element}（元素标签）。
+     * 与 {@link #registerAttackTypeResolver(IAttackTypeResolver)} 平行 —— 元素与伤害类型正交。
+     *
+     * @param resolver 元素解析器实例
+     */
+    public static void registerElementResolver(IElementResolver resolver) {
+        registerElementResolver(resolver, DEFAULT_PRIORITY);
+    }
+
+    /**
+     * 注册攻击元素解析器（指定优先级）
+     *
+     * @param resolver 元素解析器实例
+     * @param priority 注册优先级（数值越高越优先）
+     */
+    public static void registerElementResolver(IElementResolver resolver, int priority) {
+        if (shouldOverride("IElementResolver", elementResolver, priority)) {
+            elementResolver = new Registration<>(resolver, priority);
         }
     }
 
@@ -618,6 +645,20 @@ public final class RPGSystems {
      */
     public static IAttackTypeResolver getAttackTypeResolver() {
         return requireSystem("IAttackTypeResolver", attackTypeResolver);
+    }
+
+    /**
+     * 获取攻击元素解析器
+     * <p>
+     * 用于将武器物品 ID 解析为攻击元素标签（电/火/风/水/光/毒/暗/无）。
+     * 无任何模块注册时返回 {@link com.rpgcraft.core.registry.defaults.NoOpElementResolver}
+     * 兜底（所有武器解析为 {@link com.rpgcraft.core.attribute.Element#NONE}）。
+     *
+     * @return 元素解析器实例
+     * @throws IllegalStateException 未注册时抛出（core 已预填充兜底，正常情况下不会触发）
+     */
+    public static IElementResolver getElementResolver() {
+        return requireSystem("IElementResolver", elementResolver);
     }
 
     /**

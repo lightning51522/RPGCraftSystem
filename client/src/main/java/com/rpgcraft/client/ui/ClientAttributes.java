@@ -24,4 +24,13 @@ final class ClientAttributes {
     static final Identifier RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
     static final Identifier PHYSICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
     static final Identifier MAGICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
+
+    // 元素抗性属性 ID（用于属性抗性面板）
+    static final Identifier ELECTRIC_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_resistance");
+    static final Identifier FIRE_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_resistance");
+    static final Identifier WIND_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_resistance");
+    static final Identifier WATER_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "water_resistance");
+    static final Identifier LIGHT_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "light_resistance");
+    static final Identifier POISON_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
+    static final Identifier DARK_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
 }

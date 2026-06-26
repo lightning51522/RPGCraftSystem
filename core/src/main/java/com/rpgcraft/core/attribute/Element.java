@@ -1,0 +1,77 @@
+package com.rpgcraft.core.attribute;
+
+import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * 攻击元素标签枚举
+ * <p>
+ * 与 {@link AttackType}（物理/魔法/混合）<b>正交</b>，描述攻击的元素归属。
+ * 同一次攻击既有伤害类型又有元素标签：例如「火属性物理攻击」「水属性魔法攻击」。
+ * <p>
+ * <b>元素减伤层</b>：带元素标签（非 NONE）的攻击在基础减伤（物理=防御力减法 /
+ * 魔法=法抗百分比 / 混合=两者）<b>之后</b>，额外乘以 {@code (1 - 对应元素抗性/100)}。
+ * NONE 元素不触发此层（默认行为零变化）。
+ * <p>
+ * <b>元素 ↔ 抗性映射</b>：{@link #resistanceId()} 是该映射的唯一真相源，
+ * 返回对应抗性属性的 {@link Identifier}（namespace {@code rpgcraftcore}）。
+ * 抗性属性由 {@code rpgcraftattributes} 附属模块注册；core 自行声明这些 ID 字面量
+ * （遵循「插件互不依赖铁律」，core 不依赖 attributes 模块的 {@code DefaultAttributes}）。
+ * <p>
+ * <b>默认行为</b>：当前所有攻击的元素默认为 {@link #NONE}（{@link com.rpgcraft.core.registry.IElementResolver}
+ * 兜底实现返回 NONE）。未来通过实现该 SPI 可启用元素系统。
+ */
+public enum Element {
+    /** 无元素：不触发元素减伤层 */
+    NONE,
+    /** 电属性 */
+    ELECTRIC,
+    /** 火属性 */
+    FIRE,
+    /** 风属性 */
+    WIND,
+    /** 水属性 */
+    WATER,
+    /** 光属性 */
+    LIGHT,
+    /** 毒属性 */
+    POISON,
+    /** 暗属性 */
+    DARK;
+
+    /**
+     * 元素的网络/配置名称（小写）
+     *
+     * @return 如 {@code "none"} / {@code "electric"} / ...
+     */
+    public String getName() {
+        return name().toLowerCase();
+    }
+
+    /** 是否为无元素（不触发元素减伤） */
+    public boolean isNone() {
+        return this == NONE;
+    }
+
+    /**
+     * 该元素对应的抗性属性 {@link Identifier}
+     * <p>
+     * 是「元素 ↔ 抗性」映射的唯一真相源。抗性属性由 {@code rpgcraftattributes} 模块注册，
+     * 此处声明的 ID 字面量需与该模块保持一致（core 不依赖 attributes 模块）。
+     *
+     * @return 对应抗性属性 ID；{@link #NONE} 返回 {@code null}
+     */
+    @Nullable
+    public Identifier resistanceId() {
+        return switch (this) {
+            case NONE -> null;
+            case ELECTRIC -> Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_resistance");
+            case FIRE -> Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_resistance");
+            case WIND -> Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_resistance");
+            case WATER -> Identifier.fromNamespaceAndPath("rpgcraftcore", "water_resistance");
+            case LIGHT -> Identifier.fromNamespaceAndPath("rpgcraftcore", "light_resistance");
+            case POISON -> Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
+            case DARK -> Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
+        };
+    }
+}

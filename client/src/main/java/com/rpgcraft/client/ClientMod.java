@@ -6,6 +6,7 @@ import com.rpgcraft.client.ui.CharacterScreenOpener;
 import com.rpgcraft.client.ui.CompositeAttributePlugin;
 import com.rpgcraft.client.ui.PlayerInfoPlugin;
 import com.rpgcraft.client.ui.ProfessionScreenOpener;
+import com.rpgcraft.client.ui.ResistanceAttributePlugin;
 import com.rpgcraft.core.RPGCraftCore;
 import com.rpgcraft.core.registry.IClientSystem;
 import com.rpgcraft.core.registry.RPGSystems;
@@ -54,10 +55,11 @@ public class ClientMod {
         // 注册职业面板快捷键 tick 检测（Game 事件总线）
         NeoForge.EVENT_BUS.addListener(ProfessionScreenOpener::onClientTick);
 
-        // 注册角色界面 UI 插件（按显示顺序：玩家信息 → 综合属性 → 一般属性列表）
+        // 注册角色界面 UI 插件（按显示顺序：玩家信息 → 综合属性 → 一般属性列表 → 属性抗性）
         RPGUIPlugins.register(new PlayerInfoPlugin());
         RPGUIPlugins.register(new CompositeAttributePlugin());
         RPGUIPlugins.register(new AttributeListPlugin());
+        RPGUIPlugins.register(new ResistanceAttributePlugin());
 
         // 注册客户端系统到 RPGSystems（供 core 命令系统发送 HUD 同步包）
         RPGSystems.registerClientSystem(new IClientSystem() {

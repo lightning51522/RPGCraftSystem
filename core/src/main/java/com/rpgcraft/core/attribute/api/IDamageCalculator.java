@@ -1,6 +1,7 @@
 package com.rpgcraft.core.attribute.api;
 
 import com.rpgcraft.core.attribute.AttackType;
+import com.rpgcraft.core.attribute.Element;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 
@@ -12,6 +13,15 @@ import org.jspecify.annotations.Nullable;
  * <p>
  * 其他模组可以替换此实现来提供更复杂的伤害公式（元素克制、装备加成等），
  * 通过 {@link com.rpgcraft.core.attribute.AttributeManager#setDamageCalculator(IDamageCalculator)} 注入。
+ * <p>
+ * <h3>伤害减免层次（Incoming）</h3>
+ * <ol>
+ *   <li><b>基础减伤</b>：由 {@link AttackType} 决定（物理=防御力减法、魔法=法抗百分比、混合=两者）</li>
+ *   <li><b>元素减伤</b>：在基础减伤<b>之后</b>，若攻击带元素标签（{@link Element#isNone()} 为 false），
+ *       额外乘以 {@code (1 - 对应元素抗性/100)}</li>
+ * </ol>
+ * 旧签名（无 element 参数）默认元素为 {@link Element#NONE}（不触发元素减伤层），
+ * 保留向后兼容。
  */
 public interface IDamageCalculator {
 
@@ -40,6 +50,28 @@ public interface IDamageCalculator {
     default int calculateIncomingDamage(LivingEntity target, int originalDamage,
                                          AttackType type, @Nullable LivingEntity attacker) {
         return calculateIncomingDamage(target, originalDamage, type);
+    }
+
+    /**
+     * 计算承伤（含攻击方穿透属性 + 攻击元素标签）
+     * <p>
+     * 默认实现忽略元素，委托给 {@link #calculateIncomingDamage(LivingEntity, int, AttackType, LivingEntity)}。
+     * combat 模块的默认实现会在基础减伤之后额外应用元素减伤层
+     *（{@code damage × (1 - 对应元素抗性/100)}，仅当 {@code element} 非 NONE 时）。
+     * <p>
+     * 第三方实现应覆写此方法以纳入元素减伤，或在旧实现下保持 NONE 元素（不触发）。
+     *
+     * @param target         受击实体
+     * @param originalDamage 原始伤害（减免前）
+     * @param type           伤害类型
+     * @param element        攻击元素标签（{@link Element#NONE} 时跳过元素减伤层）
+     * @param attacker       攻击方实体（null 时无穿透效果）
+     * @return 减免后的最终伤害（不低于 0）
+     */
+    default int calculateIncomingDamage(LivingEntity target, int originalDamage,
+                                         AttackType type, Element element,
+                                         @Nullable LivingEntity attacker) {
+        return calculateIncomingDamage(target, originalDamage, type, attacker);
     }
 
     /**

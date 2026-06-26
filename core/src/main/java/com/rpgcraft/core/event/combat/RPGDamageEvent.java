@@ -1,6 +1,7 @@
 package com.rpgcraft.core.event.combat;
 
 import com.rpgcraft.core.attribute.AttackType;
+import com.rpgcraft.core.attribute.Element;
 import com.rpgcraft.core.event.RPGEvent;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
@@ -61,6 +62,9 @@ public class RPGDamageEvent {
         /** 伤害来源类型（可被修改） */
         private AttackType attackType;
 
+        /** 攻击元素标签（可被修改，默认 NONE 不触发元素减伤层） */
+        private Element element;
+
         /** 原始伤害值（计算前，可被修改） */
         private int damage;
 
@@ -68,13 +72,15 @@ public class RPGDamageEvent {
          * @param attacker  攻击者（null = 环境伤害）
          * @param target    被攻击目标
          * @param attackType 攻击类型
+         * @param element   攻击元素标签（{@link Element#NONE} 表示无元素）
          * @param damage    原始伤害值（对环境伤害为 vanilla 值，对战斗伤害为公式前的初始值）
          */
         public Pre(@Nullable LivingEntity attacker, LivingEntity target,
-                   AttackType attackType, int damage) {
+                   AttackType attackType, Element element, int damage) {
             this.attacker = attacker;
             this.target = target;
             this.attackType = attackType;
+            this.element = element;
             this.damage = damage;
         }
 
@@ -97,6 +103,16 @@ public class RPGDamageEvent {
         /** 修改攻击类型（如将物理伤害转为魔法伤害） */
         public void setAttackType(AttackType attackType) {
             this.attackType = attackType;
+        }
+
+        /** 获取攻击元素标签（NONE 表示无元素，不触发元素减伤层） */
+        public Element getElement() {
+            return element;
+        }
+
+        /** 修改攻击元素标签（如将无元素攻击转为火元素攻击） */
+        public void setElement(Element element) {
+            this.element = element != null ? element : Element.NONE;
         }
 
         /** 获取当前伤害值 */
@@ -143,6 +159,9 @@ public class RPGDamageEvent {
         /** 攻击类型 */
         private final AttackType attackType;
 
+        /** 攻击元素标签（供子模块判断元素附着/统计等效果） */
+        private final Element element;
+
         /** 目标是否因此次伤害死亡（LIFE 降到 0） */
         private final boolean lethal;
 
@@ -151,14 +170,16 @@ public class RPGDamageEvent {
          * @param target     被攻击目标
          * @param damageDealt 实际造成的伤害值
          * @param attackType  攻击类型
+         * @param element    攻击元素标签（{@link Element#NONE} 表示无元素）
          * @param lethal     是否为致命伤害
          */
         public Post(@Nullable LivingEntity attacker, LivingEntity target,
-                    int damageDealt, AttackType attackType, boolean lethal) {
+                    int damageDealt, AttackType attackType, Element element, boolean lethal) {
             this.attacker = attacker;
             this.target = target;
             this.damageDealt = damageDealt;
             this.attackType = attackType;
+            this.element = element;
             this.lethal = lethal;
         }
 
@@ -181,6 +202,11 @@ public class RPGDamageEvent {
         /** 获取攻击类型 */
         public AttackType getAttackType() {
             return attackType;
+        }
+
+        /** 获取攻击元素标签（NONE 表示无元素） */
+        public Element getElement() {
+            return element;
         }
 
         /** 是否为致命伤害（目标 LIFE 将降到 0） */

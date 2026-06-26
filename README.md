@@ -70,6 +70,7 @@ RPGCraftSystem/
 | `registerMobDataProvider()` | leveling | `IMobDataProvider` |
 | `registerEquipmentSystem()` | equipment | `IEquipmentSystem` |
 | `registerAttackTypeResolver()` | equipment | `IAttackTypeResolver` |
+| `registerElementResolver()` | equipment（可选） | `IElementResolver`（解析攻击元素标签，无实现时兜底返回 NONE） |
 | `registerProfessionSystem()` | profession | `IProfessionSystem` |
 | `registerProfessionRegistry()` | profession | `IProfessionRegistry`（供内容模块注册职业） |
 | `registerAttributePointSystem()` | attributepoints | `IAttributePointSystem` |
@@ -123,7 +124,7 @@ baseValue
 
 | 事件 | 触发时机 |
 |------|---------|
-| `RPGDamageEvent.Pre/Post` | 伤害计算前/后（Pre 可取消/修改伤害值与类型） |
+| `RPGDamageEvent.Pre/Post` | 伤害计算前/后（Pre 可取消/修改伤害值、攻击类型与元素标签） |
 | `RPGHealEvent.Pre/Post` | 治疗前/后 |
 | `AttributePostAdditionEvent` | 属性管线 ADDITION 阶段后 |
 | `AttributeFinalizeEvent` | 属性管线乘算后、钳制前 |
@@ -143,8 +144,9 @@ baseValue
 
 ##  默认游戏属性
 
-> 共 12 个：LIFE 由 core 提供；其余 11 个由 `attributes` 模块注册，可被第三方完全替换。
+> 共 19 个：LIFE 由 core 提供；11 个能力/综合派生属性 + 7 个元素抗性属性由 `attributes` 模块注册，可被第三方完全替换。
 > 另有 5 个**综合属性**（物理攻击/魔法攻击/防御/暴击率/暴击伤害）由公式动态计算，在角色界面「综合属性」区显示。暴击率/暴击伤害不可加点，仅受装备加成和职业公式影响。
+> 7 个**元素抗性**（电/火/风/水/光/毒/暗抗）默认 0、上限 100、不可加点，装备加成生效，在角色界面「属性抗性」区单独显示。
 
 | 属性 ID | 中文名 | 默认值 | 上限 | 说明 |
 |---------|--------|--------|------|------|
@@ -160,6 +162,13 @@ baseValue
 | `fixed_damage` | 固定伤害 | 0 | 无上限 | 无视防御的附加伤害（**不参与暴击**） |
 | `physical_penetrate` | 物理穿透 | 0 | 无上限 | 穿透目标物理防御 |
 | `magical_penetrate` | 法术穿透 | 0 | 无上限 | 穿透目标法术抗性 |
+| `electric_resistance` | 电抗 | 0 | 100 | **不可加点**，装备加成生效；减免电属性攻击伤害（基础减伤后 ×(1−电抗/100)） |
+| `fire_resistance` | 火抗 | 0 | 100 | **不可加点**，装备加成生效；减免火属性攻击伤害（基础减伤后 ×(1−火抗/100)） |
+| `wind_resistance` | 风抗 | 0 | 100 | **不可加点**，装备加成生效；减免风属性攻击伤害（基础减伤后 ×(1−风抗/100)） |
+| `water_resistance` | 水抗 | 0 | 100 | **不可加点**，装备加成生效；减免水属性攻击伤害（基础减伤后 ×(1−水抗/100)） |
+| `light_resistance` | 光抗 | 0 | 100 | **不可加点**，装备加成生效；减免光属性攻击伤害（基础减伤后 ×(1−光抗/100)） |
+| `poison_resistance` | 毒抗 | 0 | 100 | **不可加点**，装备加成生效；减免毒属性攻击伤害（基础减伤后 ×(1−毒抗/100)） |
+| `dark_resistance` | 暗抗 | 0 | 100 | **不可加点**，装备加成生效；减免暗属性攻击伤害（基础减伤后 ×(1−暗抗/100)） |
 
 ### 综合属性（不注册，由公式计算）
 
@@ -177,6 +186,7 @@ baseValue
 - **能力型**（`resetOnRespawn = false`，可加点）：力量、智力、敏捷、精准、法抗、固定伤害、物理穿透、法术穿透
 - **综合派生型**（注册、不可加点、角色界面综合区显示）：暴击率、暴击伤害 —— 装备加成生效，有效值由主职业公式决定
 - **综合型**（不注册，公式计算，不可加点）：物理攻击力、魔法攻击力、物理防御力
+- **元素抗性型**（注册、不可加点、角色界面属性抗性区显示）：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗 —— 默认 0，上限 100，装备加成生效；减免对应元素标签攻击的伤害
 - **生命**额外满足 `equipmentAffectsMax = true`，防止"脱装穿装回血"漏洞
 
 ### 默认伤害公式
@@ -200,13 +210,29 @@ baseValue
 
 **承伤减免（防御方）**：
 
+减伤分两层：基础减伤（由攻击类型决定）→ 元素减伤（由攻击元素标签决定）。
+
 ```
-物理：max(0, 原伤 - max(0, 力量×2 - 攻击方物理穿透))
-魔法：原伤 × (1 - max(0, 法抗 - 攻击方法术穿透) / 100)
-混合：物理半伤 + 魔法半伤
+第 1 层 · 基础减伤：
+  物理：max(0, 原伤 - max(0, 力量×2 - 攻击方物理穿透))
+  魔法：原伤 × (1 - max(0, 法抗 - 攻击方法术穿透) / 100)
+  混合：物理半伤 + 魔法半伤
+
+第 2 层 · 元素减伤（仅当攻击带元素标签，非 NONE）：
+  基础减伤结果 × (1 - 对应元素抗性 / 100)
 ```
 
 > 物理防御力由目标的当前主职业公式派生（默认 `力量×2`），魔法防御力仅来自装备，无属性派生。
+> 元素标签与攻击类型正交：火属性物理攻击 = 物理基础减伤后再应用火抗百分比；水属性魔法攻击 = 法抗百分比减伤后再应用水抗百分比。无属性（NONE）攻击不触发第 2 层。
+
+### 元素系统
+
+攻击除「伤害类型」（物理/魔法/混合）外，还带有正交的「元素标签」：电/火/风/水/光/毒/暗 或无属性（NONE）。
+
+- **元素抗性属性**：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗，默认 0、上限 100、不可加点、装备加成生效。
+- **抗性减伤**：带元素标签的攻击在基础减伤**之后**额外乘以 `(1 − 对应元素抗性/100)`；NONE 攻击不触发此层。
+- **默认行为**：当前所有攻击元素**默认为 NONE**（伤害流程零变化）。玩家武器通过 SPI `IElementResolver` 解析（无模块注册时兜底返回 NONE）；怪物/箭矢/环境/魔法源暂固定 NONE。
+- **扩展 SPI**：实现 `RPGSystems.registerElementResolver(IElementResolver)` 可为武器配置元素标签启用元素系统，与 `IAttackTypeResolver` 平行（装备模块可同时解析攻击类型与元素）。子模块也可在 `RPGDamageEvent.Pre` 中通过 `setElement()` 动态覆盖元素标签。
 
 ---
 

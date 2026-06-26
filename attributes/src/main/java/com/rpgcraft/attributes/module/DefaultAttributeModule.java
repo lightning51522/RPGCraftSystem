@@ -10,6 +10,8 @@ import com.rpgcraft.core.attribute.api.IAttributeModule;
  * <ul>
  *   <li>资源型：技力（重生恢复，有上限）。所有技能（物理/魔法）统一消耗技力。</li>
  *   <li>能力型：力量、智力、敏捷、精准、法抗、暴击率、暴击伤害、固定伤害、物理穿透、法术穿透</li>
+ *   <li>元素抗性型：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗（默认 0，上限 100，不可加点，
+ *       装备加成生效；减免对应元素标签攻击的伤害）</li>
  * </ul>
  * <p>
  * <b>生命属性（LIFE）不在此注册</b> —— 它由 core 直接提供（与原版生命/死亡机制对接），
@@ -69,5 +71,24 @@ public class DefaultAttributeModule implements IAttributeModule {
 
         registry.register(DefaultAttributes.EXP_BONUS_ID, "经验加成", "按百分比提升击杀获得的经验（叠加在等级差曲线之上）。不可加点，装备/职业加成生效。",
                 0, Integer.MAX_VALUE, false, false, false, null);
+
+        // === 元素抗性型属性（默认 0，上限 100，不可加点，装备加成生效） ===
+        // 减免对应元素标签攻击的伤害：基础减伤后额外乘以 (1 - 抗性/100)。
+        // 当前所有攻击元素默认为 NONE（不触发元素减伤层），故默认行为零变化。
+        // 未来通过实现 IElementResolver 可为武器/怪物配置元素标签启用此机制。
+        registry.register(DefaultAttributes.ELECTRIC_RESISTANCE_ID, "电抗", "减免受到的电属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.FIRE_RESISTANCE_ID, "火抗", "减免受到的火属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.WIND_RESISTANCE_ID, "风抗", "减免受到的风属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.WATER_RESISTANCE_ID, "水抗", "减免受到的水属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.LIGHT_RESISTANCE_ID, "光抗", "减免受到的光属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.POISON_RESISTANCE_ID, "毒抗", "减免受到的毒属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
+        registry.register(DefaultAttributes.DARK_RESISTANCE_ID, "暗抗", "减免受到的暗属性攻击伤害（百分比）。不可加点，装备加成生效。",
+                0, 100, false, false, false, null);
     }
 }

@@ -22,6 +22,8 @@ import net.minecraft.resources.Identifier;
  * <ul>
  *   <li>v0.6.0-alpha：移除 magic_point（资源法力）、mana（能力魔力）、defense（改为综合属性）；
  *       新增 intelligence（智力）</li>
+ *   <li>新增元素抗性属性：electric/fire/wind/water/light/poison/dark_resistance（默认 0，上限 100，
+ *       不可加点，装备加成生效）；对应攻击元素标签见 {@code Element} 枚举（默认全部 NONE）</li>
  * </ul>
  */
 public final class DefaultAttributes {
@@ -44,6 +46,22 @@ public final class DefaultAttributes {
     public static final Identifier PHYSICAL_PENETRATE_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
     public static final Identifier MAGICAL_PENETRATE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
     public static final Identifier EXP_BONUS_ID             = Identifier.fromNamespaceAndPath("rpgcraftcore", "exp_bonus");
+
+    // === 元素抗性型属性（默认 0，上限 100，不可加点，装备加成生效） ===
+    /** 电抗性 */
+    public static final Identifier ELECTRIC_RESISTANCE_ID   = Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_resistance");
+    /** 火抗性 */
+    public static final Identifier FIRE_RESISTANCE_ID       = Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_resistance");
+    /** 风抗性 */
+    public static final Identifier WIND_RESISTANCE_ID       = Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_resistance");
+    /** 水抗性 */
+    public static final Identifier WATER_RESISTANCE_ID      = Identifier.fromNamespaceAndPath("rpgcraftcore", "water_resistance");
+    /** 光抗性 */
+    public static final Identifier LIGHT_RESISTANCE_ID      = Identifier.fromNamespaceAndPath("rpgcraftcore", "light_resistance");
+    /** 毒抗性 */
+    public static final Identifier POISON_RESISTANCE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
+    /** 暗抗性 */
+    public static final Identifier DARK_RESISTANCE_ID       = Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
 
     // === 综合属性 ID（仅用于 UI 展示标识，不注册为真实属性，由公式动态计算） ===
     /** 物理攻击力综合属性 ID（仅用于 UI 标识，伤害公式动态计算） */

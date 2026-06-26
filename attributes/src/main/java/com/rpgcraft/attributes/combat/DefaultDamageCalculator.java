@@ -2,6 +2,7 @@ package com.rpgcraft.attributes.combat;
 
 import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.AttackType;
+import com.rpgcraft.core.attribute.Element;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.profession.api.CombatStats;
@@ -42,12 +43,17 @@ import java.util.concurrent.ThreadLocalRandom;
  * 装备对一般属性（力量/智力等）的加成会自动通过属性管线计入上式（读取的是管线最终值）。
  *
  * <h3>伤害减免公式（Incoming）</h3>
+ * 减伤分两层：基础减伤（由 {@link AttackType} 决定）→ 元素减伤（由 {@link Element} 决定）。
  * <ul>
- *   <li><b>物理减免：</b>{@code max(0, 原始伤害 - max(0, 物理防御力 - 物理穿透))}
+ *   <li><b>第 1 层 · 物理减免：</b>{@code max(0, 原始伤害 - max(0, 物理防御力 - 物理穿透))}
  *     <br>其中物理防御力 = 目标力量×2（+装备对力量的加成）</li>
- *   <li><b>法术减免：</b>{@code (int)(原始伤害 × (1 - max(0, 法抗 - 法术穿透)/100.0))}
+ *   <li><b>第 1 层 · 法术减免：</b>{@code (int)(原始伤害 × (1 - max(0, 法抗 - 法术穿透)/100.0))}
  *     <br>魔法防御力仅来自装备（无属性派生），故魔法路径不读取防御力</li>
+ *   <li><b>第 2 层 · 元素减免：</b>基础减伤结果 × {@code (1 - 对应元素抗性/100)}
+ *     <br>仅当攻击带元素标签（非 {@link Element#NONE}）时应用；NONE（默认）跳过此层</li>
  * </ul>
+ * 元素标签与伤害类型正交：火属性物理攻击 = 物理基础减伤后再应用火抗百分比；
+ * 水属性魔法攻击 = 法抗百分比减伤后再应用水抗百分比。
  *
  * <h3>伤害输出公式（Outgoing）</h3>
  * <ul>
@@ -78,13 +84,22 @@ public class DefaultDamageCalculator implements IDamageCalculator {
     @Override
     public int calculateIncomingDamage(LivingEntity target, int originalDamage,
                                         AttackType type, @Nullable LivingEntity attacker) {
+        // 无攻击方信息时退化为原公式（穿透为 0）
+        return calculateIncomingDamage(target, originalDamage, type, Element.NONE, null);
+    }
+
+    @Override
+    public int calculateIncomingDamage(LivingEntity target, int originalDamage,
+                                        AttackType type, Element element,
+                                        @Nullable LivingEntity attacker) {
         // 读取攻击方穿透属性（无攻击方时为 0）
         int physicalPenetrate = attacker != null
                 ? getAttributeValue(attacker, DefaultAttributes.PHYSICAL_PENETRATE_ID) : 0;
         int magicalPenetrate = attacker != null
                 ? getAttributeValue(attacker, DefaultAttributes.MAGICAL_PENETRATE_ID) : 0;
 
-        return switch (type) {
+        // 第 1 层：基础减伤（由 AttackType 决定）
+        int afterBaseReduction = switch (type) {
             case PHYSICAL -> {
                 // 物理防御力 = 目标力量×2（综合属性，动态计算）
                 int defense = computePhysicalDefense(target);
@@ -111,6 +126,32 @@ public class DefaultDamageCalculator implements IDamageCalculator {
             }
             default -> originalDamage;
         };
+
+        // 第 2 层：元素减伤（基础减伤之后，仅当攻击带元素标签）
+        return applyElementalReduction(target, afterBaseReduction, element);
+    }
+
+    /**
+     * 元素减伤层
+     * <p>
+     * 在基础减伤（防御力/法抗）<b>之后</b>应用：若攻击带元素标签（非 NONE），
+     * 额外乘以 {@code (1 - 对应元素抗性/100)}。元素标签是单一整体标签，
+     * 故对 MIX_TYPE 在物理+魔法两半相加之后再统一应用。
+     * <p>
+     * NONE 元素（默认）直接原样返回 —— 默认伤害流程零变化。
+     *
+     * @param target  受击实体（用于读取抗性属性）
+     * @param damage  基础减伤后的伤害值
+     * @param element 攻击元素标签
+     * @return 元素减伤后的最终伤害（不低于 0）
+     */
+    private int applyElementalReduction(LivingEntity target, int damage, Element element) {
+        if (element == null || element.isNone()) return damage;
+        net.minecraft.resources.Identifier resistId = element.resistanceId();
+        if (resistId == null) return damage;
+        int resistance = getAttributeValue(target, resistId);
+        if (resistance <= 0) return damage;
+        return (int) Math.max(0, damage * (1.0 - resistance / 100.0));
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.rpgcraft.attributes.combat;
 
 import com.rpgcraft.core.attribute.AttackType;
+import com.rpgcraft.core.attribute.Element;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
@@ -317,6 +318,10 @@ public class CombatEventHandler {
 
         // 确定攻击类型
         AttackType attackType = AttackType.PHYSICAL;
+        // 确定攻击元素标签（与攻击类型正交）
+        // 当前默认全部 NONE：仅玩家武器通过 IElementResolver 解析（无模块时兜底返回 NONE）。
+        // 怪物/箭矢/环境/魔法源暂保持 NONE，未来可从 mob 配置扩展。
+        Element element = Element.NONE;
         if (attackerEntity instanceof LivingEntity attacker) {
             // 箭矢伤害类型检测：优先判断投射物类型
             if (source.getDirectEntity() instanceof AbstractArrow) {
@@ -329,6 +334,7 @@ public class CombatEventHandler {
             } else if (attacker instanceof Player player) {
                 Identifier weaponId = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem());
                 attackType = RPGSystems.getAttackTypeResolver().resolve(weaponId);
+                element = RPGSystems.getElementResolver().resolve(weaponId);
             } else {
                 MobLevelData attackerLevelData = RPGSystems.getMobDataProvider().getMobLevelData(attacker);
                 if (attackerLevelData.hasAttackTypeOverride()) {
@@ -357,7 +363,7 @@ public class CombatEventHandler {
         // === RPGDamageEvent.Pre：伤害计算前，子模块可取消/修改 ===
         LivingEntity attackerLiving = (attackerEntity instanceof LivingEntity al) ? al : null;
         RPGDamageEvent.Pre preEvent = new RPGDamageEvent.Pre(
-                attackerLiving, target, attackType, Math.round(event.getNewDamage()));
+                attackerLiving, target, attackType, element, Math.round(event.getNewDamage()));
         RPGEventBus.post(preEvent);
 
         if (preEvent.isCancelled()) {
@@ -366,16 +372,18 @@ public class CombatEventHandler {
             return;
         }
 
-        // 使用子模块可能修改后的攻击类型
+        // 使用子模块可能修改后的攻击类型和元素标签
         attackType = preEvent.getAttackType();
+        element = preEvent.getElement();
 
         int flatDamage;
         if (attackerLiving != null) {
-            // 2. 战斗伤害：RPG 公式计算绝对伤害值
+            // 2. 战斗伤害：RPG 公式计算绝对伤害值（含元素减伤层）
             int damage = calculator.calculateOutgoingDamage(attackerLiving, attackType);
-            flatDamage = calculator.calculateIncomingDamage(target, damage, attackType, attackerLiving);
+            flatDamage = calculator.calculateIncomingDamage(target, damage, attackType, element, attackerLiving);
         } else {
             // 3. 环境伤害：使用 Pre 事件中可能被修改的伤害值
+            // 环境伤害无攻击者，不应用 RPG 公式（也不走元素减伤层）
             flatDamage = preEvent.getDamage();
         }
 
@@ -386,7 +394,7 @@ public class CombatEventHandler {
         // === RPGDamageEvent.Post：伤害应用后，子模块追加效果 ===
         boolean lethal = newLife <= 0;
         RPGDamageEvent.Post postEvent = new RPGDamageEvent.Post(
-                attackerLiving, target, flatDamage, attackType, lethal);
+                attackerLiving, target, flatDamage, attackType, element, lethal);
         RPGEventBus.post(postEvent);
 
         // === 战斗日志：向攻击者玩家发送伤害信息 ===
@@ -396,9 +404,11 @@ public class CombatEventHandler {
             String typeLabel = attackType == AttackType.PHYSICAL ? "物理"
                     : attackType == AttackType.MAGIC ? "魔法" : "混合";
             String lethalLabel = lethal ? "（致命）" : "";
+            String elementLabel = (element != null && !element.isNone())
+                    ? element.getName() : "";
             attackerPlayer.sendSystemMessage(Component.literal(
-                    String.format("§7[战斗] 你对 %s 造成了 %d 点%s伤害%s",
-                            targetName, flatDamage, typeLabel, lethalLabel)));
+                    String.format("§7[战斗] 你对 %s 造成了 %d 点%s%s伤害%s",
+                            targetName, flatDamage, typeLabel, elementLabel, lethalLabel)));
         }
 
         // 将原版伤害设为对应比例值，使原版生命条同步变化

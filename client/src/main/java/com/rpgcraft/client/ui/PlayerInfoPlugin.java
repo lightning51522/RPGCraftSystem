@@ -19,7 +19,6 @@ import net.minecraft.world.entity.player.Player;
  * <p>
  * 布局（从上到下）：
  * <ol>
- *   <li>标题 "玩家信息"（居中，黄色）</li>
  *   <li>等级行：{@code "等级: X (MAX)"} 或 {@code "等级: X  经验: current/next"}</li>
  *   <li>主职业行：{@code "职业: 名称 Lv.X"}（副职业不在此显示，避免多副职业时占用过多空间）</li>
  *   <li>可分配职业经验行（仅当池 &gt; 0 时）</li>
@@ -36,9 +35,6 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     // ====================================================================
     // 布局常量
     // ====================================================================
-
-    /** 标题行高度 */
-    private static final int TITLE_HEIGHT = 13;
 
     /** 每行信息高度 */
     private static final int LINE_HEIGHT = 12;
@@ -61,7 +57,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
     private static final StringBuilder SB = new StringBuilder(64);
 
     /**
-     * 插件总高度（标题 + 等级 + 主职业 + 可选的职业经验池行 + 分隔线间距 + 1px 分隔线）。
+     * 插件总高度（等级 + 主职业 + 可选的职业经验池行 + 分隔线间距 + 1px 分隔线）。
      * <p>
      * 主职业经验池行仅当 {@code pool > 0} 时显示，故其高度动态。
      * 副职业不在此界面显示（可同时激活多个，全列会占用过多空间；详见职业面板 P 键）。
@@ -78,7 +74,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
             if (profData.getSkillPointPool() > 0) extraLines += 1;
         }
         // 行数：等级 + 职业 = 2 行固定，+ extraLines（职业经验池）+ 1 行分隔线间距
-        return TITLE_HEIGHT + LINE_HEIGHT * (2 + extraLines) + SEPARATOR_GAP * 2 + 1;
+        return LINE_HEIGHT * (2 + extraLines) + SEPARATOR_GAP * 2 + 1;
     }
 
     /**
@@ -102,13 +98,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
 
         int currentY = y;
 
-        // 1. 标题 "玩家信息"
-        String title = "玩家信息";
-        int titleWidth = mc.font.width(title);
-        graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
-        currentY += TITLE_HEIGHT;
-
-        // 2. 等级信息
+        // 1. 等级信息
         SB.setLength(0);
         PlayerLevelData levelData = player.getData(
                 RPGSystems.<PlayerLevelData>getPlayerLevelAttachment().get());
@@ -123,7 +113,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
         graphics.text(mc.font, SB.toString(), x, currentY, COLOR_TEXT, false);
         currentY += LINE_HEIGHT;
 
-        // 3. 职业信息（含当前主职业等级 + 副职业）
+        // 2. 职业信息（含当前主职业等级 + 副职业）
         ProfessionData profData = player.getData(
                 RPGSystems.<ProfessionData>getPlayerProfessionAttachment().get());
         IProfession prof = RPGSystems.getProfessionSystem()
@@ -146,7 +136,7 @@ public class PlayerInfoPlugin implements ICharacterScreenPlugin {
         // 可分配属性点数不在此显示 —— 右侧 AttributePointPanel 已有专门的 [+]/[-] 操作区，
         // 左侧信息区不再重复展示数值。
 
-        // 4. 分隔线
+        // 3. 分隔线
         currentY += SEPARATOR_GAP;
         graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
     }

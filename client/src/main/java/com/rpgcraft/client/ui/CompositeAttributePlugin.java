@@ -30,7 +30,7 @@ import java.util.List;
  * <p>
  * 布局（从上到下）：
  * <ol>
- *   <li>标题 "综合属性"（居中，黄色）+ 分隔线</li>
+ *   <li>标题 "属性"（居中，黄色）+ 分隔线</li>
  *   <li>物理攻击 / 魔法攻击（两列）</li>
  *   <li>防御</li>
  *   <li>暴击率 / 暴击伤害（两列，悬停显示基础+派生拆分）</li>
@@ -117,9 +117,9 @@ public class CompositeAttributePlugin implements ICharacterScreenPlugin {
         IProfession prof = resolveCurrentMainProfession();
         lastProfession = prof;
 
-        // 2. 标题 "综合属性"  + 右侧 ? 详情图标
+        // 2. 标题 "属性"  + 右侧 ? 详情图标
         lastRenderWidth = width;
-        String title = "综合属性";
+        String title = "属性";
         int titleWidth = mc.font.width(title);
         graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
 

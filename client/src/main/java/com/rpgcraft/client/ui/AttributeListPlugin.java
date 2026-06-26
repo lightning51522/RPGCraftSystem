@@ -17,20 +17,20 @@ import java.util.Map;
 /**
  * 属性列表面板插件 —— 角色界面中的属性展示区
  * <p>
- * 从 {@link AttributeSnapshot} 读取所有属性数据，以两列布局渲染，
- * 支持翻页浏览（当属性数量超过单页容量时）。
+ * 从 {@link AttributeSnapshot} 读取所有属性数据，以两列布局渲染<b>全部</b>属性。
+ * 不做分页 —— 当属性数量超过角色面板可见区域时，由 {@code RPGCharacterScreen} 的
+ * 整体滚动条 + scissor 处理溢出。
  * <p>
  * 从快照读取数据（数据-渲染分离），而非直接访问实体 Attachment。
  * <p>
  * 布局（从上到下）：
  * <ol>
- *   <li>标题 "RPG属性"（居中，黄色）+ 分隔线</li>
- *   <li>两列属性列表（每行两个属性）</li>
- *   <li>页脚：翻页箭头 + 页码</li>
+ *   <li>顶部分隔线（无标题；标题统一由 {@link CompositeAttributePlugin} 提供）</li>
+ *   <li>两列属性列表（每行两个属性，全部渲染）</li>
  * </ol>
  * <p>
  * 仅渲染可加点的能力型属性和资源型属性。综合派生属性（暴击率/暴击伤害等）
- * 由 {@link CompositeAttributePlugin} 展示。
+ * 由 {@link CompositeAttributePlugin} 展示；元素抗性由 {@link ResistanceAttributePlugin} 展示。
  *
  * @see ICharacterScreenPlugin
  * @see AttributeSnapshot
@@ -47,64 +47,52 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     /** 两列间距 */
     private static final int COLUMN_GAP = 8;
 
-    /** 每页最大行数 */
-    private static final int MAX_ROWS = 8;
+    /** 顶部区域高度（分隔线上方间距 + 1px 分隔线，无标题） */
+    private static final int HEADER_HEIGHT = 5;
 
-    /** 标题区域高度（标题 + 间距 + 分隔线 + 间距） */
-    private static final int HEADER_HEIGHT = 20;
+    /** 两列布局，每行容纳的属性数 */
+    private static final int COLUMNS = 2;
 
-    /** 页脚区域高度 */
-    private static final int FOOTER_HEIGHT = 14;
-
-    /** 插件总高度 */
-    private static final int PLUGIN_HEIGHT = HEADER_HEIGHT + MAX_ROWS * LINE_HEIGHT + FOOTER_HEIGHT;
+    /** 快照不可用时的最小高度（仅顶部分隔线，避免 0 高度） */
+    private static final int MIN_HEIGHT = HEADER_HEIGHT;
 
     // ====================================================================
     // 颜色常量（ARGB 格式）
     // ====================================================================
 
-    /** 黄色标题（原版强调色） */
-    private static final int COLOR_TITLE = 0xFFFFE000;
     /** 白色文本 */
     private static final int COLOR_TEXT = 0xFFFFFFFF;
     /** 灰色分隔线（原版灰阶） */
     private static final int COLOR_SEPARATOR = 0xFF373737;
-    /** 灰色页码文字 */
-    private static final int COLOR_PAGE_TEXT = 0xFFA0A0A0;
-    /** 翻页箭头 */
-    private static final int COLOR_ARROW = 0xFFFFFFFF;
-    /** 翻页箭头悬停（原版强调色） */
-    private static final int COLOR_ARROW_HOVER = 0xFFFFE000;
-    /** 暴击率中档（橙色，101-200%） */
-    private static final int COLOR_CRIT_MID = 0xFFFFA500;
-    /** 暴击率高档（红色，>200%） */
-    private static final int COLOR_CRIT_HIGH = 0xFFFF4444;
 
     /** 复用的 StringBuilder */
     private static final StringBuilder SB = new StringBuilder(64);
 
-    // ====================================================================
-    // 状态
-    // ====================================================================
-
-    /** 当前页码（从 0 开始） */
-    private int currentPage = 0;
-
     /**
-     * 获取插件高度（固定值）
+     * 获取插件高度（动态值）
+     * <p>
+     * 高度随当前属性数量变化：顶部分隔线 + 全部属性行（两列）。
+     * 超过可见区域的内容由 {@code RPGCharacterScreen} 的整体滚动条 + scissor 处理，
+     * 本插件自身不做分页。
+     * <p>
+     * 同一帧内的查询返回一致值（基于 {@code UISnapshotCache} 当前快照）。
+     * 快照不可用时返回 {@value MIN_HEIGHT}（仅分隔线）。
      *
-     * @return {@value PLUGIN_HEIGHT} 像素
+     * @return 插件高度（像素）
      */
     @Override
     public int getHeight() {
-        return PLUGIN_HEIGHT;
+        AttributeSnapshot snapshot = com.rpgcraft.core.ui.UISnapshotCache.get();
+        int count = snapshot != null ? getEntries(snapshot).size() : 0;
+        int rows = (count + COLUMNS - 1) / COLUMNS; // 向上取整
+        return Math.max(MIN_HEIGHT, HEADER_HEIGHT + rows * LINE_HEIGHT);
     }
 
     /**
      * 渲染属性列表面板
      * <p>
      * 从 {@link AttributeSnapshot} 中读取所有属性数据，
-     * 按两列布局渲染当前页的属性。
+     * 按两列布局渲染全部属性（不分页；超出可见区域由屏幕滚动条处理）。
      *
      * @param graphics 图形上下文
      * @param x        渲染区域左上角 X
@@ -119,60 +107,13 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         Minecraft mc = Minecraft.getInstance();
         int currentY = y;
 
-        // 1. 标题 "RPG属性"
-        String title = "属性";
-        int titleWidth = mc.font.width(title);
-        graphics.text(mc.font, title, x + (width - titleWidth) / 2, currentY, COLOR_TITLE, true);
-        currentY += 13;
+        // 1. 分隔线（顶部，无标题）
+        int separatorY = currentY + HEADER_HEIGHT - 1;
+        graphics.fill(x, separatorY, x + width, separatorY + 1, COLOR_SEPARATOR);
+        currentY += HEADER_HEIGHT;
 
-        // 2. 分隔线
-        graphics.fill(x, currentY, x + width, currentY + 1, COLOR_SEPARATOR);
-        currentY += HEADER_HEIGHT - 13;
-
-        // 3. 属性列表（两列）
+        // 2. 属性列表（两列，全部属性）
         renderAttributes(graphics, x, currentY, width, mc, snapshot);
-
-        // 4. 页脚（翻页）
-        int footerY = y + PLUGIN_HEIGHT - FOOTER_HEIGHT;
-        renderFooter(graphics, x, footerY, width, mc);
-    }
-
-    /**
-     * 处理鼠标点击（翻页箭头）
-     *
-     * @param mouseX 鼠标 X（相对于插件渲染区域）
-     * @param mouseY 鼠标 Y（相对于插件渲染区域）
-     * @param button 鼠标按钮
-     * @return true 如果消费了此事件
-     */
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return false; // 仅处理左键
-
-        int totalPages = getTotalPages();
-        if (totalPages <= 1) return false;
-
-        Minecraft mc = Minecraft.getInstance();
-        int footerY = PLUGIN_HEIGHT - FOOTER_HEIGHT;
-
-        // 检测点击是否在页脚区域
-        if (mouseY < footerY || mouseY > footerY + LINE_HEIGHT) return false;
-
-        // 检测左箭头 "< "
-        String prevArrow = "< ";
-        int prevWidth = mc.font.width(prevArrow);
-        if (mouseX >= 0 && mouseX <= prevWidth) {
-            if (currentPage > 0) {
-                currentPage--;
-                return true;
-            }
-            return false;
-        }
-
-        // 检测右箭头 " >"
-        // 注意：这里 width 未知，但我们用 footerY 的高度范围来检测
-        // 实际箭头在右侧，用近似值检测
-        return false; // 右箭头检测在 renderFooter 中通过悬停高亮，翻页由左箭头 + 滚动处理
     }
 
     /**
@@ -192,9 +133,12 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     public List<Component> getTooltip(double relX, double relY, int width, AttributeSnapshot snapshot) {
         if (snapshot == null) return null;
 
-        // 列表纵向区域：HEADER_HEIGHT ~ HEADER_HEIGHT + MAX_ROWS*LINE_HEIGHT
+        List<Map.Entry<Identifier, AttributeData>> entries = getEntries(snapshot);
+
+        // 列表纵向区域：HEADER_HEIGHT ~ HEADER_HEIGHT + rows*LINE_HEIGHT
+        int rows = (entries.size() + COLUMNS - 1) / COLUMNS;
         int listTop = HEADER_HEIGHT;
-        int listBottom = HEADER_HEIGHT + MAX_ROWS * LINE_HEIGHT;
+        int listBottom = HEADER_HEIGHT + rows * LINE_HEIGHT;
         if (relY < listTop || relY >= listBottom) return null;
 
         // 两列横向区域（与 renderAttributes 的 columnWidth 计算一致）
@@ -209,16 +153,7 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
         }
 
         int row = (int) ((relY - listTop) / LINE_HEIGHT);
-        int attrsPerPage = MAX_ROWS * 2;
-        int idx = currentPage * attrsPerPage + row * 2 + col;
-
-        List<Map.Entry<Identifier, AttributeData>> entries = snapshot.getAll().entrySet().stream()
-                .filter(e -> {
-                    IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(e.getKey());
-                    if (attrEntry == null) return false;
-                    return attrEntry.isAllocatable() || attrEntry.shouldResetOnRespawn();
-                })
-                .toList();
+        int idx = row * COLUMNS + col;
         if (idx < 0 || idx >= entries.size()) return null;
 
         Identifier attrId = entries.get(idx).getKey();
@@ -237,37 +172,41 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
     }
 
     // ====================================================================
-    // 内部渲染方法
+    // 内部方法
     // ====================================================================
 
     /**
-     * 渲染两列属性列表
+     * 从快照中筛选本插件展示的属性条目
      * <p>
-     * 从快照中按页获取属性，每行渲染两个属性。
-     * 排除不可加点且非资源型属性（由 {@link CompositeAttributePlugin} 展示）。
+     * 仅保留可加点或资源型的属性（排除暴击率/暴击伤害等综合派生属性，
+     * 由 {@link CompositeAttributePlugin} 展示；元素抗性由
+     * {@link ResistanceAttributePlugin} 展示）。
      */
-    private void renderAttributes(GuiGraphicsExtractor graphics, int x, int y,
-                                   int width, Minecraft mc, AttributeSnapshot snapshot) {
-        // 仅保留可加点或资源型的属性（排除暴击率/暴击伤害等综合派生属性）
-        List<Map.Entry<Identifier, AttributeData>> entries = snapshot.getAll().entrySet().stream()
+    private static List<Map.Entry<Identifier, AttributeData>> getEntries(AttributeSnapshot snapshot) {
+        return snapshot.getAll().entrySet().stream()
                 .filter(e -> {
                     IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(e.getKey());
                     if (attrEntry == null) return false;
                     return attrEntry.isAllocatable() || attrEntry.shouldResetOnRespawn();
                 })
                 .toList();
+    }
+
+    /**
+     * 渲染两列属性列表
+     * <p>
+     * 渲染全部属性（不分页）；每行两个属性。
+     */
+    private void renderAttributes(GuiGraphicsExtractor graphics, int x, int y,
+                                   int width, Minecraft mc, AttributeSnapshot snapshot) {
+        List<Map.Entry<Identifier, AttributeData>> entries = getEntries(snapshot);
         int columnWidth = (width - COLUMN_GAP) / 2;
-        int attrsPerPage = MAX_ROWS * 2;
-        int startIdx = currentPage * attrsPerPage;
 
-        for (int i = 0; i < attrsPerPage; i++) {
-            int idx = startIdx + i;
-            if (idx >= entries.size()) break;
+        for (int i = 0; i < entries.size(); i++) {
+            int row = i / COLUMNS;
+            int col = i % COLUMNS;
 
-            int row = i / 2;
-            int col = i % 2;
-
-            Map.Entry<Identifier, AttributeData> mapEntry = entries.get(idx);
+            Map.Entry<Identifier, AttributeData> mapEntry = entries.get(i);
             AttributeData data = mapEntry.getValue();
 
             SB.setLength(0);
@@ -279,62 +218,5 @@ public class AttributeListPlugin implements ICharacterScreenPlugin {
             int attrY = y + row * LINE_HEIGHT;
             graphics.text(mc.font, SB.toString(), attrX, attrY, textColor, false);
         }
-    }
-
-    /**
-     * 渲染页脚（翻页指示器和箭头）
-     * <p>
-     * 显示 "< " 左箭头、页码文字 "第 X/Y 页"、" >" 右箭头。
-     * 箭头在可翻页时高亮为黄色，不可翻页时变暗。
-     */
-    private void renderFooter(GuiGraphicsExtractor graphics, int x, int y,
-                               int width, Minecraft mc) {
-        int totalPages = getTotalPages();
-        if (totalPages <= 1) return;
-
-        // 鼠标位置
-        double mouseX = 0, mouseY = 0;
-        // 获取当前鼠标位置用于悬停检测（近似）
-        if (mc.mouseHandler != null) {
-            // 注意：这里是简化实现，实际悬停检测需要精确的屏幕坐标转换
-            // 在 RPGCharacterScreen.mouseClicked 中会处理实际的点击翻页
-        }
-
-        // 左箭头 "< "
-        String prevArrow = "< ";
-        int prevX = x;
-        int prevColor = currentPage > 0 ? COLOR_ARROW : COLOR_PAGE_TEXT;
-        graphics.text(mc.font, prevArrow, prevX, y, prevColor, false);
-
-        // 右箭头 " >"
-        String nextArrow = " >";
-        int nextX = x + width - mc.font.width(nextArrow);
-        int nextColor = currentPage < totalPages - 1 ? COLOR_ARROW : COLOR_PAGE_TEXT;
-        graphics.text(mc.font, nextArrow, nextX, y, nextColor, false);
-
-        // 页码文字 "第 X/Y 页"
-        SB.setLength(0);
-        SB.append("第 ").append(currentPage + 1).append("/").append(totalPages).append(" 页");
-        String pageText = SB.toString();
-        int pageTextWidth = mc.font.width(pageText);
-        graphics.text(mc.font, pageText, x + (width - pageTextWidth) / 2, y, COLOR_PAGE_TEXT, false);
-    }
-
-    // ====================================================================
-    // 工具方法
-    // ====================================================================
-
-    /**
-     * 计算总页数
-     * <p>
-     * 基于当前缓存的属性快照计算。如果快照为空，返回 1（避免除零）。
-     */
-    private int getTotalPages() {
-        AttributeSnapshot snapshot = com.rpgcraft.core.ui.UISnapshotCache.get();
-        if (snapshot == null) return 1;
-
-        int totalAttrs = snapshot.getAll().size();
-        int attrsPerPage = MAX_ROWS * 2;
-        return Math.max(1, (int) Math.ceil((double) totalAttrs / attrsPerPage));
     }
 }
