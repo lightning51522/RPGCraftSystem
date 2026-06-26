@@ -52,6 +52,53 @@ public class AttributePointsManager {
     /** 修饰符来源命名空间 */
     private static final String MODIFIER_PREFIX = "rpgcraftattributepoints";
 
+    // ====================================================================
+    // 属性点系数（每点分配 = 多少属性值）
+    // ====================================================================
+    // 大多数属性 1 点 = 1 属性值（系数 1.0）。少数属性采用小数系数，
+    // 用「分子 / 分母」的整数比表达，避免浮点累积误差：
+    //   实际加成 = allocated × numerator / denominator（整数除法，向下取整）
+    // 例：系数 0.1 → numerator=1, denominator=10 → 每 10 点 = 1 属性值
+    //    系数 0.2 → numerator=2, denominator=10 → 每 5 点 = 1 属性值
+
+    /** 单个属性点的系数（numerator/denominator，默认 1/1） */
+    private record Coefficient(int numerator, int denominator) {}
+
+    /** 默认系数：1 点 = 1 属性值 */
+    private static final Coefficient DEFAULT_COEFFICIENT = new Coefficient(1, 1);
+
+    /**
+     * 各属性点系数表（按属性 ID 查询）。
+     * <p>
+     * 当前特例（遵循「插件互不依赖铁律」，本模块自行声明属性 ID 字面量）：
+     * <ul>
+     *   <li>{@code resistance}（法抗）：0.1 —— 每 10 点 = 1 法抗</li>
+     *   <li>{@code magical_penetrate}（法术穿透）：0.1 —— 每 10 点 = 1 法术穿透</li>
+     *   <li>{@code physical_penetrate}（物理穿透）：0.2 —— 每 5 点 = 1 物理穿透</li>
+     * </ul>
+     * 未列出的属性使用默认系数 1.0。
+     */
+    private static final Map<Identifier, Coefficient> COEFFICIENTS = Map.of(
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance"), new Coefficient(1, 10),
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate"), new Coefficient(1, 10),
+            Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate"), new Coefficient(2, 10)
+    );
+
+    /**
+     * 计算指定属性分配 {@code allocated} 点后的实际属性值加成（整数）。
+     * <p>
+     * 按属性系数 {@code allocated × numerator / denominator} 计算（整数除法向下取整）。
+     * 例：法抗分配 25 点、系数 0.1 → 加成 2（25/10）。
+     *
+     * @param attrId   属性 ID
+     * @param allocated 已分配点数（≥ 0）
+     * @return 实际属性值加成
+     */
+    private static int bonusFor(Identifier attrId, int allocated) {
+        Coefficient c = COEFFICIENTS.getOrDefault(attrId, DEFAULT_COEFFICIENT);
+        return allocated * c.numerator() / c.denominator();
+    }
+
     /** PlayerAttributePoints 附件 Supplier */
     public static Supplier<AttachmentType<PlayerAttributePoints>> PLAYER_ATTRIBUTE_POINTS;
 
@@ -272,6 +319,10 @@ public class AttributePointsManager {
 
     /**
      * 重新应用单个属性的修饰符（先移除再添加，避免同 sourceId 累加）
+     * <p>
+     * 实际加成按属性系数换算（{@link #bonusFor}）：法抗/法术穿透每 10 点 = 1 属性值，
+     * 物理穿透每 5 点 = 1 属性值，其余 1 点 = 1 属性值。换算后加成为 0 时不添加修饰符
+     * （例：法抗分配 5 点、系数 0.1 → 加成 0）。
      *
      * @param player 服务端玩家
      * @param attrId 属性 ID
@@ -286,7 +337,11 @@ public class AttributePointsManager {
 
         int allocated = player.getData(PLAYER_ATTRIBUTE_POINTS).getAllocated(attrId);
         if (allocated > 0) {
-            attr.addModifier(AttributeModifier.of(sourceId, Operation.ADDITION, allocated));
+            // 按属性系数换算为实际属性值加成（法抗/法术穿透 0.1，物理穿透 0.2，其余 1.0）
+            int bonus = bonusFor(attrId, allocated);
+            if (bonus > 0) {
+                attr.addModifier(AttributeModifier.of(sourceId, Operation.ADDITION, bonus));
+            }
         }
     }
 
