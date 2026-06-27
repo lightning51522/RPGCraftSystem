@@ -1,0 +1,23 @@
+{
+  "name": "火山",
+  "dimension": "minecraft:overworld",
+  "bounds": {
+    "polygon": [
+      [100, 100],
+      [300, 100],
+      [300, 300],
+      [100, 300]
+    ],
+    "y_range": [60, 120]
+  },
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 20 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": -10 },
+    { "attr": "rpgcraftcore:poison_resistance", "op": "ADDITION", "value": -10 }
+  ],
+  "element_damage_bonus": {
+    "FIRE": 1300,
+    "WATER": 700,
+    "POISON": 700
+  }
+}

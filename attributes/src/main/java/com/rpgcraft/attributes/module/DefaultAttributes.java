@@ -24,6 +24,8 @@ import net.minecraft.resources.Identifier;
  *       新增 intelligence（智力）</li>
  *   <li>新增元素抗性属性：electric/fire/wind/water/light/poison/dark_resistance（默认 0，上限 100，
  *       不可加点，装备加成生效）；对应攻击元素标签见 {@code Element} 枚举（默认全部 NONE）</li>
+ *   <li>新增元素伤害加成属性：electric/fire/wind/water/light/poison/dark_damage_bonus
+ *       （默认 1000 = 1.0× 倍率，作用于输出端，与抗性对称）</li>
  * </ul>
  */
 public final class DefaultAttributes {
@@ -62,6 +64,22 @@ public final class DefaultAttributes {
     public static final Identifier POISON_RESISTANCE_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
     /** 暗抗性 */
     public static final Identifier DARK_RESISTANCE_ID       = Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
+
+    // === 元素伤害加成型属性（默认 1000 = 1.0× 倍率，作用于输出端，与抗性对称） ===
+    /** 电属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier ELECTRIC_DAMAGE_BONUS_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_damage_bonus");
+    /** 火属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier FIRE_DAMAGE_BONUS_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_damage_bonus");
+    /** 风属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier WIND_DAMAGE_BONUS_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_damage_bonus");
+    /** 水属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier WATER_DAMAGE_BONUS_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "water_damage_bonus");
+    /** 光属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier LIGHT_DAMAGE_BONUS_ID    = Identifier.fromNamespaceAndPath("rpgcraftcore", "light_damage_bonus");
+    /** 毒属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier POISON_DAMAGE_BONUS_ID   = Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_damage_bonus");
+    /** 暗属性伤害加成（千分制，1000=基准不变） */
+    public static final Identifier DARK_DAMAGE_BONUS_ID     = Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_damage_bonus");
 
     // === 综合属性 ID（仅用于 UI 展示标识，不注册为真实属性，由公式动态计算） ===
     /** 物理攻击力综合属性 ID（仅用于 UI 标识，伤害公式动态计算） */

@@ -12,6 +12,8 @@ import com.rpgcraft.core.attribute.api.IAttributeModule;
  *   <li>能力型：力量、智力、敏捷、精准、法抗、暴击率、暴击伤害、固定伤害、物理穿透、法术穿透</li>
  *   <li>元素抗性型：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗（默认 0，上限 100，不可加点，
  *       装备加成生效；减免对应元素标签攻击的伤害）</li>
+ *   <li>元素伤害加成型：电/火/风/水/光/毒/暗伤害加成（默认 1000 = 1.0× 倍率，千分制，
+ *       作用于输出端；攻击者造成带元素标签伤害时，输出公式后乘以 加成/1000）</li>
  * </ul>
  * <p>
  * <b>生命属性（LIFE）不在此注册</b> —— 它由 core 直接提供（与原版生命/死亡机制对接），
@@ -90,5 +92,25 @@ public class DefaultAttributeModule implements IAttributeModule {
                 0, 100, false, false, false, null);
         registry.register(DefaultAttributes.DARK_RESISTANCE_ID, "暗抗", "减免受到的暗属性攻击伤害（百分比）。不可加点，装备加成生效。",
                 0, 100, false, false, false, null);
+
+        // === 元素伤害加成型属性（默认 1000 = 1.0× 倍率，千分制，不可加点，装备/区域加成生效） ===
+        // 作用于输出端：攻击者造成带元素标签伤害时，输出公式计算后乘以 加成/1000。
+        // 与元素抗性对称（抗性作用于受击端减伤，加成作用于输出端增伤）。
+        // 当前所有攻击元素默认为 NONE（不触发输出倍率），故默认行为零变化。
+        // 未来通过实现 IElementResolver 或区域系统（rpgcraftregion）可启用此机制。
+        registry.register(DefaultAttributes.ELECTRIC_DAMAGE_BONUS_ID, "电属性伤害加成", "提升造成的电属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.FIRE_DAMAGE_BONUS_ID, "火属性伤害加成", "提升造成的火属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.WIND_DAMAGE_BONUS_ID, "风属性伤害加成", "提升造成的风属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.WATER_DAMAGE_BONUS_ID, "水属性伤害加成", "提升造成的水属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.LIGHT_DAMAGE_BONUS_ID, "光属性伤害加成", "提升造成的光属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.POISON_DAMAGE_BONUS_ID, "毒属性伤害加成", "提升造成的毒属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
+        registry.register(DefaultAttributes.DARK_DAMAGE_BONUS_ID, "暗属性伤害加成", "提升造成的暗属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
+                1000, Integer.MAX_VALUE, false, false, false, null);
     }
 }

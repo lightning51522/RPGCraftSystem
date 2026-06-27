@@ -378,8 +378,8 @@ public class CombatEventHandler {
 
         int flatDamage;
         if (attackerLiving != null) {
-            // 2. 战斗伤害：RPG 公式计算绝对伤害值（含元素减伤层）
-            int damage = calculator.calculateOutgoingDamage(attackerLiving, attackType);
+            // 2. 战斗伤害：RPG 公式计算绝对伤害值（含元素增伤层 + 元素减伤层）
+            int damage = calculator.calculateOutgoingDamage(attackerLiving, attackType, element);
             flatDamage = calculator.calculateIncomingDamage(target, damage, attackType, element, attackerLiving);
         } else {
             // 3. 环境伤害：使用 Pre 事件中可能被修改的伤害值

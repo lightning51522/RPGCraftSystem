@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.10.5--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.11.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -31,12 +31,13 @@
 ```
 RPGCraftSystem/
 ├── core/             微内核：接口 + 属性管线 + 事件总线 + 快照 SPI + RPGSystems 注册门面
-├── attributes/       13 个默认 RPG 属性 + 战斗（伤害公式 / 怪物初始化 / 治疗 / 命令）
+├── attributes/       20 个默认 RPG 属性 + 战斗（伤害公式 / 怪物初始化 / 治疗 / 命令）
 ├── leveling/         等级（上限 300）/ 经验 / 怪物属性按等级缩放
 ├── equipment/        装备加成（修饰符模式） + 装备追踪
 ├── profession/       职业注册 + 职业树 / 进阶 / 副职业 / 职业等级与经验池
 ├── attributepoints/  自由属性点分配系统（升级获点，玩家自行分配到任意属性）
 ├── skills/           主动技能系统（PAL 玩家动画 + 资源消耗 + 冷却 + RPG 伤害）
+├── region/           区域系统（多边形柱体 + 环境属性增益/减益 + 元素伤害倍率）
 └── client/           HUD / 角色信息界面 / 职业面板 / Tooltip / UI 插件系统
 ```
 
@@ -50,9 +51,10 @@ RPGCraftSystem/
 | professions | `rpgcraftprofessions` | `ProfessionsMod` | core |
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
 | skills | `rpgcraftskills` | `SkillsMod` | core + PAL(playeranimator) |
+| region | `rpgcraftregion` | `RegionMod` | core + attributes（optional） |
 | client | `rpgcraftclient` | `ClientMod` | core |
 
-> 插件模块**互不依赖**（依赖图为严格星形，所有插件只依赖 core），跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。`profession`（引擎）与 `professions`（内置职业内容）虽运行时有 `AFTER` 加载顺序约束，但编译期同样只依赖 core——`professions` 通过 `RPGSystems.getProfessionRegistry()` 获取注册中心注册职业。
+> 插件模块**互不依赖**（依赖图为严格星形，所有插件只依赖 core），跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。`profession`（引擎）与 `professions`（内置职业内容）虽运行时有 `AFTER` 加载顺序约束，但编译期同样只依赖 core——`professions` 通过 `RPGSystems.getProfessionRegistry()` 获取注册中心注册职业。`region` 编译期依赖 `attributes`（引用元素抗性/伤害加成属性 ID 常量），运行时 `attributes` 为可选依赖（缺失时区域属性注入对未注册属性静默降级，不崩溃）。
 
 ---
 
@@ -144,9 +146,10 @@ baseValue
 
 ##  默认游戏属性
 
-> 共 20 个：LIFE 由 core 提供；1 个资源型 + 11 个能力/综合派生属性 + 7 个元素抗性属性由 `attributes` 模块注册，可被第三方完全替换。
+> 共 27 个：LIFE 由 core 提供；1 个资源型 + 11 个能力/综合派生属性 + 7 个元素抗性属性 + 7 个元素伤害加成属性由 `attributes` 模块注册，可被第三方完全替换。
 > 另有 5 个**综合属性**（物理攻击/魔法攻击/防御/暴击率/暴击伤害）由公式动态计算，在角色界面「属性」区显示。暴击率/暴击伤害不可加点，仅受装备加成和职业公式影响。
 > 7 个**元素抗性**（电/火/风/水/光/毒/暗抗）默认 0、上限 100、不可加点，装备加成生效，在角色界面「属性抗性」区显示。
+> 7 个**元素伤害加成**（电/火/风/水/光/毒/暗）默认 1000（千分制 1.0× 倍率）、不可加点、装备/区域加成生效，作用于输出端（攻击者造成带元素标签的伤害时，输出公式后乘以 加成/1000）。
 
 | 属性 ID | 中文名 | 默认值 | 上限 | 说明 |
 |---------|--------|--------|------|------|
@@ -170,6 +173,13 @@ baseValue
 | `light_resistance` | 光抗 | 0 | 100 | **不可加点**，装备加成生效；减免光属性攻击伤害（基础减伤后 ×(1−光抗/100)） |
 | `poison_resistance` | 毒抗 | 0 | 100 | **不可加点**，装备加成生效；减免毒属性攻击伤害（基础减伤后 ×(1−毒抗/100)） |
 | `dark_resistance` | 暗抗 | 0 | 100 | **不可加点**，装备加成生效；减免暗属性攻击伤害（基础减伤后 ×(1−暗抗/100)） |
+| `electric_damage_bonus` | 电属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的电属性伤害（千分制，输出公式后 ×电加成/1000，1000=基准不变） |
+| `fire_damage_bonus` | 火属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的火属性伤害（千分制，输出公式后 ×火加成/1000，1000=基准不变） |
+| `wind_damage_bonus` | 风属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的风属性伤害（千分制，输出公式后 ×风加成/1000，1000=基准不变） |
+| `water_damage_bonus` | 水属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的水属性伤害（千分制，输出公式后 ×水加成/1000，1000=基准不变） |
+| `light_damage_bonus` | 光属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的光属性伤害（千分制，输出公式后 ×光加成/1000，1000=基准不变） |
+| `poison_damage_bonus` | 毒属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的毒属性伤害（千分制，输出公式后 ×毒加成/1000，1000=基准不变） |
+| `dark_damage_bonus` | 暗属性伤害加成 | 1000 | 无上限 | **不可加点**，装备/区域加成生效；提升造成的暗属性伤害（千分制，输出公式后 ×暗加成/1000，1000=基准不变） |
 
 ### 综合属性（不注册，由公式计算）
 
@@ -188,6 +198,7 @@ baseValue
 - **综合派生型**（注册、不可加点、角色界面「属性」区显示）：暴击率、暴击伤害、经验加成 —— 装备/职业加成生效
 - **综合型**（不注册，公式计算，不可加点）：物理攻击力、魔法攻击力、物理防御力
 - **元素抗性型**（注册、不可加点、角色界面「属性抗性」区显示）：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗 —— 默认 0，上限 100，装备加成生效；减免对应元素标签攻击的伤害
+- **元素伤害加成型**（注册、不可加点）：电/火/风/水/光/毒/暗伤害加成 —— 默认 1000（千分制 1.0× 倍率），装备/区域加成生效；作用于输出端，提升造成的对应元素伤害
 - **生命**额外满足 `equipmentAffectsMax = true`，防止"脱装穿装回血"漏洞
 
 ### 默认伤害公式
@@ -204,10 +215,14 @@ baseValue
 暴击倍率 = (1 + 有效暴击伤害/100) ^ 暴击层数
 暴击层数 = 有效暴击率/100（保底）+ 剩余概率判定
 有效暴击率、有效暴击伤害由主职业公式决定（默认见综合属性表）
+
+第 2 层 · 元素增伤（仅当攻击带元素标签，非 NONE）：
+  基础输出结果 × 对应元素伤害加成 / 1000
 ```
 
-> 固定伤害在暴击倍率之后额外加算，不参与暴击。
+> 固定伤害在暴击倍率之后额外加算，不参与暴击，但参与第 2 层元素增伤。
 > 暴击派生公式由各主职业覆写（如神射手敏捷对暴击率加成更高、大法师精准对暴击伤害加成更高）。
+> 元素伤害加成千分制（1000 = 基准不变），与元素抗性对称：加成作用于输出端攻击者，抗性作用于受击端目标。
 
 **承伤减免（防御方）**：
 
@@ -230,8 +245,10 @@ baseValue
 
 攻击除「伤害类型」（物理/魔法/混合）外，还带有正交的「元素标签」：电/火/风/水/光/毒/暗 或无属性（NONE）。
 
-- **元素抗性属性**：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗，默认 0、上限 100、不可加点、装备加成生效。
+- **元素抗性属性**（受击端减伤）：电抗/火抗/风抗/水抗/光抗/毒抗/暗抗，默认 0、上限 100、不可加点、装备加成生效。
+- **元素伤害加成属性**（输出端增伤）：电/火/风/水/光/毒/暗伤害加成，默认 1000（千分制 1.0× 倍率）、不可加点、装备/区域加成生效。与抗性**对称**——抗性减免受击者伤害，加成提升攻击者伤害。
 - **抗性减伤**：带元素标签的攻击在基础减伤**之后**额外乘以 `(1 − 对应元素抗性/100)`；NONE 攻击不触发此层。
+- **伤害加成**：带元素标签的攻击在输出公式（综合属性 + 暴击 + 固定伤害）**之后**乘以 `对应元素伤害加成/1000`；NONE 攻击不触发此层。
 - **默认行为**：当前所有攻击元素**默认为 NONE**（伤害流程零变化）。玩家武器通过 SPI `IElementResolver` 解析（无模块注册时兜底返回 NONE）；怪物/箭矢/环境/魔法源暂固定 NONE。
 - **扩展 SPI**：实现 `RPGSystems.registerElementResolver(IElementResolver)` 可为武器配置元素标签启用元素系统，与 `IAttackTypeResolver` 平行（装备模块可同时解析攻击类型与元素）。子模块也可在 `RPGDamageEvent.Pre` 中通过 `setElement()` 动态覆盖元素标签。
 
@@ -402,6 +419,61 @@ baseValue
 | 悬停气泡 | 职业类型标签、状态、等级、加成详情、解锁/进阶条件提示 |
 
 > 所有操作通过 `ProfessionActionPacket` 发送至服务端权威处理，防作弊。`/reload` 后职业定义立即重载并推送在线玩家。
+
+---
+
+##  区域系统
+
+`region` 模块提供**区域（Region）**：由 XZ 多边形 + Y 范围构成的柱体空间，对区域内实体施加环境属性增益 / 减益与元素伤害加成倍率。未被任何区域包含的位置视为「一般区域」，无任何属性影响。
+
+### 区域定义（datapack 驱动）
+
+每个区域一个文件，放在 `data/rpgcraftcore/rpg/regions/`，文件名（去 `.json`）即区域 ID 的 path，命名空间固定 `rpgcraftcore`：
+
+```jsonc
+// data/rpgcraftcore/rpg/regions/volcano.json
+{
+  "name": "火山",
+  "dimension": "minecraft:overworld",     // 可省略，默认 overworld
+  "bounds": {
+    "polygon": [                           // XZ 封闭多边形顶点（整数 [x,z]，≥3 个）
+      [100, 100], [300, 100], [300, 300], [100, 300]
+    ],
+    "y_range": [60, 120]                   // 可省略，默认全高 [-64, 320]
+  },
+  "attribute_mods": [                      // 可省略，默认空
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 20 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": -10 }
+  ],
+  "element_damage_bonus": {                // 可省略，默认空；千分制，1000=基准不变
+    "FIRE": 1300,                          // 火伤 +30%
+    "WATER": 700,                          // 水伤 -30%
+    "POISON": 700                          // 毒伤 -30%
+  }
+}
+```
+
+- **`bounds.polygon`**：XZ 平面封闭多边形，顶点为整数坐标；首尾自动闭合。不要求凸，但自相交多边形行为未定义。
+- **`bounds.y_range`**：纵向柱体高度 `[minY, maxY]`（含端点）。缺省为 `[-64, 320]`（全高）。
+- **`attribute_mods`**：区域内实体获得的 RPG 属性修饰符。`op` 可选 `ADDITION`（默认）/ `MULTIPLY_BASE` / `MULTIPLY_TOTAL`。
+- **`element_damage_bonus`**：区域内攻击者造成的对应元素伤害倍率（千分制，1000=基准不变）。配置项会自动转换为对 `<element>_damage_bonus` 属性的 `ADDITION` 修饰符（如 FIRE=1300 → `fire_damage_bonus +300`），统一走属性管线。
+
+### 内置示例
+
+`volcano`（火山区域）：主世界 XZ 100-300 正方形、Y 60-120，火抗 +20、水抗 -10、毒抗 -10，火伤 +30%、水伤 -30%、毒伤 -30%。
+
+### 作用机制
+
+| 实体类型 | 注入路径 |
+|---------|---------|
+| 玩家 | 通过 RPG 属性附件，进 / 出区域时由 `RegionManager` 按 sourceId 精确 add/remove 修饰符（每 10 tick 检查位置，diff 出进入 / 离开区域） |
+| 非玩家 LivingEntity | 监听 `GatherAttributeEvent`，构建属性快照时按实体位置即时注入修饰符 |
+
+- **几何判定**：AABB 包围盒粗筛 → Y 范围 → XZ 多边形 inside（射线法，落在边上视为内部）
+- **性能优化**：加载时预算每个区域覆盖的 chunk，建 `Long2ObjectMap` 索引；运行期查询 O(1) chunk 查表 + 少量候选区域多边形精判
+- **维度隔离**：每个区域绑定维度（`dimension`），跨维度天然隔离
+- **属性未注册降级**：若目标属性 ID 未注册（如 `attributes` 模块缺失），注入静默跳过，不崩溃
+- **`/reload` 即时生效**：重载后区域注册表与 chunk 索引整体重建
 
 ---
 
@@ -654,6 +726,7 @@ baseValue
 | `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`；`secondary_unlock_cost`：解锁副职业消耗，默认 `50000`）。三项均在登录/`/reload` 时通过 `SyncProfessionConfigPacket` 推送客户端，职业面板显示与服务端一致 |
 | `data/rpgcraftcore/rpg/professions/*.json` | **具体职业定义**（每个文件一个职业，文件名即职业 ID；含 name/type/prerequisite/bonuses/per_level/exp_table）。详见[职业系统](#-职业系统)章节 |
 | `data/rpgcraftcore/rpg/attribute_points_config.json` | 属性点配置（`allow_decrease`：是否允许回收已分配点数，默认 `true`） |
+| `data/rpgcraftcore/rpg/regions/*.json` | **区域定义**（每个文件一个区域，文件名即区域 ID；含 name/dimension/bounds/attribute_mods/element_damage_bonus）。详见[区域系统](#-区域系统)章节 |
 
 > 配置文件位于 datapack 命名空间 `rpgcraftcore/rpg/` 下，使用 `/reload` 即时重载，重载后对在线玩家即时推送客户端配置。
 

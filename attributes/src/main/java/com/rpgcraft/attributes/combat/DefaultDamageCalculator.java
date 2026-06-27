@@ -61,6 +61,8 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li><b>法术输出：</b>基础伤害 = 智力×2 + 力量，乘暴击倍率后加固定伤害</li>
  *   <li><b>混合输出：</b>物理部分（力量×2 + 智力）的一半 + 魔法部分（智力×2 + 力量）的一半</li>
  * </ul>
+ * 在基础输出<b>之后</b>，若攻击带元素标签（非 NONE），额外乘以
+ * {@code 对应元素伤害加成/1000}（千分制倍率，1000 = 基准不变）。
  *
  * <h3>暴击派生（敏捷 / 精准）</h3>
  * 暴击率/暴击伤害本身是可加点的一般属性，同时额外从敏捷/精准获得派生加成：
@@ -156,6 +158,22 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
     @Override
     public int calculateOutgoingDamage(LivingEntity entity, AttackType type) {
+        return calculateOutgoingDamage(entity, type, Element.NONE);
+    }
+
+    @Override
+    public int calculateOutgoingDamage(LivingEntity entity, AttackType type, Element element) {
+        // 基础输出公式（含暴击 + 固定伤害）
+        int baseOutgoing = computeBaseOutgoing(entity, type);
+
+        // 第 2 层：元素增伤（基础输出之后，仅当攻击带元素标签）
+        return applyElementalBonus(entity, baseOutgoing, element);
+    }
+
+    /**
+     * 计算基础输出伤害（综合属性派生 + 暴击 + 固定伤害），不含元素增伤层
+     */
+    private int computeBaseOutgoing(LivingEntity entity, AttackType type) {
         // 混合伤害：物理部分（力量×2+智力）的一半 + 魔法部分（智力×2+力量）的一半，统一暴击后相加
         if (type == AttackType.MIX_TYPE) {
             int physBase = computePhysicalAttack(entity) / 2;
@@ -176,6 +194,30 @@ public class DefaultDamageCalculator implements IDamageCalculator {
         double multiplier = rollCriticalMultiplier(entity);
         int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
         return (int) (baseDamage * multiplier) + fixedDmg;
+    }
+
+    /**
+     * 元素增伤层
+     * <p>
+     * 在基础输出（综合属性派生 + 暴击）<b>之后</b>应用：若攻击带元素标签（非 NONE），
+     * 额外乘以 {@code 对应元素伤害加成/1000}（千分制倍率，1000 = 基准不变）。
+     * 与 {@link #applyElementalReduction} 对称 —— 后者作用于受击端（抗性减伤），
+     * 本方法作用于输出端（加成增伤）。
+     * <p>
+     * NONE 元素（默认）直接原样返回 —— 默认伤害流程零变化。
+     *
+     * @param attacker 攻击实体（用于读取伤害加成属性）
+     * @param damage   基础输出伤害
+     * @param element  攻击元素标签
+     * @return 元素增伤后的伤害（不低于 0）
+     */
+    private int applyElementalBonus(LivingEntity attacker, int damage, Element element) {
+        if (element == null || element.isNone()) return damage;
+        Identifier bonusId = element.damageBonusId();
+        if (bonusId == null) return damage;
+        int bonus = getAttributeValue(attacker, bonusId);
+        if (bonus == 1000) return damage; // 基准值，零变化
+        return Math.max(0, damage * bonus / 1000);
     }
 
     // ==================================================================

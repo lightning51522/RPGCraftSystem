@@ -4,6 +4,55 @@
 
 ---
 
+## [0.11.0-alpha] - 2026-06-27
+
+### 新增
+
+#### 区域系统（region 模块，新子系统）
+
+新增 `region` 插件模块（mod ID `rpgcraftregion`），提供由 **XZ 多边形 + Y 范围** 构成的柱体空间区域，对区域内实体施加环境属性增益 / 减益与元素伤害加成倍率。未被任何区域包含的位置视为「一般区域」，无任何属性影响。
+
+- **几何模型**：水平面 (X,Z) 是封闭多边形（顶点为整数坐标，≥3 个），纵向 `[minY, maxY]` 限定柱体高度。判定顺序：AABB 包围盒粗筛 → Y 范围 → XZ 多边形 inside（射线法，落在边上视为内部）
+- **数据驱动**：区域定义由 datapack JSON 驱动（`data/rpgcraftcore/rpg/regions/*.json`），由 `RegionsDefinitionLoader` 在服务端 reload 时加载，`/reload` 即时生效（照搬 `SkillsDefinitionLoader` 范式）
+- **性能优化**：加载时预算每个区域覆盖的 chunk，建 `Long2ObjectMap` 索引；运行期位置查询 O(1) chunk 查表 + 少量候选区域多边形精判；每 10 tick（0.5 秒）节流检查玩家位置
+- **属性注入双路径**：
+  - 玩家：通过 RPG 属性附件，进 / 出区域时由 `RegionManager` 按 sourceId 精确 add/remove 修饰符
+  - 非玩家 `LivingEntity`：监听 `GatherAttributeEvent`，构建属性快照时按位置即时注入
+- **维度隔离**：每个区域绑定维度（`dimension` 字段），跨维度天然隔离
+- **属性未注册降级**：`attributes` 模块缺失时注入静默跳过，不崩溃（运行期可选依赖）
+- **内置示例**：`volcano.json`（火山区域：主世界 XZ 100-300 正方形、Y 60-120，火抗 +20、水抗 -10、毒抗 -10，火伤 +30%、水伤 -30%、毒伤 -30%）
+
+#### 元素伤害加成属性（与元素抗性对称，core + attributes）
+
+为支撑区域「元素伤害输出倍率」语义，并使元素系统在输出端与受击端对称，新增 7 个元素伤害加成属性：
+
+- `electric/fire/wind/water/light/poison/dark_damage_bonus`（命名空间 `rpgcraftcore`）
+- 默认值 1000（千分制 1.0× 倍率）、不可加点、装备/区域加成生效
+- **作用机制**：带元素标签（非 NONE）的攻击在输出公式（综合属性 + 暴击 + 固定伤害）**之后**乘以 `对应元素伤害加成属性值 / 1000`；NONE 攻击不触发此层，默认行为零变化
+- 与元素抗性**对称且正交**：抗性作用于受击端（减伤），加成作用于输出端（增伤）；同一元素可同时「攻击者火伤+30%」与「受击者火抗减伤」
+
+### 变更
+
+#### core
+
+- `Element` 枚举新增 `damageBonusId()` 方法，与 `resistanceId()` 完全对称，是「元素 ↔ 伤害加成属性」映射的唯一真相源
+- `IDamageCalculator` 新增 `calculateOutgoingDamage(attacker, type, element)` 重载（默认委托旧方法 `calculateOutgoingDamage(attacker, type)`，向后兼容）
+
+#### attributes
+
+- `DefaultAttributes` 新增 7 个 `*_DAMAGE_BONUS_ID` 常量
+- `DefaultAttributeModule` 注册 7 个元素伤害加成属性
+- `DefaultDamageCalculator` 输出公式拆出 `computeBaseOutgoing`（基础输出）+ 新增 `applyElementalBonus`（元素增伤层，基础输出后乘 `bonus/1000`）
+- `CombatEventHandler` 战斗伤害调用改为带 element 的输出重载（环境伤害路径不变）
+
+### 版本号
+
+- 工程版本号：`0.10.5-alpha` → `0.11.0-alpha`（新子系统落地，副版本 +1、次版本归零）
+- 改动模块版本号升级 `0.11.0-alpha`：`core`、`attributes`、`region`
+- 未触及模块（`leveling`/`equipment`/`profession`/`professions`/`attributepoints`/`skills`/`client`）保持原版本
+
+---
+
 ## [0.10.5-alpha] - 2026-06-26
 
 ### 调整
