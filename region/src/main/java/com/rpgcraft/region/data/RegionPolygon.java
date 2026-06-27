@@ -124,6 +124,12 @@ public final class RegionPolygon {
     /** XZ 包围盒 maxZ */
     public int getMaxBoxZ() { return maxBoxZ; }
 
+    /** XZ 包围盒中心 X（供 findregion 等命令计算区域中心坐标） */
+    public int centerX() { return (minBoxX + maxBoxX) / 2; }
+
+    /** XZ 包围盒中心 Z */
+    public int centerZ() { return (minBoxZ + maxBoxZ) / 2; }
+
     /** Y 下界（含） */
     public int getMinY() { return minY; }
 

@@ -89,4 +89,40 @@ public final class RegionsRegistry {
     public List<Region> inDimension(ResourceKey<Level> dimension) {
         return byDimension.getOrDefault(dimension, List.of());
     }
+
+    /**
+     * 按「显示名或 ID」匹配区域（所有维度）
+     * <p>
+     * 用于 {@code findregion} 命令的名称参数解析。匹配规则：
+     * <ul>
+     *   <li>区域显示名（{@link Region#getName()}）大小写敏感全等匹配，<b>或</b></li>
+     *   <li>区域 ID（{@link Region#getId()}）的完整字符串形式（{@code ns:path}）或 path 部分全等匹配</li>
+     * </ul>
+     * 任一命中即纳入结果。
+     *
+     * @param name 查询名（显示名或 ID）
+     * @return 匹配的区域列表（新建可变列表，可能为空）
+     */
+    public List<Region> matchByName(String name) {
+        List<Region> hits = new java.util.ArrayList<>();
+        for (Region r : regions.values()) {
+            if (matchesName(r, name)) {
+                hits.add(r);
+            }
+        }
+        return hits;
+    }
+
+    /**
+     * 判断区域是否匹配给定名称（显示名或 ID）
+     */
+    private static boolean matchesName(Region r, String name) {
+        // 1. 显示名全等
+        if (r.getName().equals(name)) return true;
+        // 2. ID 完整形式 (ns:path) 全等
+        Identifier id = r.getId();
+        if (id.toString().equals(name)) return true;
+        // 3. ID path 部分（不含命名空间）全等
+        return id.getPath().equals(name);
+    }
 }

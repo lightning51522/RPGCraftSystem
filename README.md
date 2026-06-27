@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.11.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.11.1--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -679,6 +679,22 @@ baseValue
 /rpg spawn minecraft:zombie 5
 /rpg spawn minecraft:skeleton 10 {"rating":"ELITE"}
 /rpg spawn minecraft:spider 15 {"attack_type":"MAGIC","attributes":{"life":1000,"strength":200}}
+```
+
+### 区域
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg findregion [名称]` | 无 | 查找最近的区域，返回其中心地面/水面坐标 |
+
+- **省略名称**：返回命令源当前维度下、距离最近的区域
+- **带名称**：按区域显示名（如 `火山`）或区域 ID（`rpgcraftcore:volcano` / `volcano`）任一匹配，在匹配集合中取最近的
+- **中心地面坐标**：区域多边形 XZ 包围盒中心 + 该位置的地表 Y（`MOTION_BLOCKING` 高度图，含水面/树叶）。目标 chunk 未生成时会**强制加载**以获得准确高度，避免返回世界底部（如主世界 -64 虚空）
+
+```bash
+/rpg findregion              # 当前维度最近的区域
+/rpg findregion 火山          # 按显示名查找
+/rpg findregion volcano      # 按 ID path 查找
 ```
 
 ### 技能

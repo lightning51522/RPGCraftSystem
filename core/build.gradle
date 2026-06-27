@@ -94,6 +94,9 @@ neoForge {
         rpgcraftskills {
             sourceSet project(':skills').sourceSets.main
         }
+        rpgcraftregion {
+            sourceSet project(':region').sourceSets.main
+        }
     }
 }
 
@@ -111,6 +114,7 @@ dependencies {
     runtimeOnly project(':client')
     runtimeOnly project(':attributepoints')
     runtimeOnly project(':skills')
+    runtimeOnly project(':region')
     // PAL（Player Animation Library）依赖声明在 skills 模块（官方推荐 implementation），
     // 通过 runtimeOnly project(':skills') 传递到 core 的运行时 classpath，无需在此重复声明。
 

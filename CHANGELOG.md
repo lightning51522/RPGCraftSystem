@@ -4,6 +4,44 @@
 
 ---
 
+## [0.11.1-alpha] - 2026-06-27
+
+### 新增
+
+#### findregion 命令（region 模块）
+
+新增 `/rpg findregion [名称]` 命令，查找最近的区域并返回其**中心地面/水面坐标**：
+
+- **省略名称**：返回命令源当前维度下、距离最近的区域（平面 XZ 距离）
+- **带名称**：按区域显示名（如 `火山`）或区域 ID（`rpgcraftcore:volcano` / `volcano`）任一匹配，在匹配集合中取最近的
+- **中心地面坐标**：多边形 XZ 包围盒中心 `(minX+maxX)/2, (minZ+maxZ)/2`，Y 取该位置 `MOTION_BLOCKING` 高度图（最高阻挡运动方块，含水面/树叶，最贴近可站立地面）
+- **目标 chunk 未生成处理**：高度图只存在于已生成到 FULL 状态的 chunk。命令会先 `getChunk(chunkX, chunkZ, ChunkStatus.FULL, true)` **强制加载目标 chunk**，再查高度图，避免对未探索区域返回世界底部（如主世界 -64 虚空）
+- **权限**：无要求（仅查询，所有玩家可用）
+
+配套小工具：
+- `RegionPolygon.centerX()` / `centerZ()`：XZ 包围盒中心
+- `RegionsRegistry.matchByName(name)`：按显示名或 ID 匹配区域
+
+### 修复
+
+#### region 模块未加载到运行环境（core 构建配置遗漏）
+
+`region` 模块创建时漏在 `core/build.gradle` 注册运行时加载，导致整个模块（含 `findregion` 命令、区域属性系统、tick 检查）在游戏中**完全不生效**：
+
+- 现象：游戏中找不到 `/rpg findregion`；`RegionMod` 类未被 NeoForge 扫描
+- 根因：`core/build.gradle` 缺 `runtimeOnly project(':region')` 依赖与 `neoForge.mods` 块的 source set 声明，`InDevFolderLocator` 的 mod 坐标列表不含 `rpgcraftregion`
+- 修复：在 `core/build.gradle` 补齐两项（与 skills 等模块一致），region 正确加载
+
+> IntelliJ 调试需 Refresh Gradle 同步运行配置后重启游戏，运行配置的 `fml.modFolders` 才会纳入新模块。
+
+### 版本号
+
+- 工程版本号：`0.11.0-alpha` → `0.11.1-alpha`（单模块功能新增，次版本 +1）
+- 改动模块版本号升级 `0.11.1-alpha`：`core`、`region`
+- 未触及模块保持原版本
+
+---
+
 ## [0.11.0-alpha] - 2026-06-27
 
 ### 新增
