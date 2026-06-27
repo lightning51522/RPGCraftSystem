@@ -112,6 +112,20 @@ public final class RegionPolygon {
         return points.size();
     }
 
+    /**
+     * 顶点列表（副本，每个元素 {x, z}）
+     * <p>
+     * 供 {@link com.rpgcraft.region.spatial.ConcaveHull} 增量算法读取当前边界。
+     * 返回副本避免外部修改破坏内部状态。
+     */
+    public List<int[]> getVertices() {
+        List<int[]> copy = new java.util.ArrayList<>(points.size());
+        for (int[] p : points) {
+            copy.add(new int[]{p[0], p[1]});
+        }
+        return copy;
+    }
+
     /** XZ 包围盒 minX（供 chunk 索引预算） */
     public int getMinBoxX() { return minBoxX; }
 

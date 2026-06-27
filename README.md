@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.11.1--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.12.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -462,6 +462,42 @@ baseValue
 
 `volcano`（火山区域）：主世界 XZ 100-300 正方形、Y 60-120，火抗 +20、水抗 -10、毒抗 -10，火伤 +30%、水伤 -30%、毒伤 -30%。
 
+### 运行时创建（游戏内动态定义）
+
+除 datapack 静态区域外，玩家可在游戏内通过命令**实时创建并保存**区域，无需重启 / 重载。创建流程基于「环境类型模板 + 草稿构建 + 定稿」三段式：
+
+```
+/rpg setregion <ID> <NAME> <SIZE> init   # 1. 初始化草稿：玩家为中心、边长 SIZE 的正方形
+/rpg addregion <NAME>                    # 2. 重复添加点：玩家当前坐标加入草稿，重算凹包边界
+/rpg setregion <ID> <NAME> done          # 3. 定稿：草稿转为正式区域，套用环境类型效果并持久化
+```
+
+- **`ID`**：环境类型（见下节），如 `volcano`。可用完整形式 `rpgcraftcore:volcano` 或 path `volcano`
+- **`NAME`**：区域名（全局唯一，与正式区域共享命名空间）。done 时 `ID` 必须与 init 一致
+- **`SIZE`**：初始正方形边长（≥1）。done 时忽略此参数
+- **凹包算法**：`addregion` 每次增量重算边界——找到离新点最近的边界顶点，在其旁插入新点（顶点+1），保持多边形为简单多边形（无自相交）。若插入必导致边界自相交，则**抛弃该点**（保持原边界）。详见 `ConcaveHull`
+- **绑定维度**：草稿与区域绑定 init 时玩家所在维度；`addregion` 跨维度报错
+- **Y 范围全高**：运行时创建的区域 Y 范围固定 `[-64, 320]`
+- **持久化**：`done` 后区域保存到存档（`RuntimeRegionSavedData`），服务器重启保留；草稿仅存内存（重启丢失）
+
+### 环境类型模板（datapack）
+
+运行时创建的区域**不内联定义效果**，而是套用预定义的**环境类型模板**（纯效果，无几何）。模板放在 `data/rpgcraftcore/rpg/environments/`，文件名（去 `.json`）即环境类型 ID 的 path：
+
+```jsonc
+// data/rpgcraftcore/rpg/environments/volcano.json
+{
+  "name": "火山",
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 20 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": -10 }
+  ],
+  "element_damage_bonus": { "FIRE": 1300, "WATER": 700, "POISON": 700 }
+}
+```
+
+`setregion <ID>` 的 `ID` 必须是已注册的环境类型。`/reload` 后模板立即重载。
+
 ### 作用机制
 
 | 实体类型 | 注入路径 |
@@ -697,6 +733,24 @@ baseValue
 /rpg findregion volcano      # 按 ID path 查找
 ```
 
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg setregion <ID> <NAME> <SIZE> init` | op-2 | 初始化草稿：玩家为中心、边长 SIZE 的正方形，绑定环境类型 ID |
+| `/rpg addregion <NAME>` | op-2 | 将玩家当前整数坐标加入 NAME 草稿，重算凹包边界（自相交则抛弃该点） |
+| `/rpg setregion <ID> <NAME> done` | op-2 | 定稿：草稿转为正式区域，套用环境类型效果并持久化（忽略 SIZE） |
+| `/rpg delregion <NAME>` | op-2 | 删除 NAME 运行时区域（仅能删 setregion 创建的，不删 datapack 静态区域） |
+| `/rpg regionnotify [on\|off]` | 无 | 查询/开关区域进出聊天提示（每玩家独立，持久化，默认开启） |
+
+```bash
+/rpg setregion volcano camp1 20 init   # 玩家为中心 20×20 正方形草稿，环境=火山
+/rpg addregion camp1                    # 走到某处加点（重复多次扩展边界）
+/rpg setregion volcano camp1 done       # 定稿为正式区域
+/rpg delregion camp1                    # 删除
+/rpg regionnotify off                   # 关闭进出提示
+```
+
+> 草稿仅存内存（服务器重启丢失），定稿后才持久化。运行时区域与 datapack 静态区域共存，查询（findregion / 属性生效）合并两者。
+
 ### 技能
 
 | 命令 | 权限 | 说明 |
@@ -742,7 +796,8 @@ baseValue
 | `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`；`secondary_unlock_cost`：解锁副职业消耗，默认 `50000`）。三项均在登录/`/reload` 时通过 `SyncProfessionConfigPacket` 推送客户端，职业面板显示与服务端一致 |
 | `data/rpgcraftcore/rpg/professions/*.json` | **具体职业定义**（每个文件一个职业，文件名即职业 ID；含 name/type/prerequisite/bonuses/per_level/exp_table）。详见[职业系统](#-职业系统)章节 |
 | `data/rpgcraftcore/rpg/attribute_points_config.json` | 属性点配置（`allow_decrease`：是否允许回收已分配点数，默认 `true`） |
-| `data/rpgcraftcore/rpg/regions/*.json` | **区域定义**（每个文件一个区域，文件名即区域 ID；含 name/dimension/bounds/attribute_mods/element_damage_bonus）。详见[区域系统](#-区域系统)章节 |
+| `data/rpgcraftcore/rpg/regions/*.json` | **静态区域定义**（每个文件一个区域，文件名即区域 ID；含 name/dimension/bounds/attribute_mods/element_damage_bonus）。详见[区域系统](#-区域系统)章节 |
+| `data/rpgcraftcore/rpg/environments/*.json` | **环境类型模板**（纯效果无几何，供运行时创建的区域套用；含 name/attribute_mods/element_damage_bonus）。详见[区域系统-环境类型模板](#环境类型模板-datapack)小节 |
 
 > 配置文件位于 datapack 命名空间 `rpgcraftcore/rpg/` 下，使用 `/reload` 即时重载，重载后对在线玩家即时推送客户端配置。
 

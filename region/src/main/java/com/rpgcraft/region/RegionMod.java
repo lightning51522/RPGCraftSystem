@@ -13,9 +13,15 @@ import org.slf4j.Logger;
  * 区域系统：由 XZ 多边形 + Y 范围构成的柱体区域，对区域内实体施加环境属性修饰符
  * （增益 / 减益）与元素伤害加成倍率。未被任何区域包含的位置视为「一般区域」，无影响。
  * <p>
- * <h3>数据驱动</h3>
- * 区域定义由 datapack JSON 驱动（{@code data/rpgcraftcore/rpg/regions/*.json}），
- * 由 {@link RegionsDefinitionLoader} 在服务端 reload 时加载，{@code /reload} 即时生效。
+ * <h3>两类区域来源</h3>
+ * <ul>
+ *   <li><b>静态区域</b>：datapack JSON 定义（含几何），{@code data/rpgcraftcore/rpg/regions/*.json}，
+ *       由 {@link RegionsDefinitionLoader} 加载，reload 时整体替换</li>
+ *   <li><b>运行时区域</b>：玩家通过 {@code setregion}/{@code addregion} 命令创建，
+ *       套用 {@link com.rpgcraft.region.data.EnvironmentType}（环境类型模板，
+ *       {@code data/rpgcraftcore/rpg/environments/*.json}）的效果，
+ *       由 {@link RuntimeRegionSavedData} 持久化，reload 不影响</li>
+ * </ul>
  * <p>
  * <h3>属性注入路径</h3>
  * <ul>
@@ -23,10 +29,18 @@ import org.slf4j.Logger;
  *   <li>非玩家实体：监听 {@code GatherAttributeEvent}，构建快照时按位置即时注入</li>
  * </ul>
  * <p>
+ * <h3>自动注册</h3>
+ * 以下通过 {@code @EventBusSubscriber} 自动注册，无需在主类手动 addListener：
+ * {@link RegionsDefinitionLoader}（静态区域）、{@link EnvironmentTypeLoader}（环境类型）、
+ * {@link com.rpgcraft.region.tick.RegionTickHandler}（tick 检查）、
+ * {@link RegionCommands}（命令）。
+ * <p>
  * 仅依赖 RPG Core（rpgcraftcore）与默认属性模块（rpgcraftattributes，提供元素抗性 /
  * 伤害加成属性）。遵循微内核 + 插件架构。
  *
  * @see RegionsDefinitionLoader
+ * @see EnvironmentTypeLoader
+ * @see RuntimeRegionSavedData
  * @see RegionManager
  */
 @Mod(RegionMod.MODID)

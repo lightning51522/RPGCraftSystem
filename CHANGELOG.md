@@ -4,6 +4,53 @@
 
 ---
 
+## [0.12.0-alpha] - 2026-06-27
+
+### 新增
+
+#### 区域游戏内实时创建（region 模块，新子系统）
+
+玩家可在游戏内通过命令**实时创建、编辑、保存区域**，无需重启 / 重载。基于「环境类型模板 + 草稿构建 + 定稿」三段式：
+
+- **`/rpg setregion <ID> <NAME> <SIZE> init`**（op-2）：以玩家当前坐标为中心、边长 SIZE 的正方形初始化草稿，绑定环境类型 ID
+- **`/rpg addregion <NAME>`**（op-2）：将玩家当前整数坐标加入草稿，增量重算凹包边界
+- **`/rpg setregion <ID> <NAME> done`**（op-2）：定稿，草稿转为正式区域并持久化
+- **`/rpg delregion <NAME>`**（op-2）：删除运行时区域
+
+**凹包算法（`ConcaveHull`，增量边界替换法）**：每次新增点 P，找到离 P 最近的边界顶点 V，在 V 旁插入 P（顶点+1）。校验新边是否与现有边相交（`SegmentIntersection` 规范相交判定，共享端点不算相交）；相交则抛弃该点。算法成立前提是 `init` 提供合法初始正方形。已通过 9 个独立测试用例（凸起/凹陷/L形/U形/细长形/四向凸起等）验证始终无自相交。
+
+**环境类型模板（`EnvironmentType`）**：将「效果」与「几何」解耦。环境类型（火山等）由 `data/rpgcraftcore/rpg/environments/*.json` 预定义效果，运行时区域套用模板效果 + 玩家构建几何生成完整 `Region`。
+
+**双层存储（`RegionsRegistry`）**：static（datapack，reload 替换）+ runtime（玩家创建，`RuntimeRegionSavedData` 持久化）双层，查询合并两者。`replaceDatapack` 只换 static 不动 runtime，故 `/reload` 不丢失运行时区域。服务器重启后由 `ServerStartedEvent` 从存档恢复 runtime 层。
+
+**草稿管理（`RegionDraft` / `RegionDraftManager`）**：草稿仅存内存（不持久化，重启丢失），定稿后才持久化。绑定创建维度，`addregion` 跨维度报错。
+
+#### 区域进出聊天提示（region + core）
+
+- 进入/离开区域时在聊天栏输出提示（`§a[区域] §7你进入了/离开了 <名称>`）
+- **`/rpg regionnotify [on|off]`**（无权限）：每玩家独立开关，默认开启，持久化到 `PlayerPreferences` 附件
+- 提示挂载在既有进出检测点（`RegionManager.updatePlayerRegions` 的 entered/left 差集），零额外开销
+
+### 变更
+
+#### core
+
+- `PlayerPreferences` 新增 `regionNotifyEnabled` 字段（默认开启，`optionalFieldOf` 兼容旧存档）
+
+#### region
+
+- `RegionsRegistry` 改为双层存储（static + runtime）+ 增量 API（`addRuntime`/`removeRuntime`/`replaceDatapack`/`replaceAllRuntime`）
+- `RegionsDefinitionLoader`：`replaceAll` → `replaceDatapack`（只换 static）；运行时区域恢复移至 `ServerStartedEvent`（reload 时拿不到 server）
+- `RegionPolygon` 新增 `getVertices()`（供 ConcaveHull 增量算法读取当前边界）
+
+### 版本号
+
+- 工程版本号：`0.11.1-alpha` → `0.12.0-alpha`（区域实时创建属新子系统，副版本 +1、次版本归零）
+- 改动模块版本号升级 `0.12.0-alpha`：`core`、`region`
+- 未触及模块保持原版本
+
+---
+
 ## [0.11.1-alpha] - 2026-06-27
 
 ### 新增

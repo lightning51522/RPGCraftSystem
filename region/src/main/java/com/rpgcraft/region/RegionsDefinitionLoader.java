@@ -60,6 +60,12 @@ public class RegionsDefinitionLoader {
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         currentServer = event.getServer();
+        // 服务器启动后从 SavedData 恢复运行时区域到 registry，并重建索引
+        // （reload 时拿不到 server，故运行时区域恢复在此处完成，而非 applyLoaded）
+        RuntimeRegionSavedData savedData = RuntimeRegionSavedData.get(currentServer);
+        savedData.syncToRegistry();
+        RegionIndex.rebuild();
+        RegionMod.LOGGER.info("已从存档恢复 {} 个运行时区域", savedData.getRegions().size());
     }
 
     @SubscribeEvent
@@ -142,13 +148,13 @@ public class RegionsDefinitionLoader {
             }
         }
 
-        // 重建注册表
-        RegionsRegistry.replaceAll(regions);
+        // 重建静态区域注册表（不影响运行时区域：replaceDatapack 只换 static 层）
+        RegionsRegistry.replaceDatapack(regions);
 
-        // 重建空间索引
+        // 重建空间索引（含 static + runtime；runtime 层由 ServerStartedEvent 从 SavedData 恢复）
         RegionIndex.rebuild();
 
-        RegionMod.LOGGER.info("已加载 {} 个区域定义", regions.size());
+        RegionMod.LOGGER.info("已加载 {} 个静态区域定义", regions.size());
     }
 
     /**

@@ -3,13 +3,18 @@ package com.rpgcraft.region;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.rpgcraft.core.attribute.AttributeManager;
+import com.rpgcraft.region.data.EnvironmentType;
 import com.rpgcraft.region.data.Region;
+import com.rpgcraft.region.data.RegionDraft;
 import com.rpgcraft.region.data.RegionPolygon;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -61,6 +66,57 @@ public class RegionCommands {
                         .executes(RegionCommands::executeFindNearest)
                         .then(Commands.argument("name", StringArgumentType.greedyString())
                                 .executes(RegionCommands::executeFindByName))
+                )
+
+                // === 创建/定稿区域指令 ===
+                // setregion <ID> <NAME> <SIZE> init  → 初始化草稿（玩家为中心的正方形）
+                // setregion <ID> <NAME> done         → 定稿草稿为正式区域
+                .then(Commands.literal("setregion")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("id", StringArgumentType.string())
+                                .suggests((ctx, builder) -> {
+                                    EnvironmentTypeRegistry.get().all().forEach(t ->
+                                            builder.suggest(t.id().getPath()));
+                                    return builder.buildFuture();
+                                })
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        // init 分支：需要 SIZE 参数
+                                        .then(Commands.argument("size", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                .then(Commands.literal("init")
+                                                        .executes(RegionCommands::executeSetRegionInit)))
+                                        // done 分支：忽略 SIZE
+                                        .then(Commands.literal("done")
+                                                .executes(RegionCommands::executeSetRegionDone))
+                                )
+                        )
+                )
+
+                // === 添加点到草稿指令 ===
+                // addregion <NAME> → 将玩家当前整数坐标加入 NAME 草稿
+                .then(Commands.literal("addregion")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .executes(RegionCommands::executeAddRegion))
+                )
+
+                // === 删除运行时区域指令 ===
+                // delregion <NAME> → 删除 NAME 运行时区域
+                .then(Commands.literal("delregion")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .executes(RegionCommands::executeDelRegion))
+                )
+
+                // === 区域进出提示开关 ===
+                // regionnotify          → 查看当前状态
+                // regionnotify on|off   → 开关提示
+                .then(Commands.literal("regionnotify")
+                        // 无权限要求：所有玩家可控制自己的提示开关
+                        .executes(RegionCommands::executeRegionNotifyStatus)
+                        .then(Commands.literal("on")
+                                .executes(RegionCommands::executeRegionNotifyOn))
+                        .then(Commands.literal("off")
+                                .executes(RegionCommands::executeRegionNotifyOff))
                 )
         );
     }
@@ -180,5 +236,204 @@ public class RegionCommands {
             }
         }
         return nearest;
+    }
+
+    // ==================================================================
+    // setregion / addregion / delregion
+    // ==================================================================
+
+    // === setregion <ID> <NAME> <SIZE> init ===
+
+    private static int executeSetRegionInit(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        String envIdStr = StringArgumentType.getString(context, "id");
+        String name = StringArgumentType.getString(context, "name");
+        int size = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "size");
+
+        // 1. 校验环境类型 ID 已注册
+        EnvironmentType envType = EnvironmentTypeRegistry.get().match(envIdStr);
+        if (envType == null) {
+            source.sendFailure(Component.literal("未知的环境类型 ID: " + envIdStr
+                    + "（可用：" + listEnvironmentIds() + "）"));
+            return 0;
+        }
+
+        // 2. 校验 NAME 未被草稿或正式区域占用
+        if (RegionDraftManager.exists(name)) {
+            source.sendFailure(Component.literal("草稿 " + name + " 已存在，请先用 done 定稿或换个名称"));
+            return 0;
+        }
+        if (RegionsRegistry.get().get(RegionDraftManager.runtimeRegionId(name)) != null) {
+            source.sendFailure(Component.literal("区域 " + name + " 已存在（运行时）"));
+            return 0;
+        }
+
+        // 3. 以玩家当前整数坐标为中心创建草稿（初始正方形）
+        BlockPos center = player.blockPosition();
+        RegionDraft draft = RegionDraftManager.initDraft(
+                name, envType, player.level().dimension(), center.getX(), center.getZ(), size);
+
+        source.sendSuccess(() -> Component.literal(String.format(
+                "§a[区域] §f%s §7草稿已初始化（环境 %s，中心 %d, %d，边长 %d）：%d 个初始顶点。"
+                        + "使用 §e/rpg addregion %s §7添加点",
+                name, envType.displayName(), center.getX(), center.getZ(), size,
+                draft.vertexCount(), name)), false);
+        return 1;
+    }
+
+    // === setregion <ID> <NAME> done ===
+
+    private static int executeSetRegionDone(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        source.getPlayerOrException(); // 确保有玩家（虽未用其位置）
+        String envIdStr = StringArgumentType.getString(context, "id");
+        String name = StringArgumentType.getString(context, "name");
+
+        // 1. 校验环境类型 ID（必须与草稿 init 时一致）
+        EnvironmentType envType = EnvironmentTypeRegistry.get().match(envIdStr);
+        if (envType == null) {
+            source.sendFailure(Component.literal("未知的环境类型 ID: " + envIdStr));
+            return 0;
+        }
+
+        // 2. 定稿（校验草稿存在 + envType 一致 + 几何有效）
+        Region region;
+        try {
+            region = RegionDraftManager.finalize(name, envType);
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal(e.getMessage()));
+            return 0;
+        }
+
+        // 3. 持久化 + 同步 registry + 重建索引
+        RuntimeRegionSavedData.get(source.getServer()).addRegion(source.getServer(), region);
+
+        source.sendSuccess(() -> Component.literal(String.format(
+                "§a[区域] §f%s §7已建立（环境 %s，%d 个顶点，ID %s）",
+                name, envType.displayName(), region.getPolygon().vertexCount(),
+                region.getId())), true);
+        return 1;
+    }
+
+    // === addregion <NAME> ===
+
+    private static int executeAddRegion(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        String name = StringArgumentType.getString(context, "name");
+
+        // 1. 校验草稿存在
+        RegionDraft draft = RegionDraftManager.get(name);
+        if (draft == null) {
+            source.sendFailure(Component.literal("草稿 " + name + " 不存在，请先用 setregion init 创建"));
+            return 0;
+        }
+
+        // 2. 校验玩家维度 = 草稿维度
+        if (!player.level().dimension().equals(draft.getDimension())) {
+            source.sendFailure(Component.literal("维度不匹配：草稿在 "
+                    + draft.getDimension().identifier() + "，你在 "
+                    + player.level().dimension().identifier()));
+            return 0;
+        }
+
+        // 3. 添加玩家当前整数坐标
+        BlockPos pos = player.blockPosition();
+        boolean added = draft.addPoint(new int[]{pos.getX(), pos.getZ()});
+
+        if (added) {
+            source.sendSuccess(() -> Component.literal(String.format(
+                    "§a[区域] §f%s §7已添加点 (%d, %d)，当前 %d 个顶点",
+                    name, pos.getX(), pos.getZ(), draft.vertexCount())), false);
+        } else {
+            source.sendSuccess(() -> Component.literal(String.format(
+                    "§e[区域] §f%s §7点 (%d, %d) 导致边界自相交，已抛弃",
+                    name, pos.getX(), pos.getZ())), false);
+        }
+        return 1;
+    }
+
+    // === delregion <NAME> ===
+
+    private static int executeDelRegion(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        String name = StringArgumentType.getString(context, "name");
+        net.minecraft.resources.Identifier regionId = RegionDraftManager.runtimeRegionId(name);
+
+        // 1. 校验是运行时区域（非静态）
+        if (!RegionsRegistry.get().isRuntime(regionId)) {
+            source.sendFailure(Component.literal("区域 " + name + " 不是运行时区域"
+                    + "（仅能删除 setregion 创建的区域）"));
+            return 0;
+        }
+
+        // 2. 删除（持久化 + 同步 registry + 重建索引）
+        boolean removed = RuntimeRegionSavedData.get(source.getServer())
+                .removeRegion(source.getServer(), regionId);
+
+        if (removed) {
+            source.sendSuccess(() -> Component.literal(
+                    "§a[区域] §f" + name + " §7已删除"), true);
+            return 1;
+        } else {
+            source.sendFailure(Component.literal("删除失败：区域 " + name + " 不存在"));
+            return 0;
+        }
+    }
+
+    /** 列出所有已注册环境类型 ID（path），用于错误提示 */
+    private static String listEnvironmentIds() {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (EnvironmentType t : EnvironmentTypeRegistry.get().all()) {
+            if (!first) sb.append(", ");
+            sb.append(t.id().getPath());
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    // ==================================================================
+    // regionnotify（区域进出提示开关）
+    // ==================================================================
+
+    // === regionnotify（查看状态） ===
+
+    private static int executeRegionNotifyStatus(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        boolean enabled = player.getData(AttributeManager.PLAYER_PREFERENCES.get()).isRegionNotifyEnabled();
+        context.getSource().sendSuccess(() -> Component.literal(
+                "§7区域进出提示: " + (enabled ? "§a开启" : "§c关闭")
+                        + " §7(/rpg regionnotify on|off)"), false);
+        return 1;
+    }
+
+    // === regionnotify on ===
+
+    private static int executeRegionNotifyOn(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        return setRegionNotify(context, true);
+    }
+
+    // === regionnotify off ===
+
+    private static int executeRegionNotifyOff(CommandContext<CommandSourceStack> context)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        return setRegionNotify(context, false);
+    }
+
+    /** 设置区域进出提示开关（写入 PlayerPreferences 附件，自动持久化） */
+    private static int setRegionNotify(CommandContext<CommandSourceStack> context, boolean enabled)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        player.getData(AttributeManager.PLAYER_PREFERENCES.get()).setRegionNotifyEnabled(enabled);
+        context.getSource().sendSuccess(() -> Component.literal(
+                "§7区域进出提示已" + (enabled ? "§a开启" : "§c关闭")), false);
+        return 1;
     }
 }

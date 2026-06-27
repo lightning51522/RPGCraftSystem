@@ -10,6 +10,7 @@ import com.rpgcraft.region.data.AttributeMod;
 import com.rpgcraft.region.data.PlayerRegionState;
 import com.rpgcraft.region.data.Region;
 import com.rpgcraft.region.spatial.RegionLocator;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -115,8 +116,31 @@ public final class RegionManager {
             removeRegionModifiers(player, leftId);
         }
 
+        // 区域进出提示（受玩家偏好开关控制）
+        if (player.getData(AttributeManager.PLAYER_PREFERENCES.get()).isRegionNotifyEnabled()) {
+            // 进入提示（按 current 中的实际 Region 对象取显示名）
+            for (Region r : current) {
+                if (entered.contains(r.getId())) {
+                    player.sendSystemMessage(Component.literal(
+                            "§a[区域] §7你进入了 §f" + regionDisplayName(r)));
+                }
+            }
+            // 离开提示（left 只有 ID，需查 registry 取显示名）
+            for (Identifier leftId : left) {
+                Region leftRegion = RegionsRegistry.get().get(leftId);
+                player.sendSystemMessage(Component.literal(
+                        "§a[区域] §7你离开了 §f" + regionDisplayName(leftRegion)));
+            }
+        }
+
         // 更新状态
         state.set(currentIds);
+    }
+
+    /** 区域显示名（空则用 ID path） */
+    private static String regionDisplayName(Region r) {
+        if (r == null) return "未知区域";
+        return r.getName().isEmpty() ? r.getId().getPath() : r.getName();
     }
 
     /**

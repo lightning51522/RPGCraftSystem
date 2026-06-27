@@ -13,6 +13,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * <ul>
  *   <li>{@link #hudEnabled} — HUD 开关（属性面板 + 准星提示），默认启用</li>
  *   <li>{@link #combatLogEnabled} — 战斗日志开关，默认关闭</li>
+ *   <li>{@link #regionNotifyEnabled} — 区域进出提示开关，默认启用</li>
  * </ul>
  * <p>
  * 注册在 core 的 {@link com.rpgcraft.core.attribute.AttributeManager#PLAYER_PREFERENCES} 中，
@@ -26,6 +27,9 @@ public class PlayerPreferences {
     /** 战斗日志开关，默认关闭 */
     private boolean combatLogEnabled;
 
+    /** 区域进出提示开关（进入/离开区域时聊天栏提示），默认启用 */
+    private boolean regionNotifyEnabled;
+
     /**
      * 序列化/反序列化编解码器
      * <p>
@@ -34,7 +38,8 @@ public class PlayerPreferences {
     public static final MapCodec<PlayerPreferences> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
                     Codec.BOOL.optionalFieldOf("hud_enabled", true).forGetter(PlayerPreferences::isHudEnabled),
-                    Codec.BOOL.optionalFieldOf("combat_log_enabled", false).forGetter(PlayerPreferences::isCombatLogEnabled)
+                    Codec.BOOL.optionalFieldOf("combat_log_enabled", false).forGetter(PlayerPreferences::isCombatLogEnabled),
+                    Codec.BOOL.optionalFieldOf("region_notify_enabled", true).forGetter(PlayerPreferences::isRegionNotifyEnabled)
             ).apply(instance, PlayerPreferences::new)
     );
 
@@ -44,14 +49,16 @@ public class PlayerPreferences {
     public PlayerPreferences() {
         this.hudEnabled = true;
         this.combatLogEnabled = false;
+        this.regionNotifyEnabled = true;
     }
 
     /**
      * 反序列化构造函数
      */
-    public PlayerPreferences(boolean hudEnabled, boolean combatLogEnabled) {
+    public PlayerPreferences(boolean hudEnabled, boolean combatLogEnabled, boolean regionNotifyEnabled) {
         this.hudEnabled = hudEnabled;
         this.combatLogEnabled = combatLogEnabled;
+        this.regionNotifyEnabled = regionNotifyEnabled;
     }
 
     // === HUD 开关 ===
@@ -72,5 +79,15 @@ public class PlayerPreferences {
 
     public void setCombatLogEnabled(boolean enabled) {
         this.combatLogEnabled = enabled;
+    }
+
+    // === 区域进出提示开关 ===
+
+    public boolean isRegionNotifyEnabled() {
+        return regionNotifyEnabled;
+    }
+
+    public void setRegionNotifyEnabled(boolean enabled) {
+        this.regionNotifyEnabled = enabled;
     }
 }
