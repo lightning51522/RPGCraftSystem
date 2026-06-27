@@ -1,5 +1,6 @@
 package com.rpgcraft.leveling;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.attribute.AttributeSnapshotManager;
 import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.level.PlayerLevelData;
@@ -39,13 +40,11 @@ import net.minecraft.world.entity.LivingEntity;
 public class DefaultLevelCalculator implements ILevelCalculator {
 
     /**
-     * 经验加成属性 ID。
+     * 经验加成属性 ID（真相源为 {@link AttributeIds#EXP_BONUS_ID}）。
      * <p>
-     * 遵循"插件互不依赖"铁律：{@code leveling} 不依赖 {@code attributes} 模块，
-     * 此处声明与 {@code DefaultAttributes.EXP_BONUS_ID} 字面量一致的本地常量形成松耦合契约。
      * 属性未注册（{@code attributes} 模块未加载）时读取快照返回 null，加成自动降级为 0。
      */
-    static final Identifier EXP_BONUS_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "exp_bonus");
+    static final Identifier EXP_BONUS_ID = AttributeIds.EXP_BONUS_ID;
 
     @Override
     public int calculateExperienceGain(ServerPlayer killer, LivingEntity victim,

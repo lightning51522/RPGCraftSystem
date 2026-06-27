@@ -125,9 +125,10 @@ public class CombatCommands {
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         net.minecraft.server.level.ServerPlayer player = context.getSource().getPlayerOrException();
         boolean enabled = isCombatLogEnabled(player);
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("战斗日志状态: " + status),
+                () -> Component.translatable("rpgcraft.combat.log.status",
+                        enabled ? Component.translatable("rpgcraft.combat.log.status_on")
+                                : Component.translatable("rpgcraft.combat.log.status_off")),
                 false
         );
         return enabled ? 1 : 0;
@@ -145,9 +146,10 @@ public class CombatCommands {
                 player.getData(com.rpgcraft.core.attribute.AttributeManager.PLAYER_PREFERENCES);
         prefs.setCombatLogEnabled(enabled);
 
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("战斗日志已" + status),
+                () -> Component.translatable("rpgcraft.combat.log.set",
+                        enabled ? Component.translatable("rpgcraft.combat.log.status_on")
+                                : Component.translatable("rpgcraft.combat.log.status_off")),
                 true
         );
         return enabled ? 1 : 0;
@@ -172,10 +174,12 @@ public class CombatCommands {
      */
     private static int executeRandSpawnStatus(CommandContext<CommandSourceStack> context) {
         boolean enabled = isRandomSpawnEnabled();
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("随机刷新状态: " + status + "（自然生成的怪物" +
-                        (enabled ? "会从权重表中随机选择等级和评级" : "使用配置静态等级") + "）"),
+                () -> Component.translatable("rpgcraft.combat.randomspawn.status",
+                        enabled ? Component.translatable("rpgcraft.combat.randomspawn.on")
+                                : Component.translatable("rpgcraft.combat.randomspawn.off"),
+                        enabled ? Component.translatable("rpgcraft.combat.randomspawn.will_clause")
+                                : Component.translatable("rpgcraft.combat.randomspawn.wont_clause")),
                 false
         );
         return enabled ? 1 : 0;
@@ -189,10 +193,12 @@ public class CombatCommands {
     private static int executeRandSpawnToggle(CommandContext<CommandSourceStack> context, boolean enabled) {
         RandomSpawnSavedData.setEnabled(context.getSource().getServer(), enabled);
 
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("随机刷新已" + status + "（" +
-                        (enabled ? "自然生成的怪物将从权重表中随机选择等级和评级" : "自然生成的怪物使用配置静态等级") + "）"),
+                () -> Component.translatable("rpgcraft.combat.randomspawn.set",
+                        enabled ? Component.translatable("rpgcraft.combat.randomspawn.on")
+                                : Component.translatable("rpgcraft.combat.randomspawn.off"),
+                        enabled ? Component.translatable("rpgcraft.combat.randomspawn.will_clause")
+                                : Component.translatable("rpgcraft.combat.randomspawn.wont_clause")),
                 true
         );
         return enabled ? 1 : 0;
@@ -227,7 +233,7 @@ public class CombatCommands {
         // 1. 从注册表解析实体类型
         var entityTypeOptional = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId);
         if (entityTypeOptional.isEmpty()) {
-            context.getSource().sendFailure(Component.literal("未知的实体类型: " + entityId));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.unknown_entity", entityId));
             return 0;
         }
 
@@ -240,7 +246,7 @@ public class CombatCommands {
         EntityType<?> entityType = entityTypeOptional.get();
         Entity entity = entityType.create(serverLevel, EntitySpawnReason.COMMAND);
         if (entity == null) {
-            context.getSource().sendFailure(Component.literal("无法创建实体: " + entityId));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.cannot_create", entityId));
             return 0;
         }
 
@@ -249,7 +255,7 @@ public class CombatCommands {
 
         // 5. 加入世界（触发 EntityJoinLevelEvent -> CombatEventHandler.onEntityJoinLevel）
         if (!serverLevel.tryAddFreshEntityWithPassengers(entity)) {
-            context.getSource().sendFailure(Component.literal("实体生成失败（可能达到生成上限）"));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.failed"));
             return 0;
         }
 
@@ -262,15 +268,14 @@ public class CombatCommands {
 
                 String entityName = entityType.getDescription().getString();
                 context.getSource().sendSuccess(
-                        () -> Component.literal(String.format("已召唤 等级%d 的 %s", level, entityName)),
+                        () -> Component.translatable("rpgcraft.combat.summon.success_leveled", level, entityName),
                         true
                 );
             } else {
                 // 实体没有 RPG 属性配置，仍然召唤但发出警告
                 String entityName = entityType.getDescription().getString();
                 context.getSource().sendSuccess(
-                        () -> Component.literal(String.format("已召唤 %s（未配置 RPG 属性，等级 %d 不生效）",
-                                entityName)),
+                        () -> Component.translatable("rpgcraft.combat.summon.success_no_config", entityName, level),
                         true
                 );
             }
@@ -278,7 +283,7 @@ public class CombatCommands {
             // 非 LivingEntity（如矿车、船等），正常召唤
             String entityName = entityType.getDescription().getString();
             context.getSource().sendSuccess(
-                    () -> Component.literal(String.format("已召唤 %s（非生物实体，不支持 RPG 等级）", entityName)),
+                    () -> Component.translatable("rpgcraft.combat.summon.success_non_living", entityName),
                     true
             );
         }
@@ -301,20 +306,19 @@ public class CombatCommands {
         try {
             JsonElement element = GSON.fromJson(jsonInput, JsonElement.class);
             if (element == null || !element.isJsonObject()) {
-                context.getSource().sendFailure(Component.literal("JSON 格式错误: 需要一个 JSON 对象 {...}"));
+                context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.json_not_object"));
                 return 0;
             }
             json = element.getAsJsonObject();
         } catch (JsonSyntaxException e) {
-            context.getSource().sendFailure(Component.literal("JSON 格式错误: " + e.getMessage()));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.json_error", e.getMessage()));
             return 0;
         }
 
         // 2. 验证字段名
         for (String key : json.keySet()) {
             if (!VALID_ATTRIBUTE_FIELDS.contains(key) && !"attack_type".equals(key) && !"rating".equals(key)) {
-                context.getSource().sendFailure(Component.literal(
-                        "未知属性: " + key + "。合法字段: attack_type, rating, base_exp, life, strength, defense, resistance, critical_rate, critical_ratio, physical_penetrate, magical_penetrate"));
+                context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.unknown_field", key));
                 return 0;
             }
         }
@@ -326,7 +330,7 @@ public class CombatCommands {
                 try {
                     overrides.put(field, json.getAsJsonPrimitive(field).getAsInt());
                 } catch (Exception e) {
-                    context.getSource().sendFailure(Component.literal("属性 " + field + " 的值必须是整数"));
+                    context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.field_not_int", field));
                     return 0;
                 }
             }
@@ -339,9 +343,8 @@ public class CombatCommands {
                 attackTypeOverride = AttackType.valueOf(
                         json.getAsJsonPrimitive("attack_type").getAsString().toUpperCase());
             } catch (IllegalArgumentException e) {
-                context.getSource().sendFailure(Component.literal(
-                        "未知攻击类型: " + json.getAsJsonPrimitive("attack_type").getAsString()
-                                + "。合法值: PHYSICAL, MAGIC, PHYSICAL_WITH_MAGIC, MAGIC_WITH_PHYSICAL, MIX_TYPE"));
+                context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.unknown_attack_type",
+                        json.getAsJsonPrimitive("attack_type").getAsString()));
                 return 0;
             }
         }
@@ -352,8 +355,7 @@ public class CombatCommands {
             String ratingStr = json.getAsJsonPrimitive("rating").getAsString();
             rating = MobRating.fromName(ratingStr);
             if (rating == null) {
-                context.getSource().sendFailure(Component.literal(
-                        "未知评级: " + ratingStr + "。合法值: NORMAL, STRONG, ELITE, NOTORIOUS_ELITE, BOSS, LORD"));
+                context.getSource().sendFailure(Component.translatable("rpgcraft.combat.setmob.unknown_rating", ratingStr));
                 return 0;
             }
         }
@@ -361,7 +363,7 @@ public class CombatCommands {
         // 6. 解析实体类型并生成（复用 executeSpawn 的生成逻辑）
         var entityTypeOptional = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId);
         if (entityTypeOptional.isEmpty()) {
-            context.getSource().sendFailure(Component.literal("未知的实体类型: " + entityId));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.unknown_entity", entityId));
             return 0;
         }
 
@@ -372,14 +374,14 @@ public class CombatCommands {
         EntityType<?> entityType = entityTypeOptional.get();
         Entity entity = entityType.create(serverLevel, EntitySpawnReason.COMMAND);
         if (entity == null) {
-            context.getSource().sendFailure(Component.literal("无法创建实体: " + entityId));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.cannot_create", entityId));
             return 0;
         }
 
         entity.snapTo(pos.x, pos.y, pos.z, rotation.y, rotation.x);
 
         if (!serverLevel.tryAddFreshEntityWithPassengers(entity)) {
-            context.getSource().sendFailure(Component.literal("实体生成失败（可能达到生成上限）"));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.combat.summon.failed"));
             return 0;
         }
 
@@ -394,22 +396,21 @@ public class CombatCommands {
                         ? " [" + rating.getDisplayName() + "]"
                         : "";
                 context.getSource().sendSuccess(
-                        () -> Component.literal(String.format("已召唤 等级%d%s 的 %s（自定义属性）",
-                                level, ratingStr, entityName)),
+                        () -> Component.translatable("rpgcraft.combat.summon.custom_success_leveled",
+                                level, ratingStr, entityName),
                         true
                 );
             } else {
                 String entityName = entityType.getDescription().getString();
                 context.getSource().sendSuccess(
-                        () -> Component.literal(String.format("已召唤 %s（未配置 RPG 属性，自定义属性不生效）",
-                                entityName)),
+                        () -> Component.translatable("rpgcraft.combat.summon.custom_success_no_config", entityName),
                         true
                 );
             }
         } else {
             String entityName = entityType.getDescription().getString();
             context.getSource().sendSuccess(
-                    () -> Component.literal(String.format("已召唤 %s（非生物实体，不支持 RPG 等级）", entityName)),
+                    () -> Component.translatable("rpgcraft.combat.summon.success_non_living", entityName),
                     true
             );
         }

@@ -79,13 +79,21 @@ public class EntityAttribute implements IAttribute {
      * 缓存的管线计算结果（currentValue）
      * <p>
      * 当 modifiers 发生变化时，缓存失效，下次 getValue() 时重新计算。
+     * <p>
+     * <b>线程可见性</b>：本字段与 {@link #cachedMaxValue}、{@link #cacheValid} 一并声明为
+     * {@code volatile}。{@link #recalculate()} 先写入这两个值、最后置 {@code cacheValid = true}，
+     * 读线程仅当 {@code cacheValid == true} 时才读取缓存值；三者均 {@code volatile} 才能保证
+     * 「看到 cacheValid==true 就一定看到最新缓存值」的 happens-before 关系（仅 {@code cacheValid}
+     * volatile 时，缓存值字段不保证可见性，存在读到旧值的数据竞争）。
      */
-    private int cachedValue;
+    private volatile int cachedValue;
 
     /**
      * 缓存的管线计算结果（maxValue）
+     * <p>
+     * 同 {@link #cachedValue}，声明为 {@code volatile} 以保证可见性。
      */
-    private int cachedMaxValue;
+    private volatile int cachedMaxValue;
 
     /** 缓存是否有效 */
     private volatile boolean cacheValid = false;
@@ -348,7 +356,13 @@ public class EntityAttribute implements IAttribute {
     }
 
     /**
-     * 简单管线计算（无事件触发，用于 attributeId 未设置的场景）
+     * 简单管线计算（无事件触发，用于 attributeId 未设置的场景）。
+     * <p>
+     * <b>与 {@link AttributePipeline#compute} 的关系</b>：两者实现相同的修饰符排序数学
+     * （ADDITION → MULTIPLY_BASE → MULTIPLY_TOTAL → 截断），但本方法<b>故意不触发事件</b>
+     * （{@code AttributePostAdditionEvent}/{@code AttributeFinalizeEvent}）也不需要 attributeId——
+     * 它是 attributeId 缺失时的兜底路径。{@code AttributePipeline.compute} 需要 attributeId
+     * 并发射事件，无法直接复用于此场景，故数学逻辑在此重复一份。
      */
     private static int simpleCompute(int base, Collection<IAttributeModifier> mods) {
         double value = base;

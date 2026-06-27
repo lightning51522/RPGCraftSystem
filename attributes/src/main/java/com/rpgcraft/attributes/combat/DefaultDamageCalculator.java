@@ -7,7 +7,7 @@ import com.rpgcraft.core.attribute.api.AttributeSnapshot;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.ProfessionFormulas;
-import com.rpgcraft.attributes.module.DefaultAttributes;
+import com.rpgcraft.core.attribute.AttributeIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
@@ -96,9 +96,9 @@ public class DefaultDamageCalculator implements IDamageCalculator {
                                         @Nullable LivingEntity attacker) {
         // 读取攻击方穿透属性（无攻击方时为 0）
         int physicalPenetrate = attacker != null
-                ? getAttributeValue(attacker, DefaultAttributes.PHYSICAL_PENETRATE_ID) : 0;
+                ? getAttributeValue(attacker, AttributeIds.PHYSICAL_PENETRATE_ID) : 0;
         int magicalPenetrate = attacker != null
-                ? getAttributeValue(attacker, DefaultAttributes.MAGICAL_PENETRATE_ID) : 0;
+                ? getAttributeValue(attacker, AttributeIds.MAGICAL_PENETRATE_ID) : 0;
 
         // 第 1 层：基础减伤（由 AttackType 决定）
         int afterBaseReduction = switch (type) {
@@ -111,7 +111,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
             case MAGIC -> {
                 // 法术减免：法抗被法术穿透降低后，按百分比减免
                 // 魔法防御力仅来自装备（无属性派生），故此处不读取防御力
-                int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
+                int resistance = getAttributeValue(target, AttributeIds.RESISTANCE_ID);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
                 yield (int) Math.max(0, originalDamage * (1.0 - effectiveResistance / 100.0));
             }
@@ -119,7 +119,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
                 // 混合减免：物理部分受物理穿透，魔法部分受法术穿透
                 int half = originalDamage / 2;
                 int defense = computePhysicalDefense(target);
-                int resistance = getAttributeValue(target, DefaultAttributes.RESISTANCE_ID);
+                int resistance = getAttributeValue(target, AttributeIds.RESISTANCE_ID);
                 int effectiveDefense = Math.max(0, defense - physicalPenetrate);
                 int effectiveResistance = Math.max(0, resistance - magicalPenetrate);
                 int physicalPart = Math.max(0, half - effectiveDefense);
@@ -179,7 +179,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
             int physBase = computePhysicalAttack(entity) / 2;
             int magicBase = computeMagicalAttack(entity) / 2;
             double multiplier = rollCriticalMultiplier(entity);
-            int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
+            int fixedDmg = getAttributeValue(entity, AttributeIds.FIXED_DAMAGE_ID);
             return (int) (physBase * multiplier) + (int) (magicBase * multiplier) + fixedDmg;
         }
 
@@ -192,7 +192,7 @@ public class DefaultDamageCalculator implements IDamageCalculator {
 
         // 多层暴击判定
         double multiplier = rollCriticalMultiplier(entity);
-        int fixedDmg = getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID);
+        int fixedDmg = getAttributeValue(entity, AttributeIds.FIXED_DAMAGE_ID);
         return (int) (baseDamage * multiplier) + fixedDmg;
     }
 
@@ -216,8 +216,8 @@ public class DefaultDamageCalculator implements IDamageCalculator {
         Identifier bonusId = element.damageBonusId();
         if (bonusId == null) return damage;
         int bonus = getAttributeValue(attacker, bonusId);
-        if (bonus == 1000) return damage; // 基准值，零变化
-        return Math.max(0, damage * bonus / 1000);
+        if (bonus == Element.DAMAGE_BONUS_BASE) return damage; // 基准值，零变化
+        return Math.max(0, damage * bonus / Element.DAMAGE_BONUS_BASE);
     }
 
     // ==================================================================
@@ -331,16 +331,16 @@ public class DefaultDamageCalculator implements IDamageCalculator {
      */
     private static CombatStats buildCombatStats(LivingEntity entity) {
         return new CombatStats(
-                getAttributeValue(entity, DefaultAttributes.STRENGTH_ID),
-                getAttributeValue(entity, DefaultAttributes.INTELLIGENCE_ID),
-                getAttributeValue(entity, DefaultAttributes.AGILE_ID),
-                getAttributeValue(entity, DefaultAttributes.PRECISION_ID),
-                getAttributeValue(entity, DefaultAttributes.CRITICAL_RATE_ID),
-                getAttributeValue(entity, DefaultAttributes.CRITICAL_RATIO_ID),
-                getAttributeValue(entity, DefaultAttributes.FIXED_DAMAGE_ID),
-                getAttributeValue(entity, DefaultAttributes.RESISTANCE_ID),
-                getAttributeValue(entity, DefaultAttributes.PHYSICAL_PENETRATE_ID),
-                getAttributeValue(entity, DefaultAttributes.MAGICAL_PENETRATE_ID)
+                getAttributeValue(entity, AttributeIds.STRENGTH_ID),
+                getAttributeValue(entity, AttributeIds.INTELLIGENCE_ID),
+                getAttributeValue(entity, AttributeIds.AGILE_ID),
+                getAttributeValue(entity, AttributeIds.PRECISION_ID),
+                getAttributeValue(entity, AttributeIds.CRITICAL_RATE_ID),
+                getAttributeValue(entity, AttributeIds.CRITICAL_RATIO_ID),
+                getAttributeValue(entity, AttributeIds.FIXED_DAMAGE_ID),
+                getAttributeValue(entity, AttributeIds.RESISTANCE_ID),
+                getAttributeValue(entity, AttributeIds.PHYSICAL_PENETRATE_ID),
+                getAttributeValue(entity, AttributeIds.MAGICAL_PENETRATE_ID)
         );
     }
 

@@ -173,7 +173,9 @@ public class RegionsDefinitionLoader {
             RegionMod.LOGGER.warn("区域 {} Codec 解码失败: {}", id, result.error().get().message());
             return null;
         }
-        Region region = result.result().get();
+        // error() 已确认不存在；result() 理论上仍可能为空（部分结果），orElseThrow 自文档化
+        Region region = result.result().orElseThrow(() -> new IllegalStateException(
+                "区域 " + id + " 解码无错误但结果为空（部分结果）"));
 
         // 校验多边形
         if (region.getPolygon().vertexCount() < 3) {

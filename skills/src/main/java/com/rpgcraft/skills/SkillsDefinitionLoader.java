@@ -232,7 +232,8 @@ public class SkillsDefinitionLoader {
                     return 0;
                 }
                 return v;
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                SkillsMod.LOGGER.debug("配置字段 {} 无法解析为整数，使用默认值 {}", key, def, e);
             }
         }
         return def;
@@ -247,7 +248,8 @@ public class SkillsDefinitionLoader {
                     return 0;
                 }
                 return v;
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                SkillsMod.LOGGER.debug("配置字段 {} 无法解析为浮点数，使用默认值 {}", key, def, e);
             }
         }
         return def;

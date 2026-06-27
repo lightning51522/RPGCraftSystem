@@ -82,24 +82,25 @@ public class ProfessionCommands {
         IProfession prof = sys.getProfession(target);
         int level = sys.getProfessionLevel(target, prof.getId());
         int maxLevel = prof.getMaxLevel();
-        String typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY ? "[副职业]" : "[主职业]";
+        Component typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY
+                ? Component.translatable("rpgcraft.profession.type_secondary")
+                : Component.translatable("rpgcraft.profession.type_main");
         context.getSource().sendSuccess(
-                () -> Component.literal("—— " + target.getName().getString() + " 的职业信息 ——"),
+                () -> Component.translatable("rpgcraft.profession.info_header", target.getName()),
                 false
         );
         context.getSource().sendSuccess(
-                () -> Component.literal("  职业: " + prof.getDisplayName() + " " + typeLabel
-                        + " (" + level + "/" + maxLevel + ")"),
+                () -> Component.translatable("rpgcraft.profession.line", prof.getDisplayName(), typeLabel, level, maxLevel),
                 false
         );
         context.getSource().sendSuccess(
-                () -> Component.literal("  描述: " + prof.getDescription()),
+                () -> Component.translatable("rpgcraft.profession.description", prof.getDescription()),
                 false
         );
 
         if (!prof.getBaseBonusMap().isEmpty()) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  属性加成 (当前等级 " + level + "):"),
+                    () -> Component.translatable("rpgcraft.profession.bonus_header_leveled", level),
                     false
             );
             for (Map.Entry<Identifier, Integer> entry : prof.getBaseBonusMap().entrySet()) {
@@ -107,13 +108,13 @@ public class ProfessionCommands {
                 int bonus = prof.getBonusAtLevel(entry.getKey(), level);
                 String sign = bonus >= 0 ? "+" : "";
                 context.getSource().sendSuccess(
-                        () -> Component.literal("    " + attrName + ": " + sign + bonus),
+                        () -> Component.translatable("rpgcraft.profession.bonus_entry", attrName, sign, bonus),
                         false
                 );
             }
         } else {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  属性加成: 无"),
+                    () -> Component.translatable("rpgcraft.profession.bonus_header_none"),
                     false
             );
         }
@@ -125,7 +126,7 @@ public class ProfessionCommands {
      */
     private static int executeProfessionList(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(
-                () -> Component.literal("—— 可用职业列表 ——"),
+                () -> Component.translatable("rpgcraft.profession.list_header"),
                 false
         );
         for (IProfession prof : RPGSystems.getProfessionSystem().getAllProfessions()) {
@@ -139,11 +140,14 @@ public class ProfessionCommands {
                     bonuses.append(attrName).append(sign).append(bonus);
                 }
             }
-            String typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY ? "[副]" : "[主]";
+            Component typeLabel = prof.getType() == IProfession.ProfessionType.SECONDARY
+                    ? Component.translatable("rpgcraft.profession.list_type_secondary")
+                    : Component.translatable("rpgcraft.profession.list_type_main");
             String bonusText = bonuses.length() > 0 ? " (" + bonuses + ")" : "";
             context.getSource().sendSuccess(
-                    () -> Component.literal("  " + prof.getId().getPath() + " " + typeLabel + " - " +
-                            prof.getDisplayName() + ": " + prof.getDescription() + bonusText),
+                    () -> Component.translatable("rpgcraft.profession.list_entry",
+                            prof.getId().getPath(), typeLabel, prof.getDisplayName(),
+                            prof.getDescription(), bonusText),
                     false
             );
         }
@@ -160,14 +164,14 @@ public class ProfessionCommands {
                 Identifier.fromNamespaceAndPath("rpgcraftcore", professionName));
 
         if (resolved == null) {
-            context.getSource().sendFailure(Component.literal("未知职业: " + professionName));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.profession.unknown", professionName));
             return 0;
         }
 
         IProfession current = RPGSystems.getProfessionSystem().getProfession(target);
         if (current.getId().equals(resolved.getId())) {
             context.getSource().sendFailure(
-                    Component.literal(target.getName().getString() + " 已经是 " + resolved.getDisplayName()));
+                    Component.translatable("rpgcraft.profession.already_is", target.getName(), resolved.getDisplayName()));
             return 0;
         }
 
@@ -175,8 +179,8 @@ public class ProfessionCommands {
         RPGSystems.getProfessionSystem().setProfession(target, targetProf.getId());
 
         context.getSource().sendSuccess(
-                () -> Component.literal("已将 " + target.getName().getString() +
-                        " 的职业设置为 " + targetProf.getDisplayName()),
+                () -> Component.translatable("rpgcraft.profession.set_success",
+                        target.getName(), targetProf.getDisplayName()),
                 true
         );
         return 1;

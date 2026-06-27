@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.mage;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.professions.base.MageSeriesProfession;
 import com.rpgcraft.professions.sorcerer.SorcererProfession;
@@ -19,11 +20,9 @@ public class MageProfession extends MageSeriesProfession {
             Identifier.fromNamespaceAndPath("rpgcraftcore", "mage");
 
     /** 智力属性 ID */
-    private static final Identifier INTELLIGENCE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
+    private static final Identifier INTELLIGENCE_ID = AttributeIds.INTELLIGENCE_ID;
     /** 法术穿透属性 ID */
-    private static final Identifier MAGICAL_PENETRATE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
+    private static final Identifier MAGICAL_PENETRATE_ID = AttributeIds.MAGICAL_PENETRATE_ID;
 
     public MageProfession() {
         super(

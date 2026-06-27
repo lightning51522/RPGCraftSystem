@@ -74,9 +74,10 @@ public class ClientCommands {
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         boolean enabled = isHudEnabled(player);
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("HUD 状态: " + status + "（属性面板 + 准星提示）"),
+                () -> Component.translatable("rpgcraft.client.hud.status",
+                        enabled ? Component.translatable("rpgcraft.client.hud.status_on")
+                                : Component.translatable("rpgcraft.client.hud.status_off")),
                 false
         );
         return enabled ? 1 : 0;
@@ -96,9 +97,10 @@ public class ClientCommands {
         // 同步到客户端（通过 client 模块注册的 IClientSystem 接口发送网络包）
         RPGSystems.getClientSystem().sendHudToggle(player, enabled);
 
-        String status = enabled ? "§a开启" : "§c关闭";
         context.getSource().sendSuccess(
-                () -> Component.literal("HUD 已" + status + "（属性面板 + 准星提示）"),
+                () -> Component.translatable("rpgcraft.client.hud.set",
+                        enabled ? Component.translatable("rpgcraft.client.hud.status_on")
+                                : Component.translatable("rpgcraft.client.hud.status_off")),
                 true
         );
         return enabled ? 1 : 0;

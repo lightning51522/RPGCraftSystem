@@ -1,36 +1,38 @@
 package com.rpgcraft.client.ui;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import net.minecraft.resources.Identifier;
 
 /**
- * 客户端模块依赖的游戏属性标识符（本地常量）
+ * 客户端模块依赖的游戏属性标识符（本地便捷别名）
  * <p>
- * 这些属性由 {@code rpgcraftattributes} 附属模块注册。本模块不依赖 attributes 模块
- * （遵循插件互不依赖铁律），自行声明所依赖的属性 ID 字面量。
- * 生命属性（LIFE）继续使用 core 的 {@link com.rpgcraft.core.attribute.AttributeManager#LIFE_ID}。
+ * 真相源统一为 core 的 {@link AttributeIds}；本类仅作本模块内的便捷别名引用，
+ * 消除字面量重复声明。这些属性由 {@code rpgcraftattributes} 附属模块注册。
+ * 生命属性（LIFE）见 {@link com.rpgcraft.core.attribute.AttributeManager#LIFE_ID}。
  */
 final class ClientAttributes {
 
     private ClientAttributes() {
     }
 
-    static final Identifier CRITICAL_RATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
-    static final Identifier CRITICAL_RATIO_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
-    static final Identifier STRENGTH_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    static final Identifier INTELLIGENCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
-    static final Identifier AGILE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
-    static final Identifier PRECISION_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "precision");
-    static final Identifier FIXED_DAMAGE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "fixed_damage");
-    static final Identifier RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance");
-    static final Identifier PHYSICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate");
-    static final Identifier MAGICAL_PENETRATE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate");
+    static final Identifier CRITICAL_RATE_ID      = AttributeIds.CRITICAL_RATE_ID;
+    static final Identifier CRITICAL_RATIO_ID     = AttributeIds.CRITICAL_RATIO_ID;
+    static final Identifier STRENGTH_ID           = AttributeIds.STRENGTH_ID;
+    static final Identifier INTELLIGENCE_ID       = AttributeIds.INTELLIGENCE_ID;
+    static final Identifier AGILE_ID              = AttributeIds.AGILE_ID;
+    static final Identifier PRECISION_ID          = AttributeIds.PRECISION_ID;
+    static final Identifier FIXED_DAMAGE_ID       = AttributeIds.FIXED_DAMAGE_ID;
+    static final Identifier RESISTANCE_ID         = AttributeIds.RESISTANCE_ID;
+    static final Identifier PHYSICAL_PENETRATE_ID = AttributeIds.PHYSICAL_PENETRATE_ID;
+    static final Identifier MAGICAL_PENETRATE_ID  = AttributeIds.MAGICAL_PENETRATE_ID;
 
     // 元素抗性属性 ID（用于属性抗性面板）
-    static final Identifier ELECTRIC_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_resistance");
-    static final Identifier FIRE_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_resistance");
-    static final Identifier WIND_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_resistance");
-    static final Identifier WATER_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "water_resistance");
-    static final Identifier LIGHT_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "light_resistance");
-    static final Identifier POISON_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
-    static final Identifier DARK_RESISTANCE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
+    static final Identifier ELECTRIC_RESISTANCE_ID = AttributeIds.ELECTRIC_RESISTANCE_ID;
+    static final Identifier FIRE_RESISTANCE_ID    = AttributeIds.FIRE_RESISTANCE_ID;
+    static final Identifier WIND_RESISTANCE_ID    = AttributeIds.WIND_RESISTANCE_ID;
+    static final Identifier WATER_RESISTANCE_ID   = AttributeIds.WATER_RESISTANCE_ID;
+    static final Identifier LIGHT_RESISTANCE_ID   = AttributeIds.LIGHT_RESISTANCE_ID;
+    static final Identifier POISON_RESISTANCE_ID  = AttributeIds.POISON_RESISTANCE_ID;
+    static final Identifier DARK_RESISTANCE_ID    = AttributeIds.DARK_RESISTANCE_ID;
 }
+

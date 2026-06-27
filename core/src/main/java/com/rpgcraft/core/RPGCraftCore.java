@@ -6,6 +6,7 @@ import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.PacketHandler;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.preference.PlayerPreferences;
+import com.rpgcraft.core.snapshot.DeathRestoreModeSavedData;
 import com.rpgcraft.core.snapshot.SnapshotCoordinator;
 
 import org.slf4j.Logger;
@@ -113,6 +114,17 @@ public class RPGCraftCore {
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         SnapshotCoordinator.cleanup(event.getEntity().getUUID());
+    }
+
+    /**
+     * 服务端启动回调 —— 从存档恢复死亡恢复模式（Game 事件总线）
+     * <p>
+     * {@code /rpg deathmode} 的切换通过 {@link DeathRestoreModeSavedData} 持久化到存档；
+     * 此处在服务端启动时把磁盘值同步回 {@link DeathRestoreMode} 的内存镜像，使设置跨重启保留。
+     */
+    @SubscribeEvent
+    public void onServerStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+        DeathRestoreModeSavedData.load(event.getServer());
     }
 
     /**

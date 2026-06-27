@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.marksman;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionIds;
@@ -18,10 +19,8 @@ import java.util.List;
  */
 public class MarksmanProfession extends ArcherSeriesProfession {
 
-    private static final Identifier AGILE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
-    private static final Identifier CRITICAL_RATE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_rate");
+    private static final Identifier AGILE_ID = AttributeIds.AGILE_ID;
+    private static final Identifier CRITICAL_RATE_ID = AttributeIds.CRITICAL_RATE_ID;
 
     public MarksmanProfession() {
         super(

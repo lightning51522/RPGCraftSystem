@@ -1046,8 +1046,9 @@ public class RPGProfessionScreen extends Screen {
                     }
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Exception e) {
             // 客户端 fallback：tooltip 扩展失败不应影响面板渲染
+            com.rpgcraft.client.ClientMod.LOGGER.debug("职业面板 tooltip 扩展失败，使用默认 tooltip", e);
         }
         return lines;
     }

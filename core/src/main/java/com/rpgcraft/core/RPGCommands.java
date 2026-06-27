@@ -11,6 +11,7 @@ import com.rpgcraft.core.attribute.api.IAttribute;
 import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.snapshot.DeathRestoreMode;
+import com.rpgcraft.core.snapshot.DeathRestoreModeSavedData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -45,9 +46,9 @@ import java.util.Optional;
  * <ul>
  *   <li>{@code /rpg level/setlevel/addexp} → leveling 模块 {@code LevelingCommands}</li>
  *   <li>{@code /rpg profession [list|set]} → profession 模块 {@code ProfessionCommands}</li>
- *   <li>{@code /rpg combatlog} → combat 模块 {@code CombatCommands}</li>
- *   <li>{@code /rpg randspawn} → combat 模块 {@code CombatCommands}</li>
- *   <li>{@code /rpg spawn} → combat 模块 {@code CombatCommands}</li>
+ *   <li>{@code /rpg combatlog} → combat 子系统（位于 attributes 模块）{@code CombatCommands}</li>
+ *   <li>{@code /rpg randspawn} → combat 子系统（位于 attributes 模块）{@code CombatCommands}</li>
+ *   <li>{@code /rpg spawn} → combat 子系统（位于 attributes 模块）{@code CombatCommands}</li>
  *   <li>{@code /rpg hud} → client 模块 {@code ClientCommands}</li>
  * </ul>
  */
@@ -167,21 +168,21 @@ public class RPGCommands {
             IAttribute attr = target.getData(entry.getSupplier());
             String path = entry.getId().getPath();
 
-            String text;
+            Component entryMsg;
             if (attr.hasMaxValue()) {
-                text = String.format("  %s: %d / %d", path, attr.getValue(), attr.getMaxValue());
+                entryMsg = Component.translatable("rpgcraft.core.attribute.list_entry_max", path, attr.getValue(), attr.getMaxValue());
             } else {
-                text = String.format("  %s: %d", path, attr.getValue());
+                entryMsg = Component.translatable("rpgcraft.core.attribute.list_entry", path, attr.getValue());
             }
 
-            context.getSource().sendSuccess(() -> Component.literal(text), false);
+            context.getSource().sendSuccess(() -> entryMsg, false);
         }
         context.getSource().sendSuccess(
-                () -> Component.literal("—— " + target.getName().getString() + " 的属性列表 ——"),
+                () -> Component.translatable("rpgcraft.core.attribute.list_header", target.getName()),
                 false
         );
         context.getSource().sendSuccess(
-                () -> Component.literal("当前死亡恢复模式: " + DeathRestoreMode.getCurrentMode().getDisplayName()),
+                () -> Component.translatable("rpgcraft.core.deathmode.current", DeathRestoreMode.getCurrentMode().getDisplayName()),
                 false
         );
         return AttributeManager.getRegistry().getAllEntries().size();
@@ -190,28 +191,25 @@ public class RPGCommands {
     private static int executeGet(CommandContext<CommandSourceStack> context, ServerPlayer target, String attrName) {
         Optional<IAttributeEntry> resolved = resolveAttribute(attrName);
         if (resolved.isEmpty()) {
-            context.getSource().sendFailure(Component.literal("未知属性: " + attrName));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.core.attribute.unknown", attrName));
             return 0;
         }
 
-        IAttributeEntry entry = resolved.get();
-        IAttribute attr = target.getData(entry.getSupplier());
+        IAttributeEntry entryAttr = resolved.get();
+        IAttribute attr = target.getData(entryAttr.getSupplier());
 
-        String text;
-        if (attr.hasMaxValue()) {
-            text = String.format("%s 的 %s: %d / %d", target.getName().getString(), attrName, attr.getValue(), attr.getMaxValue());
-        } else {
-            text = String.format("%s 的 %s: %d", target.getName().getString(), attrName, attr.getValue());
-        }
+        Component msg = attr.hasMaxValue()
+                ? Component.translatable("rpgcraft.core.attribute.get_max", target.getName(), attrName, attr.getValue(), attr.getMaxValue())
+                : Component.translatable("rpgcraft.core.attribute.get", target.getName(), attrName, attr.getValue());
 
-        context.getSource().sendSuccess(() -> Component.literal(text), false);
+        context.getSource().sendSuccess(() -> msg, false);
         return attr.getValue();
     }
 
     private static int executeSet(CommandContext<CommandSourceStack> context, ServerPlayer target, String attrName, int value) {
         Optional<IAttributeEntry> resolved = resolveAttribute(attrName);
         if (resolved.isEmpty()) {
-            context.getSource().sendFailure(Component.literal("未知属性: " + attrName));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.core.attribute.unknown", attrName));
             return 0;
         }
 
@@ -229,15 +227,15 @@ public class RPGCommands {
         EntityAttribute entityAttr = (EntityAttribute) attr;
         SyncPlayerAttributePacket.sendToClient(target, entry.getId(), entityAttr);
 
-        String text = String.format("已将 %s 的 %s 设置为 %d", target.getName().getString(), attrName, attr.getValue());
-        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.core.attribute.set",
+                target.getName(), attrName, attr.getValue()), true);
         return attr.getValue();
     }
 
     private static int executeSetMax(CommandContext<CommandSourceStack> context, ServerPlayer target, String attrName, int value) {
         Optional<IAttributeEntry> resolved = resolveAttribute(attrName);
         if (resolved.isEmpty()) {
-            context.getSource().sendFailure(Component.literal("未知属性: " + attrName));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.core.attribute.unknown", attrName));
             return 0;
         }
 
@@ -256,20 +254,20 @@ public class RPGCommands {
         EntityAttribute entityAttr = (EntityAttribute) attr;
         SyncPlayerAttributePacket.sendToClient(target, entry.getId(), entityAttr);
 
-        String text = String.format("已将 %s 的 %s 最大值设置为 %d", target.getName().getString(), attrName, value);
-        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.core.attribute.setmax",
+                target.getName(), attrName, value), true);
         return value;
     }
 
     private static int executeDeathMode(CommandContext<CommandSourceStack> context, String modeKey) {
         DeathRestoreMode mode = DeathRestoreMode.fromCommandKey(modeKey);
         if (mode == null) {
-            context.getSource().sendFailure(Component.literal("未知死亡恢复模式: " + modeKey + "（可选: snapshot, rescan）"));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.core.deathmode.unknown", modeKey));
             return 0;
         }
-        DeathRestoreMode.setCurrentMode(mode);
+        DeathRestoreModeSavedData.setCurrentMode(context.getSource().getServer(), mode);
         context.getSource().sendSuccess(
-                () -> Component.literal("死亡属性恢复模式已设置为: " + mode.getDisplayName()),
+                () -> Component.translatable("rpgcraft.core.deathmode.set", mode.getDisplayName()),
                 true
         );
         return 1;
@@ -296,7 +294,7 @@ public class RPGCommands {
         AttributeManager.syncVanillaHealth(target);
 
         context.getSource().sendSuccess(
-                () -> Component.literal("已重置 " + target.getName().getString() + " 的所有属性"),
+                () -> Component.translatable("rpgcraft.core.attribute.reset", target.getName()),
                 true
         );
         return AttributeManager.getRegistry().getAllEntries().size();

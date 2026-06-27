@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.archer;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.base.ArcherSeriesProfession;
@@ -14,10 +15,8 @@ import net.minecraft.world.item.Items;
  */
 public class ArcherProfession extends ArcherSeriesProfession {
 
-    private static final Identifier STRENGTH_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    private static final Identifier AGILE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
+    private static final Identifier STRENGTH_ID = AttributeIds.STRENGTH_ID;
+    private static final Identifier AGILE_ID = AttributeIds.AGILE_ID;
 
     public ArcherProfession() {
         super(

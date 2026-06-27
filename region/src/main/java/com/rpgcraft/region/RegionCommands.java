@@ -153,14 +153,14 @@ public class RegionCommands {
             // 省略 name：当前维度下所有区域（严格限制当前维度）
             candidates = RegionsRegistry.get().inDimension(dimension);
             if (candidates.isEmpty()) {
-                source.sendFailure(Component.literal("当前维度下没有定义任何区域"));
+                source.sendFailure(Component.translatable("rpgcraft.region.findregion.no_region_in_dim"));
                 return 0;
             }
         } else {
             // 带 name：按显示名或 ID 匹配（所有维度）
             candidates = RegionsRegistry.get().matchByName(name);
             if (candidates.isEmpty()) {
-                source.sendFailure(Component.literal("没有找到匹配的区域: " + name));
+                source.sendFailure(Component.translatable("rpgcraft.region.findregion.no_match", name));
                 return 0;
             }
         }
@@ -200,7 +200,8 @@ public class RegionCommands {
         } else {
             double dx = cx - origin.x;
             double dz = cz - origin.z;
-            distLabel = String.format(" §7(距离约 %.1f 格)", Math.sqrt(dx * dx + dz * dz));
+            distLabel = String.format(Component.translatable("rpgcraft.region.findregion.distance").getString(),
+                    Math.sqrt(dx * dx + dz * dz));
         }
 
         // 5. 返回结果
@@ -208,9 +209,8 @@ public class RegionCommands {
         String nameLabel = nearest.getName().isEmpty() ? nearest.getId().toString() : nearest.getName();
         String finalDistLabel = distLabel;
         int finalGroundY = groundY;
-        source.sendSuccess(() -> Component.literal(String.format(
-                "§a[区域] §f%s §7(%s) §a中心地面坐标: §e%d, %d, %d%s",
-                nameLabel, dimLabel, cx, finalGroundY, cz, finalDistLabel)), false);
+        source.sendSuccess(() -> Component.translatable("rpgcraft.region.findregion.result",
+                nameLabel, dimLabel, cx, finalGroundY, cz, finalDistLabel), false);
 
         return 1;
     }
@@ -255,18 +255,18 @@ public class RegionCommands {
         // 1. 校验环境类型 ID 已注册
         EnvironmentType envType = EnvironmentTypeRegistry.get().match(envIdStr);
         if (envType == null) {
-            source.sendFailure(Component.literal("未知的环境类型 ID: " + envIdStr
-                    + "（可用：" + listEnvironmentIds() + "）"));
+            source.sendFailure(Component.translatable("rpgcraft.region.setregion.unknown_env",
+                    envIdStr, listEnvironmentIds()));
             return 0;
         }
 
         // 2. 校验 NAME 未被草稿或正式区域占用
         if (RegionDraftManager.exists(name)) {
-            source.sendFailure(Component.literal("草稿 " + name + " 已存在，请先用 done 定稿或换个名称"));
+            source.sendFailure(Component.translatable("rpgcraft.region.setregion.draft_exists", name));
             return 0;
         }
         if (RegionsRegistry.get().get(RegionDraftManager.runtimeRegionId(name)) != null) {
-            source.sendFailure(Component.literal("区域 " + name + " 已存在（运行时）"));
+            source.sendFailure(Component.translatable("rpgcraft.region.setregion.region_exists", name));
             return 0;
         }
 
@@ -275,11 +275,9 @@ public class RegionCommands {
         RegionDraft draft = RegionDraftManager.initDraft(
                 name, envType, player.level().dimension(), center.getX(), center.getZ(), size);
 
-        source.sendSuccess(() -> Component.literal(String.format(
-                "§a[区域] §f%s §7草稿已初始化（环境 %s，中心 %d, %d，边长 %d）：%d 个初始顶点。"
-                        + "使用 §e/rpg addregion %s §7添加点",
+        source.sendSuccess(() -> Component.translatable("rpgcraft.region.setregion.init_success",
                 name, envType.displayName(), center.getX(), center.getZ(), size,
-                draft.vertexCount(), name)), false);
+                draft.vertexCount(), name), false);
         return 1;
     }
 
@@ -295,7 +293,7 @@ public class RegionCommands {
         // 1. 校验环境类型 ID（必须与草稿 init 时一致）
         EnvironmentType envType = EnvironmentTypeRegistry.get().match(envIdStr);
         if (envType == null) {
-            source.sendFailure(Component.literal("未知的环境类型 ID: " + envIdStr));
+            source.sendFailure(Component.translatable("rpgcraft.region.setregion.unknown_env_short", envIdStr));
             return 0;
         }
 
@@ -311,10 +309,8 @@ public class RegionCommands {
         // 3. 持久化 + 同步 registry + 重建索引
         RuntimeRegionSavedData.get(source.getServer()).addRegion(source.getServer(), region);
 
-        source.sendSuccess(() -> Component.literal(String.format(
-                "§a[区域] §f%s §7已建立（环境 %s，%d 个顶点，ID %s）",
-                name, envType.displayName(), region.getPolygon().vertexCount(),
-                region.getId())), true);
+        source.sendSuccess(() -> Component.translatable("rpgcraft.region.setregion.done_success",
+                name, envType.displayName(), region.getPolygon().vertexCount(), region.getId()), true);
         return 1;
     }
 
@@ -329,15 +325,14 @@ public class RegionCommands {
         // 1. 校验草稿存在
         RegionDraft draft = RegionDraftManager.get(name);
         if (draft == null) {
-            source.sendFailure(Component.literal("草稿 " + name + " 不存在，请先用 setregion init 创建"));
+            source.sendFailure(Component.translatable("rpgcraft.region.addregion.no_draft", name));
             return 0;
         }
 
         // 2. 校验玩家维度 = 草稿维度
         if (!player.level().dimension().equals(draft.getDimension())) {
-            source.sendFailure(Component.literal("维度不匹配：草稿在 "
-                    + draft.getDimension().identifier() + "，你在 "
-                    + player.level().dimension().identifier()));
+            source.sendFailure(Component.translatable("rpgcraft.region.addregion.dim_mismatch",
+                    draft.getDimension().identifier(), player.level().dimension().identifier()));
             return 0;
         }
 
@@ -346,13 +341,11 @@ public class RegionCommands {
         boolean added = draft.addPoint(new int[]{pos.getX(), pos.getZ()});
 
         if (added) {
-            source.sendSuccess(() -> Component.literal(String.format(
-                    "§a[区域] §f%s §7已添加点 (%d, %d)，当前 %d 个顶点",
-                    name, pos.getX(), pos.getZ(), draft.vertexCount())), false);
+            source.sendSuccess(() -> Component.translatable("rpgcraft.region.addregion.added",
+                    name, pos.getX(), pos.getZ(), draft.vertexCount()), false);
         } else {
-            source.sendSuccess(() -> Component.literal(String.format(
-                    "§e[区域] §f%s §7点 (%d, %d) 导致边界自相交，已抛弃",
-                    name, pos.getX(), pos.getZ())), false);
+            source.sendSuccess(() -> Component.translatable("rpgcraft.region.addregion.discarded",
+                    name, pos.getX(), pos.getZ()), false);
         }
         return 1;
     }
@@ -366,8 +359,7 @@ public class RegionCommands {
 
         // 1. 校验是运行时区域（非静态）
         if (!RegionsRegistry.get().isRuntime(regionId)) {
-            source.sendFailure(Component.literal("区域 " + name + " 不是运行时区域"
-                    + "（仅能删除 setregion 创建的区域）"));
+            source.sendFailure(Component.translatable("rpgcraft.region.delregion.not_runtime", name));
             return 0;
         }
 
@@ -376,11 +368,10 @@ public class RegionCommands {
                 .removeRegion(source.getServer(), regionId);
 
         if (removed) {
-            source.sendSuccess(() -> Component.literal(
-                    "§a[区域] §f" + name + " §7已删除"), true);
+            source.sendSuccess(() -> Component.translatable("rpgcraft.region.delregion.deleted", name), true);
             return 1;
         } else {
-            source.sendFailure(Component.literal("删除失败：区域 " + name + " 不存在"));
+            source.sendFailure(Component.translatable("rpgcraft.region.delregion.failed", name));
             return 0;
         }
     }
@@ -407,9 +398,9 @@ public class RegionCommands {
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         boolean enabled = player.getData(AttributeManager.PLAYER_PREFERENCES.get()).isRegionNotifyEnabled();
-        context.getSource().sendSuccess(() -> Component.literal(
-                "§7区域进出提示: " + (enabled ? "§a开启" : "§c关闭")
-                        + " §7(/rpg regionnotify on|off)"), false);
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.region.regionnotify.status",
+                enabled ? Component.translatable("rpgcraft.region.regionnotify.status_on")
+                        : Component.translatable("rpgcraft.region.regionnotify.status_off")), false);
         return 1;
     }
 
@@ -432,8 +423,9 @@ public class RegionCommands {
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         player.getData(AttributeManager.PLAYER_PREFERENCES.get()).setRegionNotifyEnabled(enabled);
-        context.getSource().sendSuccess(() -> Component.literal(
-                "§7区域进出提示已" + (enabled ? "§a开启" : "§c关闭")), false);
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.region.regionnotify.set",
+                enabled ? Component.translatable("rpgcraft.region.regionnotify.status_on")
+                        : Component.translatable("rpgcraft.region.regionnotify.status_off")), false);
         return 1;
     }
 }

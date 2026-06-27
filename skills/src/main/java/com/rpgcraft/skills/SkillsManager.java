@@ -1,5 +1,6 @@
 package com.rpgcraft.skills;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.registry.ISkillSystem;
@@ -42,13 +43,9 @@ import java.util.function.Supplier;
 public class SkillsManager {
 
     /**
-     * 技能资源属性 ID（{@code skill_point}）
-     * <p>
-     * 字面量声明，与 attributes 模块的 {@code DefaultAttributes.SKILL_POINT_ID} 指向同一字面量，
-     * 不引入对 attributes 模块的编译期依赖。
+     * 技能资源属性 ID（{@code skill_point}），真相源为 {@link AttributeIds#SKILL_POINT_ID}。
      */
-    public static final Identifier SKILL_POINT_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "skill_point");
+    public static final Identifier SKILL_POINT_ID = AttributeIds.SKILL_POINT_ID;
 
     private static SkillsRegistry registry;
     private static DeferredRegister<AttachmentType<?>> deferredRegister;

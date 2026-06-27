@@ -138,6 +138,8 @@ public class EnvironmentTypeLoader {
             RegionMod.LOGGER.warn("环境类型 {} Codec 解码失败: {}", id, result.error().get().message());
             return null;
         }
-        return result.result().get();
+        // error() 已确认不存在；orElseThrow 自文档化（result() 理论上仍可能为空的部分结果）
+        return result.result().orElseThrow(() -> new IllegalStateException(
+                "环境类型 " + id + " 解码无错误但结果为空（部分结果）"));
     }
 }

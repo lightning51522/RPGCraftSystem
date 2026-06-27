@@ -102,6 +102,9 @@ neoForge {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    // 让测试源集也能编译/运行 Minecraft 类（net.minecraft.* / net.neoforged.*）。
+    // moddev 默认只把 MC 依赖接入 main 源集；测试需显式继承。
+    testImplementation.extendsFrom(modDevCompileDependencies)
 }
 
 dependencies {
@@ -118,16 +121,7 @@ dependencies {
     // PAL（Player Animation Library）依赖声明在 skills 模块（官方推荐 implementation），
     // 通过 runtimeOnly project(':skills') 传递到 core 的运行时 classpath，无需在此重复声明。
 
-    // 单元测试（验证 core 内部纯逻辑：注册门面兜底、经验公式等，不依赖 Minecraft 运行时）
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    // slf4j 实现：NoOp* 兜底类用 LoggerFactory 记录 WARN，生产期由 MC 提供，测试期需自带
-    testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.13'
-}
-
-test {
-    useJUnitPlatform()
+    // 单元测试依赖已统一在根 build.gradle 的 subprojects {} 中配置
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

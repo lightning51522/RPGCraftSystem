@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.berserker;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionIds;
@@ -16,10 +17,8 @@ import net.minecraft.world.item.Items;
  */
 public class BerserkerProfession extends WarriorSeriesProfession {
 
-    private static final Identifier STRENGTH_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
-    private static final Identifier LIFE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "life");
+    private static final Identifier STRENGTH_ID = AttributeIds.STRENGTH_ID;
+    private static final Identifier LIFE_ID = AttributeIds.LIFE_ID;
 
     public BerserkerProfession() {
         super(

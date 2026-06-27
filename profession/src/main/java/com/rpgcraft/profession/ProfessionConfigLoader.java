@@ -141,7 +141,8 @@ public class ProfessionConfigLoader {
         if (json.has(key) && json.get(key).isJsonPrimitive()) {
             try {
                 return json.getAsJsonPrimitive(key).getAsBoolean();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                ProfessionMod.LOGGER.debug("配置字段 {} 无法解析为布尔，使用默认值 {}", key, def, e);
             }
         }
         return def;
@@ -151,7 +152,8 @@ public class ProfessionConfigLoader {
         if (json.has(key) && json.get(key).isJsonPrimitive()) {
             try {
                 return json.getAsJsonPrimitive(key).getAsInt();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                ProfessionMod.LOGGER.debug("配置字段 {} 无法解析为整数，使用默认值 {}", key, def, e);
             }
         }
         return def;

@@ -121,15 +121,13 @@ public final class RegionManager {
             // 进入提示（按 current 中的实际 Region 对象取显示名）
             for (Region r : current) {
                 if (entered.contains(r.getId())) {
-                    player.sendSystemMessage(Component.literal(
-                            "§a[区域] §7你进入了 §f" + regionDisplayName(r)));
+                    player.sendSystemMessage(Component.translatable("rpgcraft.region.entered", regionDisplayName(r)));
                 }
             }
             // 离开提示（left 只有 ID，需查 registry 取显示名）
             for (Identifier leftId : left) {
                 Region leftRegion = RegionsRegistry.get().get(leftId);
-                player.sendSystemMessage(Component.literal(
-                        "§a[区域] §7你离开了 §f" + regionDisplayName(leftRegion)));
+                player.sendSystemMessage(Component.translatable("rpgcraft.region.left", regionDisplayName(leftRegion)));
             }
         }
 
@@ -137,10 +135,10 @@ public final class RegionManager {
         state.set(currentIds);
     }
 
-    /** 区域显示名（空则用 ID path） */
-    private static String regionDisplayName(Region r) {
-        if (r == null) return "未知区域";
-        return r.getName().isEmpty() ? r.getId().getPath() : r.getName();
+    /** 区域显示名（空则用 ID path；null 时返回本地化的"未知区域"） */
+    private static Component regionDisplayName(Region r) {
+        if (r == null) return Component.translatable("rpgcraft.region.unknown");
+        return Component.literal(r.getName().isEmpty() ? r.getId().getPath() : r.getName());
     }
 
     /**

@@ -4,6 +4,117 @@
 
 ---
 
+## [0.13.0-alpha] - 2026-06-27
+
+> 生产级代码审查后的整改版本。基于对全工程的审查报告，按重要性逐项修复可维护性、健壮性与工程卫生缺陷，不引入新玩法。
+
+### 重构
+
+#### 属性 ID 常量集中化（core + 全模块）
+
+新增 `core.attribute.AttributeIds` 作为全部 RPG 属性标识符（`Identifier`）的**唯一真相源**，消除此前散落在 17+ 文件、~80 处的 `fromNamespaceAndPath("rpgcraftcore", "...")` 字面量重复声明。
+
+- 删除 `attributes.module.DefaultAttributes`（B 方案，所有引用直接改指 `AttributeIds`）
+- `core.Element` 的 14 处元素↔属性映射字面量、`attributepoints.AttributePointsManager`、`leveling.DefaultLevelCalculator`、`skills.SkillsManager`、`client.ui.ClientAttributes`、8 个 `professions/*Profession` 均改为引用 `AttributeIds`
+- **不影响属性的可第三方覆盖行为**：覆盖的是「属性注册行为」（`IAttributeModule` 实现 + `OVERRIDE_PRIORITY`），与 ID 字符串常量正交；`RPGSystems`/`IAttributeModule`/`DefaultAttributeRegistry` 全程未改动，`RPGSystemsTest` 仍全绿
+
+#### ProfessionManager 拆分（profession 模块）
+
+`ProfessionManager`（746 行）拆为 3 个职责单一的类，对外门面 API 零破坏：
+
+- `ProfessionBonusApplier`（加成应用）：把 3 段近乎重复的 `reapply*` 合并为一个参数化 `reapply(player, prof, level, secondary)`
+- `ProfessionHookDispatcher`（战斗/生命周期钩子调度）：把 `dispatchAttack/Damaged/Kill` 三段「遍历主+副」合并为 `forEachActiveProfession` + 方法引用
+- `ProfessionManager` 退化为薄门面（584 行），保留全部公开方法作委托，外部调用方无需改动
+
+#### DamageClassifier 抽取（attributes 模块）
+
+从 `CombatEventHandler.onLivingDamagePre`（~120 行）抽离伤害分类逻辑为独立类 `DamageClassifier`，返回 `DamageClassification(attackType, element)` 记录。事件处理器收缩为「分类 → 事件 → 计算 → 应用 → 同步 → 日志」的线性流程。
+
+#### 千分制基数常量化
+
+新增 `Element.DAMAGE_BONUS_BASE = 1000` 作为元素伤害加成千分制基数的唯一真相源，替换 `DefaultDamageCalculator`（2 处）、`Region.allMods`（2 处）、`DefaultAttributeModule`（7 处默认值）的裸 `1000` 字面量。
+
+### 新增
+
+#### i18n 命令/反馈消息系统（core + 全模块）
+
+建立国际化基础设施，迁移玩家最常看到的命令反馈消息：
+
+- 新建 `assets/rpgcraftcore/lang/zh_cn.json`（~95 条键）+ 填实 `en_us.json`（英文翻译）
+- 11 个文件 ~90 处 `Component.literal("中文§a...")` → `Component.translatable("rpgcraft.<module>.<key>", args...)`；§ 颜色码随文本迁入 lang；on/off、类型标签等子串独立为 lang 键
+- 涵盖 9 个 `*Commands` 类、`RegionManager` 进出提示、`CombatEventHandler` 实时战斗日志
+- **暂留**：UI 屏幕（`RPGProfessionScreen`/`RPGCharacterScreen`/属性面板插件）作为后续独立任务
+
+#### 单元测试基建与首批用例
+
+- 根 `build.gradle` 的 `subprojects {}` 集中 JUnit 5 配置，全 10 模块开箱可测（此前仅 core/leveling 配置）
+- `core/build.gradle` 新增 `testImplementation.extendsFrom(modDevCompileDependencies)`，使测试源集可访问 `net.minecraft.*` 类
+- 新增 `AttributePipelineTest`（8 项）：覆盖修饰符管线数学（ADDITION→MULTIPLY_BASE→MULTIPLY_TOTAL）、百分比先求和再乘（非复利）、负值截断、`AttributePostAdditionEvent`/`AttributeFinalizeEvent` 事件插手
+
+#### DeathRestoreMode 持久化（core）
+
+`/rpg deathmode` 的切换此前仅写内存 `volatile` 字段，服务端重启即重置为 `SNAPSHOT`。新增 `DeathRestoreModeSavedData`（复用 `RandomSpawnSavedData` 的双层 SavedData + 内存镜像模式），服务端启动时由 `ServerStartedEvent` 从存档恢复内存镜像，跨重启保留。
+
+### 修复
+
+#### EntityAttribute 缓存数据竞争（core）
+
+`cachedValue`/`cachedMaxValue` 此前为普通 `int`（仅 `cacheValid` 为 volatile），存在「读到 `cacheValid==true` 却读到旧缓存值」的数据竞争。两个字段改为 `volatile` 并补充可见性 Javadoc。
+
+### 变更
+
+#### core
+
+- 新增 `AttributeIds`、`DeathRestoreModeSavedData`、`AttributePipelineTest`
+- `AttributeManager.LIFE_ID` 改为委托 `AttributeIds.LIFE_ID`（保留为便捷别名）
+- `RPGCommands` Javadoc 把 "combat 模块" 修正为 "combat 子系统（位于 attributes 模块）"
+- `EntityAttribute.simpleCompute` 补充 Javadoc 说明其与 `AttributePipeline.compute` 的故意重复（无事件兜底路径）
+
+#### attributes
+
+- 新增 `DamageClassifier`；`CombatEventHandler` 引用其分类结果，删除冗余 import
+- `DefaultDamageCalculator`/`DefaultAttributeModule` 改用 `Element.DAMAGE_BONUS_BASE`
+- `CombatCommands` 全部反馈消息迁移到 lang
+
+#### profession
+
+- 新增 `ProfessionBonusApplier`、`ProfessionHookDispatcher`
+- `ProfessionCommands` 反馈消息迁移到 lang
+
+#### region
+
+- `Region.allMods` 改用 `Element.DAMAGE_BONUS_BASE`
+- `RegionCommands`/`RegionManager` 反馈消息迁移到 lang
+- `RegionsDefinitionLoader`/`EnvironmentTypeLoader` 的 `result().get()` → `.orElseThrow(...)`（自文档化）
+
+#### attributepoints / leveling / skills / professions / client
+
+- 各自 `*Commands` 反馈消息迁移到 lang；属性 ID 字面量改引用 `AttributeIds`
+
+### 工程卫生
+
+- 删除误提交的孤立 NeoForge 框架源码副本：`core/IAttachmentHolder.java`、`net/neoforged/.../ServerTickEvent.java`（不在任何源集）
+- `.gitignore` 新增 `/net/`、`/core/net/`、`**/src/main/**/net/neoforged/`、`**/*.bak`、`**/*.toml.bak` 防护规则
+- 收窄 `RPGProfessionScreen` 的 `catch (Throwable)` → `catch (Exception)` + debug 日志；`ProfessionConfigLoader`/`SkillsDefinitionLoader` 共 4 处 `catch (Exception ignored)` 补 debug 日志
+- 保留 `MobLevelData`（NBT 反序列化热路径）与 `AttributeHudOverlay`（每帧渲染）的静默 fallback（热路径中静默是正确行为）
+
+### 模块版本
+
+| 模块 | 旧版本 | 新版本 | 是否改动 |
+|------|--------|--------|---------|
+| core | 0.12.0-alpha | 0.13.0-alpha | ✅ |
+| attributes | 0.11.0-alpha | 0.13.0-alpha | ✅ |
+| leveling | 0.10.0-alpha | 0.13.0-alpha | ✅ |
+| equipment | 0.10.0-alpha | 0.10.0-alpha | — |
+| profession | 0.10.0-alpha | 0.13.0-alpha | ✅ |
+| professions | 0.10.0-alpha | 0.13.0-alpha | ✅ |
+| client | 0.10.4-alpha | 0.13.0-alpha | ✅ |
+| attributepoints | 0.10.5-alpha | 0.13.0-alpha | ✅ |
+| skills | 0.10.0-alpha | 0.13.0-alpha | ✅ |
+| region | 0.12.0-alpha | 0.13.0-alpha | ✅ |
+
+---
+
 ## [0.12.0-alpha] - 2026-06-27
 
 ### 新增

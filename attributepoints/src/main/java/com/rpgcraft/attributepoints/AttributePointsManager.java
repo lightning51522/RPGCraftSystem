@@ -1,6 +1,7 @@
 package com.rpgcraft.attributepoints;
 
 import com.rpgcraft.attributepoints.network.SyncPlayerAttributePointsPacket;
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.attribute.AttributeManager;
 import com.rpgcraft.core.attribute.AttributeModifier;
 import com.rpgcraft.core.attribute.EntityAttribute;
@@ -68,9 +69,9 @@ public class AttributePointsManager {
     private static final Coefficient DEFAULT_COEFFICIENT = new Coefficient(1, 1);
 
     /**
-     * 各属性点系数表（按属性 ID 查询）。
+     * 各属性点系数表（按属性 ID 查询，属性 ID 真相源为 {@link AttributeIds}）。
      * <p>
-     * 当前特例（遵循「插件互不依赖铁律」，本模块自行声明属性 ID 字面量）：
+     * 当前特例：
      * <ul>
      *   <li>{@code resistance}（法抗）：0.1 —— 每 10 点 = 1 法抗</li>
      *   <li>{@code magical_penetrate}（法术穿透）：0.1 —— 每 10 点 = 1 法术穿透</li>
@@ -79,9 +80,9 @@ public class AttributePointsManager {
      * 未列出的属性使用默认系数 1.0。
      */
     private static final Map<Identifier, Coefficient> COEFFICIENTS = Map.of(
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "resistance"), new Coefficient(1, 10),
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "magical_penetrate"), new Coefficient(1, 10),
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "physical_penetrate"), new Coefficient(2, 10)
+            AttributeIds.RESISTANCE_ID, new Coefficient(1, 10),
+            AttributeIds.MAGICAL_PENETRATE_ID, new Coefficient(1, 10),
+            AttributeIds.PHYSICAL_PENETRATE_ID, new Coefficient(2, 10)
     );
 
     /**

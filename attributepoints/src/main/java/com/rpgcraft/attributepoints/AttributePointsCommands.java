@@ -75,7 +75,7 @@ public class AttributePointsCommands {
      */
     private static int executeInfo(CommandContext<CommandSourceStack> context, ServerPlayer target) {
         if (!RPGSystems.hasAttributePointSystem()) {
-            context.getSource().sendFailure(Component.literal("属性点系统未加载"));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.attributepoints.not_loaded"));
             return 0;
         }
 
@@ -83,36 +83,37 @@ public class AttributePointsCommands {
         Map<Identifier, Integer> allocations = RPGSystems.getAttributePointSystem().getAllAllocations(target);
 
         context.getSource().sendSuccess(
-                () -> Component.literal("—— " + target.getName().getString() + " 的属性点信息 ——"),
+                () -> Component.translatable("rpgcraft.attributepoints.info_header", target.getName()),
                 false
         );
         context.getSource().sendSuccess(
-                () -> Component.literal("  可分配点数: §a" + available),
+                () -> Component.translatable("rpgcraft.attributepoints.available", available),
                 false
         );
 
         if (allocations.isEmpty()) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  已分配: 无"),
+                    () -> Component.translatable("rpgcraft.attributepoints.allocated_none"),
                     false
             );
         } else {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  已分配:"),
+                    () -> Component.translatable("rpgcraft.attributepoints.allocated_header"),
                     false
             );
             int totalAllocated = 0;
             for (Map.Entry<Identifier, Integer> entry : allocations.entrySet()) {
                 totalAllocated += entry.getValue();
                 String attrName = entry.getKey().getPath();
+                int value = entry.getValue();
                 context.getSource().sendSuccess(
-                        () -> Component.literal("    " + attrName + ": §b+" + entry.getValue()),
+                        () -> Component.translatable("rpgcraft.attributepoints.allocated_entry", attrName, value),
                         false
                 );
             }
             int finalTotal = totalAllocated;
             context.getSource().sendSuccess(
-                    () -> Component.literal("  累计已分配: §b" + finalTotal),
+                    () -> Component.translatable("rpgcraft.attributepoints.total", finalTotal),
                     false
             );
         }
@@ -125,7 +126,7 @@ public class AttributePointsCommands {
     private static int executeAdd(CommandContext<CommandSourceStack> context, ServerPlayer target, int count) {
         RPGSystems.getAttributePointSystem().grantPoints(target, count);
         context.getSource().sendSuccess(
-                () -> Component.literal("已授予 " + target.getName().getString() + " §a" + count + "§r 个可分配属性点"),
+                () -> Component.translatable("rpgcraft.attributepoints.granted", target.getName(), count),
                 true
         );
         return count;
@@ -137,7 +138,7 @@ public class AttributePointsCommands {
     private static int executeReset(CommandContext<CommandSourceStack> context, ServerPlayer target) {
         RPGSystems.getAttributePointSystem().reset(target);
         context.getSource().sendSuccess(
-                () -> Component.literal("已重置 " + target.getName().getString() + " 的全部分配，点数已退还"),
+                () -> Component.translatable("rpgcraft.attributepoints.reset", target.getName()),
                 true
         );
         return 1;

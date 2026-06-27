@@ -91,15 +91,12 @@ public class LevelingCommands {
         int level = levelSystem.getLevel(target);
         int expForNext = levelSystem.getExpForNextLevel(target);
 
-        String text;
-        if (expForNext < 0) {
-            text = String.format("%s 的等级: %d (MAX)", target.getName().getString(), level);
-        } else {
-            text = String.format("%s 的等级: %d  经验: %d / %d",
-                    target.getName().getString(), level, levelSystem.getExperience(target), expForNext);
-        }
+        Component msg = expForNext < 0
+                ? Component.translatable("rpgcraft.leveling.level_max", target.getName(), level)
+                : Component.translatable("rpgcraft.leveling.level_info", target.getName(), level,
+                        levelSystem.getExperience(target), expForNext);
 
-        context.getSource().sendSuccess(() -> Component.literal(text), false);
+        context.getSource().sendSuccess(() -> msg, false);
         return level;
     }
 
@@ -115,8 +112,8 @@ public class LevelingCommands {
         // 标记属性快照脏（等级变更可能影响属性计算）
         AttributeSnapshotManager.markDirty(target);
 
-        String text = String.format("已将 %s 的等级设置为 %d", target.getName().getString(), level);
-        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.leveling.set",
+                target.getName(), level), true);
         return level;
     }
 
@@ -135,16 +132,14 @@ public class LevelingCommands {
         if (newLevel > oldLevel) {
             AttributeSnapshotManager.markDirty(target);
         }
-        String text;
-        if (newLevel > oldLevel) {
-            text = String.format("已为 %s 增加 %d 经验（%d → %d 级）",
-                    target.getName().getString(), amount, oldLevel, newLevel);
-        } else {
-            text = String.format("已为 %s 增加 %d 经验（当前 %d / %d）",
-                    target.getName().getString(), amount, levelSystem.getExperience(target), levelSystem.getExpForNextLevel(target));
-        }
+        Component msg = newLevel > oldLevel
+                ? Component.translatable("rpgcraft.leveling.addexp_leveled",
+                        target.getName(), amount, oldLevel, newLevel)
+                : Component.translatable("rpgcraft.leveling.addexp",
+                        target.getName(), amount, levelSystem.getExperience(target),
+                        levelSystem.getExpForNextLevel(target));
 
-        context.getSource().sendSuccess(() -> Component.literal(text), true);
+        context.getSource().sendSuccess(() -> msg, true);
         return amount;
     }
 }

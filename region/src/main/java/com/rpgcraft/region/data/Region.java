@@ -129,12 +129,12 @@ public final class Region {
         for (Map.Entry<Element, Integer> entry : elementDamageBonus.entrySet()) {
             Element e = entry.getKey();
             int bonus = entry.getValue();
-            if (bonus == 1000) continue; // 基准值，无需修饰
+            if (bonus == Element.DAMAGE_BONUS_BASE) continue; // 基准值，无需修饰
             Identifier damageBonusId = e.damageBonusId();
             if (damageBonusId == null) continue; // NONE 等无对应属性
-            // ADDITION 修饰值 = 配置值 - 默认值（1000）
+            // ADDITION 修饰值 = 配置值 - 默认值（DAMAGE_BONUS_BASE）
             // 例：FIRE=1300 → fire_damage_bonus +300（在 1000 基础上 +300）
-            int addition = bonus - 1000;
+            int addition = bonus - Element.DAMAGE_BONUS_BASE;
             result.add(new AttributeMod(damageBonusId, com.rpgcraft.core.attribute.api.Operation.ADDITION, addition));
         }
         return result;

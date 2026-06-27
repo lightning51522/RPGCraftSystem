@@ -26,6 +26,21 @@ subprojects {
         // Player Animation Library (PAL) - 玩家动画库
         maven { url = 'https://repo.redlance.org/public' }
     }
+
+    // 单元测试（统一配置，全模块开箱可用）
+    // 验证各模块内部纯逻辑（注册门面兜底、公式、几何、JSON 解析等），不依赖 Minecraft 运行时。
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.10.2')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        // slf4j 实现：core 的 NoOp 兜底类用 LoggerFactory 记录 WARN，生产期由 MC 提供，
+        // 测试期需自带实现（其他模块即使不直接用日志也无副作用）。
+        testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.13'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
 }
 
 tasks.named('wrapper', Wrapper).configure {

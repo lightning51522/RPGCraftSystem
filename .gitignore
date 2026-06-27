@@ -39,6 +39,15 @@ run/
 repo/
 !**/src/**/repo/
 
+# 误放入仓库根的框架/依赖源码副本（应通过构建依赖引入，而非手抄进源码树）
+/net/
+/core/net/
+**/src/main/**/net/neoforged/
+
+# 运行时配置备份
+**/*.bak
+**/*.toml.bak
+
 ### 工具缓存（仅生成 WorldProto.java 时用到的 protoc 二进制） ###
 .tools/
 

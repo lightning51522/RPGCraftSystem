@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.witchblade;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.AbstractProfession;
 import com.rpgcraft.core.profession.api.ProfessionIds;
 import com.rpgcraft.professions.mage.MageProfession;
@@ -22,11 +23,9 @@ public class WitchbladeProfession extends AbstractProfession {
             Identifier.fromNamespaceAndPath("rpgcraftcore", "witchblade");
 
     /** 力量属性 ID */
-    private static final Identifier STRENGTH_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
+    private static final Identifier STRENGTH_ID = AttributeIds.STRENGTH_ID;
     /** 智力属性 ID */
-    private static final Identifier INTELLIGENCE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
+    private static final Identifier INTELLIGENCE_ID = AttributeIds.INTELLIGENCE_ID;
 
     public WitchbladeProfession() {
         super(

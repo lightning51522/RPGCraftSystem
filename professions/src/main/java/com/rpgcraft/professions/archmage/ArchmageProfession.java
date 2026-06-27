@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.archmage;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.CombatStats;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.professions.base.MageSeriesProfession;
@@ -23,11 +24,9 @@ public class ArchmageProfession extends MageSeriesProfession {
             Identifier.fromNamespaceAndPath("rpgcraftcore", "archmage");
 
     /** 智力属性 ID */
-    private static final Identifier INTELLIGENCE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "intelligence");
+    private static final Identifier INTELLIGENCE_ID = AttributeIds.INTELLIGENCE_ID;
     /** 暴击伤害属性 ID */
-    private static final Identifier CRITICAL_RATIO_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "critical_ratio");
+    private static final Identifier CRITICAL_RATIO_ID = AttributeIds.CRITICAL_RATIO_ID;
 
     public ArchmageProfession() {
         super(

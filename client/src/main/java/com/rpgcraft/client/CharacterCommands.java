@@ -88,7 +88,7 @@ public class CharacterCommands {
         player.connection.send(new OpenCharacterScreenPacket());
 
         context.getSource().sendSuccess(
-                () -> Component.literal("已打开角色界面"),
+                () -> Component.translatable("rpgcraft.client.character.opened"),
                 false
         );
         return 1;

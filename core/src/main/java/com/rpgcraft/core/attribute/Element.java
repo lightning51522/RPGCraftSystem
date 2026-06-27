@@ -14,9 +14,8 @@ import org.jspecify.annotations.Nullable;
  * NONE 元素不触发此层（默认行为零变化）。
  * <p>
  * <b>元素 ↔ 抗性映射</b>：{@link #resistanceId()} 是该映射的唯一真相源，
- * 返回对应抗性属性的 {@link Identifier}（namespace {@code rpgcraftcore}）。
- * 抗性属性由 {@code rpgcraftattributes} 附属模块注册；core 自行声明这些 ID 字面量
- * （遵循「插件互不依赖铁律」，core 不依赖 attributes 模块的 {@code DefaultAttributes}）。
+ * 返回对应抗性属性的 {@link Identifier}（namespace {@code rpgcraftcore}），常量值统一取自
+ * {@link AttributeIds}。抗性属性由 {@code rpgcraftattributes} 附属模块注册。
  * <p>
  * <b>元素 ↔ 伤害加成映射</b>：{@link #damageBonusId()} 返回对应「元素伤害加成」属性 ID，
  * 与抗性<b>对称</b>。伤害加成是千分制倍率（1000=基准不变），作用于<b>输出端</b>：
@@ -46,6 +45,16 @@ public enum Element {
     DARK;
 
     /**
+     * 元素伤害加成属性的<b>千分制基数</b>：{@code 1000} = 1.0× 倍率（基准不变）。
+     * <p>
+     * 元素伤害加成属性（如 {@code fire_damage_bonus}）以千分制存储，本常量是其默认值与
+     * 「无变化」判定阈值。伤害公式（{@code damage * bonus / DAMAGE_BONUS_BASE}）与
+     * 区域修饰符换算（{@code addition = bonus - DAMAGE_BONUS_BASE}）均应引用本常量，
+     * 避免裸 {@code 1000} 字面量在多处漂移。
+     */
+    public static final int DAMAGE_BONUS_BASE = 1000;
+
+    /**
      * 元素的网络/配置名称（小写）
      *
      * @return 如 {@code "none"} / {@code "electric"} / ...
@@ -62,8 +71,8 @@ public enum Element {
     /**
      * 该元素对应的抗性属性 {@link Identifier}
      * <p>
-     * 是「元素 ↔ 抗性」映射的唯一真相源。抗性属性由 {@code rpgcraftattributes} 模块注册，
-     * 此处声明的 ID 字面量需与该模块保持一致（core 不依赖 attributes 模块）。
+     * 是「元素 ↔ 抗性」映射的唯一真相源，常量值取自 {@link AttributeIds}。
+     * 抗性属性由 {@code rpgcraftattributes} 模块注册。
      * <p>
      * 抗性作用于<b>受击端</b>：带该元素标签的攻击在基础减伤后额外乘以
      * {@code (1 - 抗性/100)}。
@@ -74,22 +83,21 @@ public enum Element {
     public Identifier resistanceId() {
         return switch (this) {
             case NONE -> null;
-            case ELECTRIC -> Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_resistance");
-            case FIRE -> Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_resistance");
-            case WIND -> Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_resistance");
-            case WATER -> Identifier.fromNamespaceAndPath("rpgcraftcore", "water_resistance");
-            case LIGHT -> Identifier.fromNamespaceAndPath("rpgcraftcore", "light_resistance");
-            case POISON -> Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_resistance");
-            case DARK -> Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_resistance");
+            case ELECTRIC -> AttributeIds.ELECTRIC_RESISTANCE_ID;
+            case FIRE -> AttributeIds.FIRE_RESISTANCE_ID;
+            case WIND -> AttributeIds.WIND_RESISTANCE_ID;
+            case WATER -> AttributeIds.WATER_RESISTANCE_ID;
+            case LIGHT -> AttributeIds.LIGHT_RESISTANCE_ID;
+            case POISON -> AttributeIds.POISON_RESISTANCE_ID;
+            case DARK -> AttributeIds.DARK_RESISTANCE_ID;
         };
     }
 
     /**
      * 该元素对应的「伤害加成」属性 {@link Identifier}
      * <p>
-     * 是「元素 ↔ 伤害加成」映射的唯一真相源，与 {@link #resistanceId()} 对称。
-     * 伤害加成属性由 {@code rpgcraftattributes} 模块注册；此处声明的 ID 字面量需与
-     * 该模块保持一致（core 不依赖 attributes 模块）。
+     * 是「元素 ↔ 伤害加成」映射的唯一真相源，与 {@link #resistanceId()} 对称，
+     * 常量值取自 {@link AttributeIds}。伤害加成属性由 {@code rpgcraftattributes} 模块注册。
      * <p>
      * 伤害加成作用于<b>输出端</b>：攻击者造成带该元素标签的伤害时，在输出公式计算后、
      * 减伤前乘以 {@code 加成/1000}（千分制倍率，1000 = 基准不变）。
@@ -100,13 +108,13 @@ public enum Element {
     public Identifier damageBonusId() {
         return switch (this) {
             case NONE -> null;
-            case ELECTRIC -> Identifier.fromNamespaceAndPath("rpgcraftcore", "electric_damage_bonus");
-            case FIRE -> Identifier.fromNamespaceAndPath("rpgcraftcore", "fire_damage_bonus");
-            case WIND -> Identifier.fromNamespaceAndPath("rpgcraftcore", "wind_damage_bonus");
-            case WATER -> Identifier.fromNamespaceAndPath("rpgcraftcore", "water_damage_bonus");
-            case LIGHT -> Identifier.fromNamespaceAndPath("rpgcraftcore", "light_damage_bonus");
-            case POISON -> Identifier.fromNamespaceAndPath("rpgcraftcore", "poison_damage_bonus");
-            case DARK -> Identifier.fromNamespaceAndPath("rpgcraftcore", "dark_damage_bonus");
+            case ELECTRIC -> AttributeIds.ELECTRIC_DAMAGE_BONUS_ID;
+            case FIRE -> AttributeIds.FIRE_DAMAGE_BONUS_ID;
+            case WIND -> AttributeIds.WIND_DAMAGE_BONUS_ID;
+            case WATER -> AttributeIds.WATER_DAMAGE_BONUS_ID;
+            case LIGHT -> AttributeIds.LIGHT_DAMAGE_BONUS_ID;
+            case POISON -> AttributeIds.POISON_DAMAGE_BONUS_ID;
+            case DARK -> AttributeIds.DARK_DAMAGE_BONUS_ID;
         };
     }
 }

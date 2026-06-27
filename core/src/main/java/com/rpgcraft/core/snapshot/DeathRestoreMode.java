@@ -11,7 +11,9 @@ package com.rpgcraft.core.snapshot;
  *       再根据重生后身上实际装备重新计算属性。装备掉落后不再提供加成。</li>
  * </ul>
  * <p>
- * 可通过 {@code /rpg deathmode <snapshot|rescan>} 指令在运行时切换。
+ * 可通过 {@code /rpg deathmode <snapshot|rescan>} 指令在运行时切换，切换经
+ * {@link DeathRestoreModeSavedData} 持久化到存档，跨服务端重启保留（服务端启动时由
+ * {@code RPGCraftCore#onServerStarted} 从磁盘恢复到内存镜像）。
  */
 public enum DeathRestoreMode {
 

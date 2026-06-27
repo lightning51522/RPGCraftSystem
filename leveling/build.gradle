@@ -38,14 +38,7 @@ configurations {
 dependencies {
     implementation project(':core')
 
-    // 单元测试（首次引入）：仅用于验证纯数学的经验公式，不依赖 Minecraft 运行时
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-test {
-    useJUnitPlatform()
+    // 单元测试依赖已统一在根 build.gradle 的 subprojects {} 中配置
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

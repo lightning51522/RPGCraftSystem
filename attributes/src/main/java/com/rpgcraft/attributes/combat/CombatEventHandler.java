@@ -8,7 +8,7 @@ import com.rpgcraft.core.attribute.EntityAttribute;
 import com.rpgcraft.core.attribute.EntityAttributeAttachment;
 import com.rpgcraft.core.attribute.MobAttributeConfig;
 import com.rpgcraft.core.attribute.api.IDamageCalculator;
-import com.rpgcraft.attributes.module.DefaultAttributes;
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.attributes.AttributesMod;
 // CombatCommands 引用（同模块，替代原来对 core RPGCommands 的引用）
 import com.rpgcraft.core.combat.MobLevelData;
@@ -26,15 +26,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
-import net.minecraft.world.entity.projectile.arrow.Arrow;
 import org.jspecify.annotations.Nullable;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -198,24 +195,24 @@ public class CombatEventHandler {
                 : scaler.scaleAttribute(base.life(), targetLevel, "life"), ratingMult);
         int scaledStrength = applyRating(overrides.containsKey("strength")
                 ? overrides.get("strength")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.STRENGTH_ID), targetLevel, "strength"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.STRENGTH_ID), targetLevel, "strength"), ratingMult);
         // 注：defense 已改为综合属性（= 力量×2，由 DefaultDamageCalculator 动态计算），
         // 怪物不再独立配置 defense。mob_attributes.json 中残留的 defense 字段会被忽略。
         int scaledResistance = applyRating(overrides.containsKey("resistance")
                 ? overrides.get("resistance")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.RESISTANCE_ID), targetLevel, "resistance"), ratingMult);
         int scaledCritRate = applyRating(overrides.containsKey("critical_rate")
                 ? overrides.get("critical_rate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.CRITICAL_RATE_ID), targetLevel, "critical_rate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.CRITICAL_RATE_ID), targetLevel, "critical_rate"), ratingMult);
         int scaledCritRatio = applyRating(overrides.containsKey("critical_ratio")
                 ? overrides.get("critical_ratio")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.CRITICAL_RATIO_ID), targetLevel, "critical_ratio"), ratingMult);
         int scaledPhysicalPenetrate = applyRating(overrides.containsKey("physical_penetrate")
                 ? overrides.get("physical_penetrate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.PHYSICAL_PENETRATE_ID), targetLevel, "physical_penetrate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.PHYSICAL_PENETRATE_ID), targetLevel, "physical_penetrate"), ratingMult);
         int scaledMagicalPenetrate = applyRating(overrides.containsKey("magical_penetrate")
                 ? overrides.get("magical_penetrate")
-                : scaler.scaleAttribute(base.getIntrinsicBase(DefaultAttributes.MAGICAL_PENETRATE_ID), targetLevel, "magical_penetrate"), ratingMult);
+                : scaler.scaleAttribute(base.getIntrinsicBase(AttributeIds.MAGICAL_PENETRATE_ID), targetLevel, "magical_penetrate"), ratingMult);
 
         // 设置 vanilla 最大生命
         var maxHealthAttr = entity.getAttribute(Attributes.MAX_HEALTH);
@@ -271,12 +268,12 @@ public class CombatEventHandler {
                                              int physicalPenetrate, int magicalPenetrate) {
         EntityAttributeAttachment attachment = entity.getData(AttributeManager.ENTITY_ATTRIBUTE_ATTACHMENT);
         attachment.setIntrinsicBase(AttributeManager.LIFE_ID, life);
-        attachment.setIntrinsicBase(DefaultAttributes.STRENGTH_ID, strength);
-        attachment.setIntrinsicBase(DefaultAttributes.RESISTANCE_ID, resistance);
-        attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATE_ID, criticalRate);
-        attachment.setIntrinsicBase(DefaultAttributes.CRITICAL_RATIO_ID, criticalRatio);
-        attachment.setIntrinsicBase(DefaultAttributes.PHYSICAL_PENETRATE_ID, physicalPenetrate);
-        attachment.setIntrinsicBase(DefaultAttributes.MAGICAL_PENETRATE_ID, magicalPenetrate);
+        attachment.setIntrinsicBase(AttributeIds.STRENGTH_ID, strength);
+        attachment.setIntrinsicBase(AttributeIds.RESISTANCE_ID, resistance);
+        attachment.setIntrinsicBase(AttributeIds.CRITICAL_RATE_ID, criticalRate);
+        attachment.setIntrinsicBase(AttributeIds.CRITICAL_RATIO_ID, criticalRatio);
+        attachment.setIntrinsicBase(AttributeIds.PHYSICAL_PENETRATE_ID, physicalPenetrate);
+        attachment.setIntrinsicBase(AttributeIds.MAGICAL_PENETRATE_ID, magicalPenetrate);
     }
 
     /**
@@ -316,49 +313,11 @@ public class CombatEventHandler {
         IDamageCalculator calculator = AttributeManager.getDamageCalculator();
         EntityAttribute lifeAttr = target.getData(AttributeManager.LIFE);
 
-        // 确定攻击类型
-        AttackType attackType = AttackType.PHYSICAL;
-        // 确定攻击元素标签（与攻击类型正交）
-        // 当前默认全部 NONE：仅玩家武器通过 IElementResolver 解析（无模块时兜底返回 NONE）。
-        // 怪物/箭矢/环境/魔法源暂保持 NONE，未来可从 mob 配置扩展。
-        Element element = Element.NONE;
-        if (attackerEntity instanceof LivingEntity attacker) {
-            // 箭矢伤害类型检测：优先判断投射物类型
-            if (source.getDirectEntity() instanceof AbstractArrow) {
-                // Arrow 为药箭/普通箭，通过颜色判断是否有药水效果（-1 = 无效果）
-                if (source.getDirectEntity() instanceof Arrow arrow && arrow.getColor() != -1) {
-                    attackType = AttackType.MIX_TYPE; // 有药水效果的箭 → 混合伤害
-                } else {
-                    attackType = AttackType.PHYSICAL; // 普通箭/光灵箭 → 物理伤害
-                }
-            } else if (attacker instanceof Player player) {
-                Identifier weaponId = BuiltInRegistries.ITEM.getKey(player.getMainHandItem().getItem());
-                attackType = RPGSystems.getAttackTypeResolver().resolve(weaponId);
-                element = RPGSystems.getElementResolver().resolve(weaponId);
-            } else {
-                MobLevelData attackerLevelData = RPGSystems.getMobDataProvider().getMobLevelData(attacker);
-                if (attackerLevelData.hasAttackTypeOverride()) {
-                    attackType = attackerLevelData.getAttackTypeOverride();
-                } else {
-                    Identifier attackerTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(attacker.getType());
-                    attackType = RPGSystems.getMobDataProvider().getConfig(attackerTypeId)
-                            .map(MobAttributeConfig.MobAttributes::attackType)
-                            .orElse(AttackType.PHYSICAL);
-                }
-            }
-        }
-
-        // 药水/魔法伤害强制使用 MAGIC 攻击类型
-        // 包括：瞬间伤害药水(INDIRECT_MAGIC)、中毒/唤魔者尖牙(MAGIC)、
-        //       凋零(WITHER)、龙息(DRAGON_BREATH)、监守者声波(SONIC_BOOM)
-        // 子模块仍可通过 RPGDamageEvent.Pre 修改或取消
-        if (source.is(DamageTypes.INDIRECT_MAGIC)
-                || source.is(DamageTypes.MAGIC)
-                || source.is(DamageTypes.WITHER)
-                || source.is(DamageTypes.DRAGON_BREATH)
-                || source.is(DamageTypes.SONIC_BOOM)) {
-            attackType = AttackType.MAGIC;
-        }
+        // 分类：从伤害来源解析 RPG 攻击类型与元素标签（详见 DamageClassifier）
+        DamageClassifier.DamageClassification classification =
+                DamageClassifier.classify(source, attackerEntity);
+        AttackType attackType = classification.attackType();
+        Element element = classification.element();
 
         // === RPGDamageEvent.Pre：伤害计算前，子模块可取消/修改 ===
         LivingEntity attackerLiving = (attackerEntity instanceof LivingEntity al) ? al : null;
@@ -400,15 +359,18 @@ public class CombatEventHandler {
         // === 战斗日志：向攻击者玩家发送伤害信息 ===
         if (attackerLiving instanceof ServerPlayer attackerPlayer
                 && CombatCommands.isCombatLogEnabled(attackerPlayer)) {
-            String targetName = target.getName().getString();
-            String typeLabel = attackType == AttackType.PHYSICAL ? "物理"
-                    : attackType == AttackType.MAGIC ? "魔法" : "混合";
-            String lethalLabel = lethal ? "（致命）" : "";
+            Component typeLabel = attackType == AttackType.PHYSICAL
+                    ? Component.translatable("rpgcraft.combat.event.type_physical")
+                    : attackType == AttackType.MAGIC
+                    ? Component.translatable("rpgcraft.combat.event.type_magic")
+                    : Component.translatable("rpgcraft.combat.event.type_mix");
+            Component lethalLabel = lethal
+                    ? Component.translatable("rpgcraft.combat.event.lethal")
+                    : Component.literal("");
             String elementLabel = (element != null && !element.isNone())
                     ? element.getName() : "";
-            attackerPlayer.sendSystemMessage(Component.literal(
-                    String.format("§7[战斗] 你对 %s 造成了 %d 点%s%s伤害%s",
-                            targetName, flatDamage, typeLabel, elementLabel, lethalLabel)));
+            attackerPlayer.sendSystemMessage(Component.translatable("rpgcraft.combat.event.log",
+                    target.getName(), flatDamage, typeLabel, elementLabel, lethalLabel));
         }
 
         // 将原版伤害设为对应比例值，使原版生命条同步变化

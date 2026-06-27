@@ -148,8 +148,12 @@ public class AttributeManager {
     // 生命属性（core 自有，与原版机制对接）
     // ====================================================================
 
-    /** 生命属性标识符（core 自有，任何配置下必然存在） */
-    public static final Identifier LIFE_ID = Identifier.fromNamespaceAndPath("rpgcraftcore", "life");
+    /**
+     * 生命属性标识符（core 自有，任何配置下必然存在）
+     * <p>
+     * 真相源为 {@link AttributeIds#LIFE_ID}；此处保留为便捷别名以维持向后兼容。
+     */
+    public static final Identifier LIFE_ID = AttributeIds.LIFE_ID;
 
     /**
      * 生命属性附件 Supplier（由 {@link #init()} 注册后填充）

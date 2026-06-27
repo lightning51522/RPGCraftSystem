@@ -1,5 +1,6 @@
 package com.rpgcraft.professions.warrior;
 
+import com.rpgcraft.core.attribute.AttributeIds;
 import com.rpgcraft.core.profession.api.ProfessionCombatContext;
 import com.rpgcraft.core.profession.api.IProfession;
 import com.rpgcraft.core.profession.api.ProfessionIds;
@@ -17,11 +18,9 @@ import net.minecraft.world.item.Items;
 public class WarriorProfession extends WarriorSeriesProfession {
 
     /** 力量属性 ID */
-    private static final Identifier STRENGTH_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "strength");
+    private static final Identifier STRENGTH_ID = AttributeIds.STRENGTH_ID;
     /** 敏捷属性 ID */
-    private static final Identifier AGILE_ID =
-            Identifier.fromNamespaceAndPath("rpgcraftcore", "agile");
+    private static final Identifier AGILE_ID = AttributeIds.AGILE_ID;
 
     public WarriorProfession() {
         super(

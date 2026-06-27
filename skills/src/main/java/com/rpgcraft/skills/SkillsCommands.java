@@ -87,24 +87,24 @@ public class SkillsCommands {
     private static int executeSkillsInfo(CommandContext<CommandSourceStack> context, ServerPlayer target) {
         var sys = RPGSystems.getSkillSystem();
         context.getSource().sendSuccess(
-                () -> Component.literal("—— " + target.getName().getString() + " 的技能信息 ——"),
+                () -> Component.translatable("rpgcraft.skills.info_header", target.getName()),
                 false
         );
         if (sys.getAllSkills().isEmpty()) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  （无已注册技能）"), false
+                    () -> Component.translatable("rpgcraft.skills.no_skills"), false
             );
         } else {
             for (ISkill skill : sys.getAllSkills()) {
                 boolean onCd = sys.isOnCooldown(target, skill.getId());
                 long remaining = sys.getRemainingCooldown(target, skill.getId());
-                String status = onCd ? " [冷却 " + (remaining / 20.0) + "s]" : " [可用]";
+                Component status = onCd
+                        ? Component.translatable("rpgcraft.skills.status_cooldown", remaining / 20.0)
+                        : Component.translatable("rpgcraft.skills.status_ready");
                 context.getSource().sendSuccess(
-                        () -> Component.literal("  " + skill.getId().getPath() + " - " +
-                                skill.getDisplayName() + status +
-                                " (消耗 " + skill.getResourceCost() + " 技能点, " +
-                                "冷却 " + (skill.getCooldownTicks() / 20.0) + "s, " +
-                                "伤害 " + skill.getDamageAmount() + ")"),
+                        () -> Component.translatable("rpgcraft.skills.skill_line",
+                                skill.getId().getPath(), skill.getDisplayName(), status,
+                                skill.getResourceCost(), skill.getCooldownTicks() / 20.0, skill.getDamageAmount()),
                         false
                 );
             }
@@ -117,14 +117,14 @@ public class SkillsCommands {
      */
     private static int executeSkillsList(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(
-                () -> Component.literal("—— 已注册技能列表 ——"), false
+                () -> Component.translatable("rpgcraft.skills.list_header"), false
         );
         for (ISkill skill : RPGSystems.getSkillSystem().getAllSkills()) {
             context.getSource().sendSuccess(
-                    () -> Component.literal("  " + skill.getId().getPath() +
-                            " - " + skill.getDisplayName() + ": " + skill.getDescription() +
-                            " [消耗" + skill.getResourceCost() + "/冷却" + (skill.getCooldownTicks() / 20.0) +
-                            "s/伤害" + skill.getDamageAmount() + "/范围" + skill.getRange() + "]"),
+                    () -> Component.translatable("rpgcraft.skills.list_entry",
+                            skill.getId().getPath(), skill.getDisplayName(), skill.getDescription(),
+                            skill.getResourceCost(), skill.getCooldownTicks() / 20.0,
+                            skill.getDamageAmount(), skill.getRange()),
                     false
             );
         }
@@ -140,21 +140,20 @@ public class SkillsCommands {
         var sys = RPGSystems.getSkillSystem();
         ISkill skill = sys.getSkillById(skillId);
         if (skill == null) {
-            context.getSource().sendFailure(Component.literal("未知技能: " + skillName));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.skills.unknown", skillName));
             return 0;
         }
 
         boolean success = sys.cast(target, skillId);
         if (success) {
             context.getSource().sendSuccess(
-                    () -> Component.literal(target.getName().getString() +
-                            " 释放了 " + skill.getDisplayName()), true
+                    () -> Component.translatable("rpgcraft.skills.cast_success",
+                            target.getName(), skill.getDisplayName()), true
             );
             return 1;
         } else {
-            context.getSource().sendFailure(Component.literal(
-                    target.getName().getString() + " 无法释放 " + skill.getDisplayName() +
-                            "（冷却中或技能点不足）"));
+            context.getSource().sendFailure(Component.translatable("rpgcraft.skills.cast_failed",
+                    target.getName(), skill.getDisplayName()));
             return 0;
         }
     }
@@ -165,7 +164,7 @@ public class SkillsCommands {
     private static int executeCooldownReset(CommandContext<CommandSourceStack> context, ServerPlayer target) {
         RPGSystems.getSkillSystem().resetAllCooldowns(target);
         context.getSource().sendSuccess(
-                () -> Component.literal("已重置 " + target.getName().getString() + " 的全部技能冷却"), true
+                () -> Component.translatable("rpgcraft.skills.reset", target.getName()), true
         );
         return 1;
     }
