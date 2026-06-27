@@ -62,7 +62,7 @@ public class ArchmageProfession extends MageSeriesProfession {
      */
     @Override
     public int computeEffectiveCritDamage(CombatStats s) {
-        return (int) Math.round(s.critRatio() + (s.precision() / 3.0) * 2);
+        return (int) Math.floor(s.critRatio() + (s.precision() / 3.0) * 2);
     }
 
     @Override

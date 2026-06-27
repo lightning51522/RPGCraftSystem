@@ -40,15 +40,15 @@ class ProfessionFormulasTest {
 
     @Test
     void effectiveCritRate_isCritRatePlusAgileDiv5() {
-        // 暴击率 + 敏捷/5（浮点除法后四舍五入）
+        // 暴击率 + 敏捷/5（浮点除法后向下取整）
         CombatStats s = stats(0, 0, 13, 0, 7, 0);
-        assertEquals(10, ProfessionFormulas.effectiveCritRate(s)); // 7 + 13/5.0(=2.6) = 9.6 → round 10
+        assertEquals(9, ProfessionFormulas.effectiveCritRate(s)); // 7 + 13/5.0(=2.6) = 9.6 → floor 9
     }
 
     @Test
     void effectiveCritDamage_isCritRatioPlusPrecisionDiv5Times2() {
-        // 暴击伤害 + (精准/5)*2（浮点除法后四舍五入）
+        // 暴击伤害 + (精准/5)*2（浮点除法后向下取整）
         CombatStats s = stats(0, 0, 0, 12, 0, 50);
-        assertEquals(55, ProfessionFormulas.effectiveCritDamage(s)); // 50 + (12/5.0=2.4)*2 = 54.8 → round 55
+        assertEquals(54, ProfessionFormulas.effectiveCritDamage(s)); // 50 + (12/5.0=2.4)*2 = 54.8 → floor 54
     }
 }

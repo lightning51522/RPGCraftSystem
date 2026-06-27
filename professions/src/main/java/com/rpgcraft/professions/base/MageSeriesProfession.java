@@ -28,7 +28,7 @@ public abstract class MageSeriesProfession extends AbstractProfession {
 
     @Override
     public int computeMagicalAttack(CombatStats s) {
-        return (int) Math.round(s.intelligence() * 2.0 + s.agile() * 0.5);
+        return (int) Math.floor(s.intelligence() * 2.0 + s.agile() * 0.5);
     }
 
     @Override

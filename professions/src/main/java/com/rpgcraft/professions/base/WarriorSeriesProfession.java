@@ -28,12 +28,12 @@ public abstract class WarriorSeriesProfession extends AbstractProfession {
 
     @Override
     public int computePhysicalAttack(CombatStats s) {
-        return (int) Math.round(s.strength() * 2.5);
+        return (int) Math.floor(s.strength() * 2.5);
     }
 
     @Override
     public int computePhysicalDefense(CombatStats s) {
-        return (int) Math.round(s.strength() * 2.5);
+        return (int) Math.floor(s.strength() * 2.5);
     }
 
     @Override

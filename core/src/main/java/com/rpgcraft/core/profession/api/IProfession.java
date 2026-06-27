@@ -265,16 +265,16 @@ public interface IProfession {
     /**
      * 物理攻击力派生公式（综合属性，不注册为真实属性）。
      * <p>
-     * 默认：{@code 力量×2 + 智力}。返回值为四舍五入取整。
+     * 默认：{@code 力量×2 + 智力}。返回值为向下取整。
      * 主职业可覆写使用浮点系数（如 {@code strength * 2.5 + intelligence * 0.5}），
-     * 结果自动 {@code Math.round}。
+     * 结果自动 {@code Math.floor}。
      *
      * @param strength    物理力量属性当前值（管线最终值，含职业/装备/属性点加成）
      * @param intelligence 智力属性当前值
-     * @return 物理攻击力（四舍五入）
+     * @return 物理攻击力（向下取整）
      */
     default int computePhysicalAttack(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.0 + intelligence);
+        return (int) Math.floor(strength * 2.0 + intelligence);
     }
 
     /**
@@ -290,55 +290,55 @@ public interface IProfession {
     /**
      * 魔法攻击力派生公式（综合属性）。
      * <p>
-     * 默认：{@code 智力×2 + 力量}。返回值为四舍五入取整。
+     * 默认：{@code 智力×2 + 力量}。返回值为向下取整。
      *
      * @param strength    物理力量属性当前值
      * @param intelligence 智力属性当前值
-     * @return 魔法攻击力（四舍五入）
+     * @return 魔法攻击力（向下取整）
      */
     default int computeMagicalAttack(int strength, int intelligence) {
-        return (int) Math.round(intelligence * 2.0 + strength);
+        return (int) Math.floor(intelligence * 2.0 + strength);
     }
 
     /**
      * 物理防御力派生公式（综合属性）。
      * <p>
-     * 默认：{@code 力量×2}。返回值为四舍五入取整。
+     * 默认：{@code 力量×2}。返回值为向下取整。
      * <p>
      * 魔法防御力不从此方法派生 —— 魔法防御仅来自装备，无属性派生。
      *
      * @param strength    物理力量属性当前值
      * @param intelligence 智力属性当前值
-     * @return 物理防御力（四舍五入）
+     * @return 物理防御力（向下取整）
      */
     default int computePhysicalDefense(int strength, int intelligence) {
-        return (int) Math.round(strength * 2.0);
+        return (int) Math.floor(strength * 2.0);
     }
 
     /**
      * 有效暴击率派生公式（综合属性，不可加点，不注册为真实属性）。
      * <p>
-     * 默认：{@code 暴击率 + 敏捷/5}（每 5 点敏捷 +1 暴击率）。返回值为四舍五入取整。
+     * 默认：{@code 暴击率 + 敏捷/5}（每 5 点敏捷 +1 暴击率）。返回值为向下取整。
      *
      * @param critRate 暴击率属性当前值（管线最终值，含装备加成）
      * @param agile    敏捷属性当前值
-     * @return 有效暴击率（四舍五入）
+     * @return 有效暴击率（向下取整）
      */
     default int computeEffectiveCritRate(int critRate, int agile) {
-        return (int) Math.round(critRate + agile / 5.0);
+        return (int) Math.floor(critRate + agile / 5.0);
     }
 
     /**
      * 有效暴击伤害派生公式（综合属性，不可加点，不注册为真实属性）。
      * <p>
-     * 默认：{@code 暴击伤害 + (精准/5)×2}（每 5 点精准 +2 暴击伤害）。返回值为四舍五入取整。
+     * 默认：{@code 暴击伤害 + (精准/5)×2}（每 5 点精准 +2 暴击伤害）。返回值为向下取整。
      *
      * @param critRatio 暴击伤害属性当前值（管线最终值，含装备加成）
      * @param precision 精准属性当前值
-     * @return 有效暴击伤害（四舍五入）
+     * @return 有效暴击伤害（向下取整）
      */
     default int computeEffectiveCritDamage(int critRatio, int precision) {
-        return (int) Math.round(critRatio + (precision / 5.0) * 2);
+        return (int) Math.floor(critRatio + (precision / 5.0) * 2);
     }
 
     // ==================================================================

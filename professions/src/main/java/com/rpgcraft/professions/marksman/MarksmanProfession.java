@@ -56,7 +56,7 @@ public class MarksmanProfession extends ArcherSeriesProfession {
      */
     @Override
     public int computeEffectiveCritRate(CombatStats s) {
-        return (int) Math.round(s.critRate() + s.agile() / 3.0);
+        return (int) Math.floor(s.critRate() + s.agile() / 3.0);
     }
 
     @Override

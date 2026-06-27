@@ -28,7 +28,7 @@ public abstract class ArcherSeriesProfession extends AbstractProfession {
 
     @Override
     public int computePhysicalAttack(CombatStats s) {
-        return (int) Math.round(s.strength() * 1.5 + s.agile() * 1.5);
+        return (int) Math.floor(s.strength() * 1.5 + s.agile() * 1.5);
     }
 
     @Override

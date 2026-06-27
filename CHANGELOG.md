@@ -4,6 +4,25 @@
 
 ---
 
+## [0.13.1-alpha] - 2026-06-27
+
+### 修复
+
+#### 综合属性派生公式：四舍五入 → 向下取整
+
+所有综合属性派生公式（物攻/魔攻/物防/有效暴击率/有效暴击伤害）的浮点→整数转换由 `Math.round`（四舍五入）改为 `Math.floor`（向下取整），使「每 N 点属性 +1」类描述严格成立。
+
+- **现象**：原「每 5 点敏捷 +1 暴击率」在敏捷 3 点时就生效（3/5=0.6 被 `round` 进位成 1），与描述不符。
+- **修复后**：敏捷 3 点 → 加成 0；第 5 点才 +1，符合描述。
+- **改动范围**（共 11 处公式 + 对应 Javadoc，6 个文件）：
+  - `core.IProfession` 5 个默认方法（含 Javadoc「四舍五入」→「向下取整」）
+  - 5 个职业基类/叶子类覆写：`WarriorSeriesProfession`（物攻/物防）、`MageSeriesProfession`（魔攻）、`ArcherSeriesProfession`（物攻）、`ArchmageProfession`（暴伤）、`MarksmanProfession`（暴击率）
+- **自动生效的依赖链**：`ProfessionFormulas`（委托 IProfession 默认）、`CompositeAttributePlugin`（客户端显示，委托同一公式）、`DefaultDamageCalculator`（战斗计算）均无需单独改动，服务端/客户端无漂移。
+- **测试**：`ProfessionFormulasTest` 2 个用例预期值随行为变更更新（暴击率 9.6→9、暴击伤害 54.8→54）。
+- **范围外（未改）**：`getBonusAtLevel`（职业每级属性加成）、伤害公式取整、经验公式 —— 均按需保留原行为。
+
+---
+
 ## [0.13.0-alpha] - 2026-06-27
 
 > 生产级代码审查后的整改版本。基于对全工程的审查报告，按重要性逐项修复可维护性、健壮性与工程卫生缺陷，不引入新玩法。
