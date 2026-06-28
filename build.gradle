@@ -25,6 +25,13 @@ subprojects {
         mavenCentral()
         // Player Animation Library (PAL) - 玩家动画库
         maven { url = 'https://repo.redlance.org/public' }
+        // GeckoLib - 生物（自定义实体）模型 / 动画库
+        maven {
+            url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+            content {
+                includeGroup('com.geckolib')
+            }
+        }
     }
 
     // 单元测试（统一配置，全模块开箱可用）

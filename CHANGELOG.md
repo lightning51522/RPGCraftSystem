@@ -4,6 +4,51 @@
 
 ---
 
+## [0.14.0-alpha] - 2026-06-28
+
+> 新增 `entities` 模块（BlockBench 自定义生物承载点）并引入 GeckoLib 动画库；同时在文档中明确规定 GeckoLib 与 PAL 的动画库分工。
+
+### 新增
+
+#### entities 模块（rpgcraftentities）
+
+承载由 **BlockBench** 制作、经 **GeckoLib** 驱动模型与动画的自定义生物，作为微内核的可选内容插件（与 skills / region 同级）。
+
+- 模块骨架：`gradle.properties`、`build.gradle`、`mods.toml` 模板、`@Mod` 入口 `EntitiesMod`（含空 `ENTITY_TYPES` DeferredRegister）、`CLAUDE.md`（含完整「如何添加一个 BlockBench 生物」流程：导出 geo/animation/texture → 资源放置 → GeoEntity/Renderer → 注册）
+- 内容型插件，**不注册任何 RPGSystems 接口**；未来需 RPG 属性 / 等级联动时复用 core 的 `GatherAttributeEvent` / `IMobDataProvider`
+- 入口类 `EntitiesMod`、mod id `rpgcraftentities`、包 `com.rpgcraft.entities`、版本 `0.14.0-alpha`
+
+#### GeckoLib 依赖引入（entities + 工程）
+
+- 坐标 `com.geckolib:geckolib-neoforge-26.1:5.5`（5.x 起 GroupId 由 `software.bernie.geckolib` 迁移为 `com.geckolib`；ArtifactId 用 MC 主版本号 `26.1`，非 `26.1.2`）
+- 仓库 `https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/` 统一接入根 `build.gradle` 的 `subprojects.repositories`（与 PAL 同位）
+- `entities/build.gradle` 用 `transitive=false` 排除 GeckoLib POM 与 NeoForge `{strictly...}` 冲突的传递依赖（gson/slf4j/joml 等），与 skills 模块对 PAL 的排除策略同理
+- `gradle.properties` 新增 `geckolib_version=5.5` 与 `minecraft_gecko_mc_version=26.1`
+- `core/build.gradle` 在 `neoForge.mods` 注册 `rpgcraftentities` source set + `runtimeOnly project(':entities')`，开发期由 core 托管加载
+- entities `mods.toml` 将 GeckoLib 声明为 `type="required"`（区别于 skills 中 PAL 的 optional：模块的存在意义即 GeckoLib 动画生物）
+
+#### 动画库分工规则（文档硬约束）
+
+在 README 新增「## 动画库分工」小节、根 `CLAUDE.md`「关键约定」中明确规定：
+- **GeckoLib 只能用于生物（自定义实体）**的模型与动画（entities 模块）
+- **PAL 只能用于玩家**动画（skills 模块）
+- 二者职责互斥，**严禁混用**：生物动画不得用 PAL，玩家动画不得用 GeckoLib
+
+### 变更
+
+- README 徽章升级 `0.13.2` → `0.14.0`；第三方依赖表、模块组成树、模块表新增 entities 行
+- 根 `CLAUDE.md` 模块结构树、依赖方向图新增 entities（`→ core + GeckoLib`）
+- `THIRDPARTY_LICENSES.md` 新增 GeckoLib (MIT) 许可证段落
+- `settings.gradle` 新增 `include 'entities'`
+- **core** `mod_version` `0.13.1` → `0.14.0`（`build.gradle` 接线 entities，随本次发布升级）
+
+### 验证
+
+- `clean build` 全工程 BUILD SUCCESSFUL（含 core 聚合 entities）
+- 游戏内手动验证：客户端正常启动，模组界面正确识别 GeckoLib 依赖
+
+---
+
 ## [0.13.1-alpha] - 2026-06-27
 
 ### 修复

@@ -1,0 +1,81 @@
+plugins {
+    id 'net.neoforged.moddev'
+}
+
+def modId = property('mod_id')
+def modName = property('mod_name')
+def modVersion = property('mod_version')
+def modGroupId = property('mod_group_id')
+def modLicense = property('mod_license')
+
+version = modVersion
+group = modGroupId
+
+base {
+    archivesName = modId
+}
+
+sourceSets.main.resources {
+    srcDir('src/generated/resources')
+    exclude("**/*.bbmodel") // BlockBench 工程源文件，仅作开发参考，不打入产物
+    exclude("src/generated/**/.cache") // datagen 缓存
+}
+
+// GeckoLib 5.x（MC 26.1）：
+//   - GroupId 自 5.x 起由 software.bernie.geckolib 迁移为 com.geckolib
+//   - ArtifactId 使用 MC 主版本号 geckolib-neoforge-26.1（不带 patch 段）
+//   - 仓库统一在根 build.gradle 的 subprojects.repositories 中声明（与 PAL 同位放置）
+//   - GeckoLib 在本模块为 required 依赖：模块的存在意义即 GeckoLib 动画生物，
+//     缺失时模块无意义（区别于 skills 模块中 PAL 的 optional 声明）。
+//   - transitive = false：GeckoLib 的 POM 声明了较新版本的 gson/slf4j/joml 等，
+//     与 NeoForge 通过 {strictly ...} 锁定的版本冲突；这些库运行期由 NeoForge 提供，
+//     故排除其全部传递依赖（与 skills 模块对 PAL 的排除策略同理）。
+
+neoForge {
+    version = rootProject.property('neo_version')
+
+    mods {
+        "${modId}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    implementation project(':core')
+    // GeckoLib（生物模型 / 动画库）—— 仅用于自定义生物动画
+    implementation("com.geckolib:geckolib-neoforge-${rootProject.property('minecraft_gecko_mc_version')}:${rootProject.property('geckolib_version')}") {
+        transitive = false
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : rootProject.property('minecraft_version'),
+            minecraft_version_range: rootProject.property('minecraft_version_range'),
+            neo_version            : rootProject.property('neo_version'),
+            geckolib_version       : rootProject.property('geckolib_version'),
+            mod_id                 : modId,
+            mod_name               : modName,
+            mod_license            : modLicense,
+            mod_version            : modVersion,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

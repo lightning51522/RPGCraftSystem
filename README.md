@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.13.2--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.14.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -22,7 +22,10 @@
 
 | 库 | 用途 | 许可证 |
 |----|------|--------|
-| [Player Animation Library (PAL)](https://github.com/ZigyTheBird/PlayerAnimationLib) | skills 模块技能动画 | MIT |
+| [Player Animation Library (PAL)](https://github.com/ZigyTheBird/PlayerAnimationLib) | skills 模块技能动画（**仅玩家动画**） | MIT |
+| [GeckoLib](https://github.com/bernie-g/geckolib) | entities 模块自定义生物模型 / 动画（**仅生物动画**） | MIT |
+
+> **动画库分工（项目硬约束）**：[GeckoLib](https://github.com/bernie-g/geckolib) **只能用于生物（自定义实体）**的模型与动画；[PAL](https://github.com/ZigyTheBird/PlayerAnimationLib) **只能用于玩家**动画。二者职责互斥，**严禁混用**——生物动画不得用 PAL，玩家动画不得用 GeckoLib。详见下方 [动画库分工](#动画库分工)。
 
 ---
 
@@ -38,6 +41,7 @@ RPGCraftSystem/
 ├── attributepoints/  自由属性点分配系统（升级获点，玩家自行分配到任意属性）
 ├── skills/           主动技能系统（PAL 玩家动画 + 资源消耗 + 冷却 + RPG 伤害）
 ├── region/           区域系统（多边形柱体 + 环境属性增益/减益 + 元素伤害倍率）
+├── entities/         自定义生物（BlockBench 建模 + GeckoLib 动画）
 └── client/           HUD / 角色信息界面 / 职业面板 / Tooltip / UI 插件系统
 ```
 
@@ -52,9 +56,25 @@ RPGCraftSystem/
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |
 | skills | `rpgcraftskills` | `SkillsMod` | core + PAL(playeranimator) |
 | region | `rpgcraftregion` | `RegionMod` | core + attributes（optional） |
+| entities | `rpgcraftentities` | `EntitiesMod` | core + GeckoLib(required) |
 | client | `rpgcraftclient` | `ClientMod` | core |
 
-> 插件模块**互不依赖**（依赖图为严格星形，所有插件只依赖 core），跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。`profession`（引擎）与 `professions`（内置职业内容）虽运行时有 `AFTER` 加载顺序约束，但编译期同样只依赖 core——`professions` 通过 `RPGSystems.getProfessionRegistry()` 获取注册中心注册职业。`region` 编译期依赖 `attributes`（引用元素抗性/伤害加成属性 ID 常量），运行时 `attributes` 为可选依赖（缺失时区域属性注入对未注册属性静默降级，不崩溃）。
+> 插件模块**互不依赖**（依赖图为严格星形，所有插件只依赖 core），跨模块通信全部走 core 的 `RPGSystems` 注册门面。`skills` 模块额外依赖外部库 PAL（仅客户端）。`profession`（引擎）与 `professions`（内置职业内容）虽运行时有 `AFTER` 加载顺序约束，但编译期同样只依赖 core——`professions` 通过 `RPGSystems.getProfessionRegistry()` 获取注册中心注册职业。`region` 编译期依赖 `attributes`（引用元素抗性/伤害加成属性 ID 常量），运行时 `attributes` 为可选依赖（缺失时区域属性注入对未注册属性静默降级，不崩溃）。`entities` 模块依赖外部库 GeckoLib（**required**，承载 BlockBench 生物的模型与动画；GeckoLib 缺失时该模块无意义，但不影响其他模块）。
+
+---
+
+## 动画库分工
+
+本项目使用两个独立的动画库，**职责互斥，严禁混用**：
+
+| 库 | 适用对象 | 使用模块 | 依赖性质 |
+|----|---------|---------|---------|
+| **[GeckoLib](https://github.com/bernie-g/geckolib)** | **生物（自定义实体）**的模型与动画 | `entities` | required |
+| **[PAL (Player Animation Library)](https://github.com/ZigyTheBird/PlayerAnimationLib)** | **玩家**动画（技能释放等） | `skills` | optional |
+
+- **GeckoLib 只能用于生物**：在 `entities` 模块中为 BlockBench 建模的自定义生物驱动 GeoEntity 模型与动画。
+- **PAL 只能用于玩家**：在 `skills` 模块中驱动玩家释放技能时的玩家身体动画。
+- **不得混用**：生物动画不得用 PAL，玩家动画不得用 GeckoLib。任何新增动画功能须先判断动画对象（生物 / 玩家），再选择对应库。
 
 ---
 

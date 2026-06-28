@@ -1,0 +1,41 @@
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="Berserker10086"
+description='''
+RPG Entities Module - Custom animated mobs made in BlockBench (powered by GeckoLib).
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="rpgcraftcore"
+    type="required"
+    versionRange="[0.1.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+# GeckoLib 为本模块的必需依赖（type="required"）：
+# 模块的存在意义即为承载 GeckoLib 动画生物，缺失则模块无意义。
+# （对比 skills 模块的 PAL 为 optional：PAL 缺失时技能伤害/冷却仍正常，仅无动画。）
+[[dependencies.${mod_id}]]
+    modId="geckolib"
+    type="required"
+    versionRange="[${geckolib_version},)"
+    ordering="AFTER"
+    side="BOTH"

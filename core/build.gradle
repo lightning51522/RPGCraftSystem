@@ -97,6 +97,9 @@ neoForge {
         rpgcraftregion {
             sourceSet project(':region').sourceSets.main
         }
+        rpgcraftentities {
+            sourceSet project(':entities').sourceSets.main
+        }
     }
 }
 
@@ -118,8 +121,11 @@ dependencies {
     runtimeOnly project(':attributepoints')
     runtimeOnly project(':skills')
     runtimeOnly project(':region')
+    runtimeOnly project(':entities')
     // PAL（Player Animation Library）依赖声明在 skills 模块（官方推荐 implementation），
     // 通过 runtimeOnly project(':skills') 传递到 core 的运行时 classpath，无需在此重复声明。
+    // GeckoLib 依赖声明在 entities 模块（implementation + required），通过 runtimeOnly
+    // project(':entities') 传递到 core 的运行时 classpath，无需在此重复声明。
 
     // 单元测试依赖已统一在根 build.gradle 的 subprojects {} 中配置
 }
