@@ -37,20 +37,28 @@ public class RuntimeRegionSavedData extends SavedData {
 
     /** NBT 字段名 */
     private static final String KEY_REGIONS = "runtime_regions";
+    /** 生物群系区域开关的 NBT 字段名 */
+    private static final String KEY_BIOME_REGION_ENABLED = "biome_region_enabled";
 
     /** 当前持久化的运行时区域列表 */
     private final List<Region> regions;
+    /** 生物群系区域功能全局开关（默认关闭） */
+    private boolean biomeRegionEnabled;
 
     /**
      * 序列化编解码器（Codec 模式）
      * <p>
-     * 存储为 Region 列表，每个 Region 含完整几何 + 效果。
+     * 存储为 Region 列表，每个 Region 含完整几何 + 效果；外加一个全局开关
+     * {@code biome_region_enabled}（默认 {@code false}，旧存档缺失此键时取默认关）。
      */
     public static final Codec<RuntimeRegionSavedData> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     Region.CODEC.listOf()
                             .optionalFieldOf(KEY_REGIONS, List.of())
-                            .forGetter(data -> data.regions)
+                            .forGetter(data -> data.regions),
+                    Codec.BOOL
+                            .optionalFieldOf(KEY_BIOME_REGION_ENABLED, false)
+                            .forGetter(data -> data.biomeRegionEnabled)
             ).apply(instance, RuntimeRegionSavedData::new)
     );
 
@@ -63,14 +71,16 @@ public class RuntimeRegionSavedData extends SavedData {
             CODEC
     );
 
-    /** 默认构造（无运行时区域） */
+    /** 默认构造（无运行时区域，生物群系区域开关关闭） */
     public RuntimeRegionSavedData() {
         this.regions = new ArrayList<>();
+        this.biomeRegionEnabled = false;
     }
 
     /** 反序列化构造 */
-    public RuntimeRegionSavedData(List<Region> regions) {
+    public RuntimeRegionSavedData(List<Region> regions, boolean biomeRegionEnabled) {
         this.regions = new ArrayList<>(regions);
+        this.biomeRegionEnabled = biomeRegionEnabled;
     }
 
     /**
@@ -83,6 +93,25 @@ public class RuntimeRegionSavedData extends SavedData {
     /** 当前所有运行时区域（只读视图） */
     public List<Region> getRegions() {
         return List.copyOf(regions);
+    }
+
+    /** 生物群系区域功能开关是否开启 */
+    public boolean isBiomeRegionEnabled() {
+        return biomeRegionEnabled;
+    }
+
+    /**
+     * 设置生物群系区域功能开关（持久化）
+     * <p>
+     * 调用方应同步刷新 {@link BiomeRegionFeature} 镜像以使热查询路径立即生效。
+     *
+     * @param enabled 新状态
+     */
+    public void setBiomeRegionEnabled(boolean enabled) {
+        if (this.biomeRegionEnabled != enabled) {
+            this.biomeRegionEnabled = enabled;
+            setDirty();
+        }
     }
 
     /**

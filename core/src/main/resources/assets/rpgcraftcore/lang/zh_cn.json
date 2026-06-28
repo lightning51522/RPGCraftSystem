@@ -30,6 +30,12 @@
   "rpgcraft.region.regionnotify.status_off": "§c关闭",
   "rpgcraft.region.regionnotify.set": "§7区域进出提示已%s",
 
+  "//_region_biomeregion": "=== 区域 / biomeregion（生物群系区域全局开关） ===",
+  "rpgcraft.region.biomeregion.status": "§7生物群系区域: %s §7(/rpg biomeregion on|off)",
+  "rpgcraft.region.biomeregion.status_on": "§a开启",
+  "rpgcraft.region.biomeregion.status_off": "§c关闭",
+  "rpgcraft.region.biomeregion.set": "§7生物群系区域已%s",
+
   "//_region_manager": "=== 区域进出提示（RegionManager） ===",
   "rpgcraft.region.entered": "§a[区域] §7你进入了 §f%s",
   "rpgcraft.region.left": "§a[区域] §7你离开了 §f%s",

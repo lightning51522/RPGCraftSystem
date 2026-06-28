@@ -118,6 +118,19 @@ public class RegionCommands {
                         .then(Commands.literal("off")
                                 .executes(RegionCommands::executeRegionNotifyOff))
                 )
+
+                // === 生物群系区域全局开关 ===
+                // biomeregion          → 查看当前状态
+                // biomeregion on|off   → 开关功能（影响全服，默认关闭）
+                .then(Commands.literal("biomeregion")
+                        // 管理员级：影响全服的功能开关
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .executes(RegionCommands::executeBiomeRegionStatus)
+                        .then(Commands.literal("on")
+                                .executes(RegionCommands::executeBiomeRegionOn))
+                        .then(Commands.literal("off")
+                                .executes(RegionCommands::executeBiomeRegionOff))
+                )
         );
     }
 
@@ -426,6 +439,40 @@ public class RegionCommands {
         context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.region.regionnotify.set",
                 enabled ? Component.translatable("rpgcraft.region.regionnotify.status_on")
                         : Component.translatable("rpgcraft.region.regionnotify.status_off")), false);
+        return 1;
+    }
+
+    // === biomeregion（生物群系区域全局开关） ===
+
+    private static int executeBiomeRegionStatus(CommandContext<CommandSourceStack> context) {
+        boolean enabled = BiomeRegionFeature.isEnabled();
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.region.biomeregion.status",
+                enabled ? Component.translatable("rpgcraft.region.biomeregion.status_on")
+                        : Component.translatable("rpgcraft.region.biomeregion.status_off")), false);
+        return 1;
+    }
+
+    private static int executeBiomeRegionOn(CommandContext<CommandSourceStack> context) {
+        return setBiomeRegion(context, true);
+    }
+
+    private static int executeBiomeRegionOff(CommandContext<CommandSourceStack> context) {
+        return setBiomeRegion(context, false);
+    }
+
+    /**
+     * 设置生物群系区域全局开关
+     * <p>
+     * 同时写入 SavedData（跨重启持久化）与 {@link BiomeRegionFeature} 镜像（立即生效）。
+     * 开关切换后，下次玩家 tick（≤0.5s）会按新状态重新计算 diff 并施加/移除修饰符。
+     */
+    private static int setBiomeRegion(CommandContext<CommandSourceStack> context, boolean enabled) {
+        RuntimeRegionSavedData savedData = RuntimeRegionSavedData.get(context.getSource().getServer());
+        savedData.setBiomeRegionEnabled(enabled);   // 持久化（setDirty）
+        BiomeRegionFeature.setEnabled(enabled);      // 刷新热查询镜像
+        context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.region.biomeregion.set",
+                enabled ? Component.translatable("rpgcraft.region.biomeregion.status_on")
+                        : Component.translatable("rpgcraft.region.biomeregion.status_off")), true);
         return 1;
     }
 }

@@ -1,6 +1,7 @@
 package com.rpgcraft.region.spatial;
 
 import com.rpgcraft.region.BiomeCategoryRegistry;
+import com.rpgcraft.region.BiomeRegionFeature;
 import com.rpgcraft.region.RegionsRegistry;
 import com.rpgcraft.region.data.BiomeCategory;
 import com.rpgcraft.region.data.BiomeRegion;
@@ -168,6 +169,8 @@ public final class RegionLocator {
     @Nullable
     private static BiomeRegion biomeRegionAt(Level level, ResourceKey<Level> dimension,
                                              int bx, int by, int bz) {
+        // 全局开关关闭时直接跳过（不读生物群系、不查类别表），由调用方返回空 → 仅几何区域生效
+        if (!BiomeRegionFeature.isEnabled()) return null;
         var biomeOpt = level.getBiome(MAIN_THREAD_POS.set(bx, by, bz)).unwrapKey();
         if (biomeOpt.isEmpty()) return null; // 非注册表生物群系，兜底
         ResourceKey<Biome> biomeKey = biomeOpt.get();

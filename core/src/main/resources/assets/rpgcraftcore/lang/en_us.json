@@ -30,6 +30,12 @@
   "rpgcraft.region.regionnotify.status_off": "§cOff",
   "rpgcraft.region.regionnotify.set": "§7Region enter/leave notify %s",
 
+  "//_region_biomeregion": "=== Region / biomeregion (biome region global toggle) ===",
+  "rpgcraft.region.biomeregion.status": "§7Biome region: %s §7(/rpg biomeregion on|off)",
+  "rpgcraft.region.biomeregion.status_on": "§aOn",
+  "rpgcraft.region.biomeregion.status_off": "§cOff",
+  "rpgcraft.region.biomeregion.set": "§7Biome region %s",
+
   "//_region_manager": "=== Region enter/leave (RegionManager) ===",
   "rpgcraft.region.entered": "§a[Region] §7You entered §f%s",
   "rpgcraft.region.left": "§a[Region] §7You left §f%s",

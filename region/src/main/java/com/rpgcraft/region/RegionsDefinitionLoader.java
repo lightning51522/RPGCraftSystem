@@ -65,6 +65,8 @@ public class RegionsDefinitionLoader {
         RuntimeRegionSavedData savedData = RuntimeRegionSavedData.get(currentServer);
         savedData.syncToRegistry();
         RegionIndex.rebuild();
+        // 恢复生物群系区域全局开关镜像（权威状态在 SavedData，镜像供热查询零开销读取）
+        BiomeRegionFeature.setEnabled(savedData.isBiomeRegionEnabled());
         RegionMod.LOGGER.info("已从存档恢复 {} 个运行时区域", savedData.getRegions().size());
     }
 
