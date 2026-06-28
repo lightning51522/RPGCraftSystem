@@ -78,7 +78,13 @@ public class EquipmentTooltipEventHandler {
         Optional<Map<Identifier, EquipmentBonus>> bonuses = RPGSystems.getEquipmentSystem().getRegistry().getBonuses(itemId);
         if (bonuses.isEmpty()) return;
 
-        EquipmentRarity rarity = RPGSystems.getEquipmentSystem().getRegistry().getRarity(itemId);
+        // 稀有度优先级：stack 组件（动态随机生成）> 注册表固定覆盖 > GRAY
+        EquipmentRarity rarity = stack.get(com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_RARITY.get());
+        if (rarity == null) {
+            rarity = RPGSystems.getEquipmentSystem().getRegistry().getRarity(itemId);
+        }
+        // 按该件装备稀有度缩放加成显示（与服务端 calculateTotalBonus 口径一致：每升一级 +10%，向下取整）
+        double multiplier = rarity.getBonusMultiplier();
 
         // 非最低（GRAY）稀有度：将物品名染为稀有度颜色，并在名称下方插入 [等级名] 标签行
         if (rarity != EquipmentRarity.GRAY) {
@@ -97,12 +103,12 @@ public class EquipmentTooltipEventHandler {
                     .withStyle(s -> s.withColor(color)));
         }
 
-        // 追加属性加成
+        // 追加属性加成（按稀有度缩放显示）
         for (Map.Entry<Identifier, EquipmentBonus> entry : bonuses.get().entrySet()) {
             IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(entry.getKey());
             if (attrEntry == null) continue;
 
-            int value = entry.getValue().value();
+            int value = (int) Math.floor(entry.getValue().value() * multiplier);
             String text = "§a" + attrEntry.getDisplayName() + " +" + value;
             event.getToolTip().add(Component.literal(text));
         }

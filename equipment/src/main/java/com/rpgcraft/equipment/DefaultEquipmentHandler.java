@@ -9,6 +9,7 @@ import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.attribute.api.IAttributeModifier;
 import com.rpgcraft.core.attribute.api.Operation;
 import com.rpgcraft.core.equipment.EquipmentBonus;
+import com.rpgcraft.core.equipment.EquipmentRarity;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import com.rpgcraft.core.network.SyncPlayerAttributePacket;
 import com.rpgcraft.core.equipment.api.IEquipmentHandler;
@@ -92,8 +93,14 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
             Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             Optional<Map<Identifier, EquipmentBonus>> bonuses = registry.getBonuses(itemId);
             if (bonuses.isEmpty()) continue;
+            // 按该件装备的（动态）稀有度缩放加成：每升一级 +10%（GRAY=1.0×，向下取整）
+            EquipmentRarity rarity = stack.getOrDefault(
+                    com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_RARITY.get(),
+                    EquipmentRarity.GRAY);
+            double multiplier = rarity.getBonusMultiplier();
             for (Map.Entry<Identifier, EquipmentBonus> entry : bonuses.get().entrySet()) {
-                total.merge(entry.getKey(), entry.getValue(), EquipmentBonus::add);
+                int scaled = (int) Math.floor(entry.getValue().value() * multiplier);
+                total.merge(entry.getKey(), new EquipmentBonus(scaled), EquipmentBonus::add);
             }
         }
         return total;

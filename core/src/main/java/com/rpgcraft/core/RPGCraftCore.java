@@ -65,6 +65,9 @@ public class RPGCraftCore {
         // 注册属性 AttachmentType（通过门面的便捷方法）
         AttributeManager.getDeferredRegister().register(modEventBus);
 
+        // 注册 RPG 共享 DataComponentType（如装备稀有度组件，存于 ItemStack）
+        com.rpgcraft.core.equipment.RPGComponents.getDeferredRegister().register(modEventBus);
+
         // 等级模块 AttachmentType 由 leveling 模块自行注册
         // 职业模块 AttachmentType 由 profession 模块自行注册
         // 装备模块 AttachmentType 由 equipment 模块自行注册

@@ -1,12 +1,10 @@
 {
   "minecraft:diamond_sword": {
-    "rarity": "green",
     "attack_type": "physical",
     "rpgcraftcore:strength": 10,
     "rpgcraftcore:critical_rate": 5
   },
   "minecraft:iron_sword": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:strength": 6
   },
@@ -19,37 +17,31 @@
     "rpgcraftcore:strength": 1
   },
   "minecraft:diamond_chestplate": {
-    "rarity": "green",
     "attack_type": "physical",
     "rpgcraftcore:defense": 15,
     "rpgcraftcore:life": 50
   },
   "minecraft:diamond_leggings": {
-    "rarity": "green",
     "attack_type": "physical",
     "rpgcraftcore:defense": 10,
     "rpgcraftcore:life": 30
   },
   "minecraft:diamond_helmet": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:defense": 5,
     "rpgcraftcore:resistance": 3
   },
   "minecraft:diamond_boots": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:defense": 5,
     "rpgcraftcore:agile": 3
   },
   "minecraft:iron_chestplate": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:defense": 10,
     "rpgcraftcore:life": 30
   },
   "minecraft:iron_leggings": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:defense": 7,
     "rpgcraftcore:life": 20
@@ -65,13 +57,11 @@
     "rpgcraftcore:agile": 1
   },
   "minecraft:bow": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:precision": 8,
     "rpgcraftcore:critical_rate": 3
   },
   "minecraft:shield": {
-    "rarity": "white",
     "attack_type": "physical",
     "rpgcraftcore:defense": 10
   }

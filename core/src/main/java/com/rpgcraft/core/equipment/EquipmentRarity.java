@@ -1,5 +1,9 @@
 package com.rpgcraft.core.equipment;
 
+import com.mojang.serialization.Codec;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+
 /**
  * 装备稀有度
  * <p>
@@ -9,6 +13,13 @@ package com.rpgcraft.core.equipment;
  * {@code EquipmentRarityColors}）。
  * <p>
  * 标签行直接显示枚举名（如 {@code [BLUE]}）。
+ * <p>
+ * <b>等级（tier）与加成缩放</b>：{@link #getTier()} 为序号（GRAY=0 … RAINBOW=9），
+ * 每升一级该件装备的全部属性加成 +10%（{@link #getBonusMultiplier()} = {@code 1 + 0.1×tier}）。
+ * <p>
+ * 稀有度现为<b>动态、按物品实例</b>的属性：通过 {@code DataComponentType}（见
+ * {@code RPGComponents.EQUIPMENT_RARITY}）存储在 {@code ItemStack} 上，在制作/进入世界时
+ * 按概率随机生成。
  */
 public enum EquipmentRarity {
 
@@ -46,6 +57,16 @@ public enum EquipmentRarity {
         return rainbow;
     }
 
+    /** 等级序号：GRAY=0 … RAINBOW=9。用于稀有度加成缩放。 */
+    public int getTier() {
+        return ordinal();
+    }
+
+    /** 属性加成倍率：{@code 1 + 0.1 × tier}（GRAY=1.0×、RAINBOW=1.9×）。 */
+    public double getBonusMultiplier() {
+        return 1.0 + 0.1 * getTier();
+    }
+
     /**
      * 根据名称查找稀有度（不区分大小写，按枚举名匹配）
      *
@@ -61,4 +82,20 @@ public enum EquipmentRarity {
         }
         return GRAY;
     }
+
+    // ==================================================================
+    // 序列化（供 DataComponentType 持久化 + 网络同步用）
+    // ==================================================================
+
+    /** 按枚举名（小写）字符串编解码；未知名称容错为 {@link #GRAY}。 */
+    public static final Codec<EquipmentRarity> CODEC = Codec.STRING
+            .xmap(EquipmentRarity::fromName, r -> r.name().toLowerCase())
+            .stable();
+
+    /** 网络流编解码：按枚举 ordinal 序号写/读 var int（与项目其它包一致用 ByteBuf 实例方法）。 */
+    public static final StreamCodec<RegistryFriendlyByteBuf, EquipmentRarity> STREAM_CODEC =
+            StreamCodec.of(
+                    (buf, r) -> buf.writeVarInt(r.ordinal()),
+                    buf -> EquipmentRarity.values()[buf.readVarInt()]);
 }
+
