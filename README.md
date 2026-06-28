@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.14.1--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.14.2--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -814,6 +814,7 @@ baseValue
 | `data/rpgcraftcore/rpg/mob_attributes.json` | 怪物属性配置（基础值 / 等级缩放 / 攻击类型 / 掉落经验 / 自然刷新权重） |
 | `data/rpgcraftcore/rpg/equipment_attributes.json` | 装备加成配置（稀有度 / 属性加成 / 攻击类型） |
 | `data/rpgcraftcore/rpg/profession_config.json` | 职业全局配置（`allow_downgrade_switch`：是否允许从进阶职业退回基础职业，默认 `false`；`default_max_level`：职业默认等级上限，默认 `20`；`secondary_unlock_cost`：解锁副职业消耗，默认 `50000`）。三项均在登录/`/reload` 时通过 `SyncProfessionConfigPacket` 推送客户端，职业面板显示与服务端一致 |
+| `data/rpgcraftcore/rpg/profession_load.json` | **职业加载开关**（按职业 ID 显式标 `enabled`，ID→布尔映射，未列出者默认启用/opt-out）。被关闭的职业不进职业树、无法被进阶与升级（注册实例仍保留，可被其他附属按 ID 查找）。**级联语义**：当前置职业被关闭时，其后继职业也会被级联关闭（即使其本身标为 `true`）；平民 `commoner` 是树根/默认主职业，恒为启用，写 `false` 会被忽略并告警。`/reload` 后立即生效并向在线玩家重推职业树 |
 | `data/rpgcraftcore/rpg/professions/*.json` | **具体职业定义**（每个文件一个职业，文件名即职业 ID；含 name/type/prerequisite/bonuses/per_level/exp_table）。详见[职业系统](#-职业系统)章节 |
 | `data/rpgcraftcore/rpg/attribute_points_config.json` | 属性点配置（`allow_decrease`：是否允许回收已分配点数，默认 `true`） |
 | `data/rpgcraftcore/rpg/regions/*.json` | **静态区域定义**（每个文件一个区域，文件名即区域 ID；含 name/dimension/bounds/attribute_mods/element_damage_bonus）。详见[区域系统](#-区域系统)章节 |

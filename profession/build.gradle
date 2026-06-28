@@ -33,6 +33,9 @@ neoForge {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    // 让测试源集也能编译/运行 Minecraft 类（net.minecraft.* / net.neoforged.*）。
+    // moddev 默认只把 MC 依赖接入 main 源集；测试需显式继承（与 core 一致）。
+    testImplementation.extendsFrom(modDevCompileDependencies)
 }
 
 dependencies {

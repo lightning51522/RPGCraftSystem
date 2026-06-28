@@ -56,6 +56,8 @@ public class ProfessionCommands {
                                 .then(Commands.argument("profession", StringArgumentType.word())
                                         .suggests((context, builder) -> {
                                             for (IProfession prof : RPGSystems.getProfessionSystem().getAllProfessions()) {
+                                                // 不补全被关闭（含前置级联关闭）的职业
+                                                if (!ProfessionAvailability.isEffectiveEnabled(prof.getId())) continue;
                                                 builder.suggest(prof.getId().getPath());
                                             }
                                             return builder.buildFuture();
@@ -123,13 +125,18 @@ public class ProfessionCommands {
 
     /**
      * 列出所有可用职业（标注主/副职业类型与基础加成）
+     * <p>
+     * 被关闭（显式关闭或前置级联关闭）的职业不出现在列表中。
      */
     private static int executeProfessionList(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(
                 () -> Component.translatable("rpgcraft.profession.list_header"),
                 false
         );
+        int count = 0;
         for (IProfession prof : RPGSystems.getProfessionSystem().getAllProfessions()) {
+            if (!ProfessionAvailability.isEffectiveEnabled(prof.getId())) continue;
+            count++;
             StringBuilder bonuses = new StringBuilder();
             if (!prof.getBaseBonusMap().isEmpty()) {
                 for (Map.Entry<Identifier, Integer> entry : prof.getBaseBonusMap().entrySet()) {
@@ -151,7 +158,7 @@ public class ProfessionCommands {
                     false
             );
         }
-        return RPGSystems.getProfessionSystem().getAllProfessions().size();
+        return count;
     }
 
     /**
@@ -165,6 +172,12 @@ public class ProfessionCommands {
 
         if (resolved == null) {
             context.getSource().sendFailure(Component.translatable("rpgcraft.profession.unknown", professionName));
+            return 0;
+        }
+
+        if (!ProfessionAvailability.isEffectiveEnabled(resolved.getId())) {
+            context.getSource().sendFailure(
+                    Component.translatable("rpgcraft.profession.set_disabled", resolved.getDisplayName()));
             return 0;
         }
 

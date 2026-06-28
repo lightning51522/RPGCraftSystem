@@ -135,6 +135,7 @@
   "rpgcraft.profession.unknown": "Unknown profession: %s",
   "rpgcraft.profession.already_is": "%s is already %s",
   "rpgcraft.profession.set_success": "Set %s's profession to %s",
+  "rpgcraft.profession.set_disabled": "%s has been disabled in the profession load config and cannot be set",
 
   "//_skills": "=== Skills (SkillsCommands) ===",
   "rpgcraft.skills.info_header": "—— Skills for %s ——",

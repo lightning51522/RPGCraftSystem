@@ -93,8 +93,10 @@ public class ProfessionManager {
     public static com.rpgcraft.core.ui.ProfessionStateCache.ProfessionStateView buildStateView(ServerPlayer player) {
         ProfessionData data = getData(player);
         // 职业树节点元数据（与玩家无关）
+        // 被关闭（显式关闭或前置级联关闭）的职业不下发到客户端 —— 客户端树里看不到、也点不到。
         java.util.List<com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode> nodes = new java.util.ArrayList<>();
         for (IProfession prof : registry.getAllProfessions()) {
+            if (!ProfessionAvailability.isEffectiveEnabled(prof.getId())) continue;
             nodes.add(new com.rpgcraft.core.ui.ProfessionStateCache.ProfessionNode(
                     prof.getId(), prof.getDisplayName(), prof.getDescription(),
                     java.util.List.copyOf(prof.getPrerequisites()), prof.isAdvanced(),
@@ -212,6 +214,7 @@ public class ProfessionManager {
     }
 
     public static boolean canInvest(ServerPlayer player, Identifier professionId) {
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) return false;
         ProfessionData data = getData(player);
         if (!data.isUnlocked(professionId)) return false;
         IProfession prof = registry.getProfession(professionId);
@@ -251,6 +254,8 @@ public class ProfessionManager {
     public static boolean canAdvance(ServerPlayer player, Identifier professionId) {
         IProfession target = registry.getProfession(professionId);
         if (target == null || target.getPrerequisites().isEmpty()) return false;
+        // 被关闭（含前置级联关闭）的职业不可进阶 —— 与 buildStateView 的过滤呼应，防御状态包绕过
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) return false;
         // 仅主职业（含复合职业）可进阶
         if (!target.getType().isMainLike()) return false;
         ProfessionData data = getData(player);
@@ -307,6 +312,7 @@ public class ProfessionManager {
      * </ul>
      */
     public static boolean canSwitchMain(ServerPlayer player, Identifier professionId) {
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) return false;
         ProfessionData data = getData(player);
         if (!data.isUnlocked(professionId)) return false;
         if (professionId.equals(data.getProfessionId())) return false;
@@ -368,6 +374,7 @@ public class ProfessionManager {
      * 通过校验后写入附件数据，并立即应用/移除该副职业的属性加成，最后同步到客户端。
      */
     public static void setSecondaryActive(ServerPlayer player, Identifier professionId, boolean active) {
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) return;
         ProfessionData data = getData(player);
         IProfession prof = registry.getProfession(professionId);
         if (prof == null || prof.getType() != IProfession.ProfessionType.SECONDARY) return;
@@ -400,6 +407,8 @@ public class ProfessionManager {
     public static boolean canUnlockSecondary(ServerPlayer player, Identifier professionId) {
         IProfession prof = registry.getProfession(professionId);
         if (prof == null || prof.getType() != IProfession.ProfessionType.SECONDARY) return false;
+        // 被关闭（含前置级联关闭）的副职业不可解锁
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) return false;
         ProfessionData data = getData(player);
         if (data.isUnlocked(professionId)) return false; // 已解锁
         int cost = ProfessionConfigLoader.getSecondaryUnlockCost();
@@ -504,6 +513,11 @@ public class ProfessionManager {
     public static void setProfession(ServerPlayer player, Identifier professionId) {
         IProfession prof = registry.getProfession(professionId);
         if (prof == null) return;
+        // 被关闭的职业不允许通过 GM 调试命令设为主职业
+        if (!ProfessionAvailability.isEffectiveEnabled(professionId)) {
+            ProfessionMod.LOGGER.warn("setProfession 拒绝将已关闭的职业 {} 设为主职业", professionId);
+            return;
+        }
         // 主职业只能设「可作为主职业」类型的职业（副职业不能通过此命令设为主职业）
         if (!prof.getType().isMainLike()) {
             ProfessionMod.LOGGER.warn("setProfession 拒绝将副职业 {} 设为主职业", professionId);

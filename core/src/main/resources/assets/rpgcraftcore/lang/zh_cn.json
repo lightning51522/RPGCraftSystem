@@ -135,6 +135,7 @@
   "rpgcraft.profession.unknown": "未知职业: %s",
   "rpgcraft.profession.already_is": "%s 已经是 %s",
   "rpgcraft.profession.set_success": "已将 %s 的职业设置为 %s",
+  "rpgcraft.profession.set_disabled": "%s 已在职业加载开关配置中被关闭，无法设置",
 
   "//_skills": "=== 技能（SkillsCommands） ===",
   "rpgcraft.skills.info_header": "—— %s 的技能信息 ——",

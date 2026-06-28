@@ -1,0 +1,17 @@
+{
+  "//doc": "职业加载开关 —— 列出职业 ID（含命名空间）并设 enabled。未列出的职业默认启用；列出 false 即关闭该职业。当一个职业的前置职业被关闭时，该职业也会被级联关闭。被关闭的职业不会出现在职业树中，无法被进阶与升级（注册实例仍保留，可被其他附属代码按 ID 查找）。注意：平民（rpgcraftcore:commoner）是主职业树根/默认主职业，恒为启用，写 false 会被忽略并告警。",
+  "professions": {
+    "rpgcraftcore:commoner":  true,
+    "rpgcraftcore:warrior":   true,
+    "rpgcraftcore:berserker": true,
+    "rpgcraftcore:archer":    true,
+    "rpgcraftcore:marksman":  true,
+    "rpgcraftcore:sorcerer":  true,
+    "rpgcraftcore:mage":      true,
+    "rpgcraftcore:archmage":  true,
+    "rpgcraftcore:witchblade": true,
+    "rpgcraftcore:scholar":   true,
+    "rpgcraftcore:researcher": true,
+    "rpgcraftcore:naturalist": true
+  }
+}
