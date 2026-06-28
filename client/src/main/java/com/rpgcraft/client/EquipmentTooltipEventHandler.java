@@ -80,19 +80,21 @@ public class EquipmentTooltipEventHandler {
 
         EquipmentRarity rarity = RPGSystems.getEquipmentSystem().getRegistry().getRarity(itemId);
 
-        // 非普通稀有度：在物品名称后插入稀有度标签
-        if (rarity != EquipmentRarity.COMMON) {
+        // 非最低（GRAY）稀有度：将物品名染为稀有度颜色，并在名称下方插入 [等级名] 标签行
+        if (rarity != EquipmentRarity.GRAY) {
             List<Component> tooltip = event.getToolTip();
+            int color = EquipmentRarityColors.resolveColor(rarity);
 
             // 将物品名称染为稀有度颜色
             if (!tooltip.isEmpty()) {
                 Component originalName = tooltip.getFirst();
-                String coloredText = rarity.getColorCode() + originalName.getString() + "§r";
-                tooltip.set(0, Component.literal(coloredText));
+                tooltip.set(0, Component.literal(originalName.getString())
+                        .withStyle(s -> s.withColor(color)));
             }
 
-            // 插入稀有度标签行
-            tooltip.add(1, Component.literal(rarity.getColorCode() + "[" + rarity.getDisplayName() + "]§r"));
+            // 插入稀有度标签行（显示等级枚举名，如 [BLUE]）
+            tooltip.add(1, Component.literal("[" + rarity.name() + "]")
+                    .withStyle(s -> s.withColor(color)));
         }
 
         // 追加属性加成

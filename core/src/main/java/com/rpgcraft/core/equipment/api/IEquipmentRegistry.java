@@ -49,7 +49,7 @@ public interface IEquipmentRegistry {
      * 查询物品的稀有度
      *
      * @param itemId 物品标识符
-     * @return 稀有度，未找到返回 {@link EquipmentRarity#COMMON}
+     * @return 稀有度，未找到返回 {@link EquipmentRarity#GRAY}
      */
     EquipmentRarity getRarity(Identifier itemId);
 

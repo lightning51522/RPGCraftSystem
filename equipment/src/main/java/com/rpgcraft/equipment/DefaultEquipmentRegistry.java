@@ -33,7 +33,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
     /**
      * 从 JSON 配置加载装备加成数据和稀有度
      * <p>
-     * JSON 中每项可包含 {@code "rarity"} 字段指定稀有度（如 "rare"），
+     * JSON 中每项可包含 {@code "rarity"} 字段指定稀有度（如 "green"），
      * 其余字段为属性加成（如 {@code "rpgcraftcore:strength": 10}）。
      *
      * @param json 装备属性配置 JSON
@@ -91,7 +91,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
 
     @Override
     public void register(Identifier itemId, Map<Identifier, EquipmentBonus> bonuses) {
-        register(itemId, bonuses, EquipmentRarity.COMMON);
+        register(itemId, bonuses, EquipmentRarity.GRAY);
     }
 
     @Override
@@ -100,7 +100,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
         newBonusMap.put(itemId, Collections.unmodifiableMap(new HashMap<>(bonuses)));
         configMap = Collections.unmodifiableMap(newBonusMap);
 
-        if (rarity != EquipmentRarity.COMMON) {
+        if (rarity != EquipmentRarity.GRAY) {
             Map<Identifier, EquipmentRarity> newRarityMap = new HashMap<>(rarityMap);
             newRarityMap.put(itemId, rarity);
             rarityMap = Collections.unmodifiableMap(newRarityMap);
@@ -114,7 +114,7 @@ public class DefaultEquipmentRegistry implements IEquipmentRegistry {
 
     @Override
     public EquipmentRarity getRarity(Identifier itemId) {
-        return rarityMap.getOrDefault(itemId, EquipmentRarity.COMMON);
+        return rarityMap.getOrDefault(itemId, EquipmentRarity.GRAY);
     }
 
     @Override

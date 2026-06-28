@@ -73,7 +73,7 @@ public final class NoOpEquipmentSystem implements IEquipmentSystem {
 
         @Override
         public EquipmentRarity getRarity(Identifier itemId) {
-            return EquipmentRarity.COMMON;
+            return EquipmentRarity.GRAY;
         }
 
         @Override
