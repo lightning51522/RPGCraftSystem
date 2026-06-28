@@ -1,0 +1,15 @@
+{
+  "name": "草原",
+  "biomes": [
+    "minecraft:plains",
+    "minecraft:sunflower_plains",
+    "minecraft:meadow",
+    "minecraft:cherry_grove"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:wind_resistance", "op": "ADDITION", "value": 5 }
+  ],
+  "element_damage_bonus": {
+    "WIND": 1050
+  }
+}

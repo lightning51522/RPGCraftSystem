@@ -8,7 +8,7 @@ import com.rpgcraft.core.attribute.api.IAttributeEntry;
 import com.rpgcraft.core.attribute.api.Operation;
 import com.rpgcraft.region.data.AttributeMod;
 import com.rpgcraft.region.data.PlayerRegionState;
-import com.rpgcraft.region.data.Region;
+import com.rpgcraft.region.data.RegionView;
 import com.rpgcraft.region.spatial.RegionLocator;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -87,9 +87,9 @@ public final class RegionManager {
      * @param player 服务端玩家
      */
     public static void updatePlayerRegions(ServerPlayer player) {
-        List<Region> current = RegionLocator.regionsAt(player);
+        List<RegionView> current = RegionLocator.regionsAt(player);
         Set<Identifier> currentIds = new LinkedHashSet<>();
-        for (Region r : current) {
+        for (RegionView r : current) {
             currentIds.add(r.getId());
         }
 
@@ -106,7 +106,7 @@ public final class RegionManager {
         left.removeAll(currentIds);
 
         // 应用进入区域的修饰符
-        for (Region r : current) {
+        for (RegionView r : current) {
             if (entered.contains(r.getId())) {
                 applyRegionModifiers(player, r);
             }
@@ -118,15 +118,15 @@ public final class RegionManager {
 
         // 区域进出提示（受玩家偏好开关控制）
         if (player.getData(AttributeManager.PLAYER_PREFERENCES.get()).isRegionNotifyEnabled()) {
-            // 进入提示（按 current 中的实际 Region 对象取显示名）
-            for (Region r : current) {
+            // 进入提示（按 current 中的实际视图对象取显示名）
+            for (RegionView r : current) {
                 if (entered.contains(r.getId())) {
                     player.sendSystemMessage(Component.translatable("rpgcraft.region.entered", regionDisplayName(r)));
                 }
             }
-            // 离开提示（left 只有 ID，需查 registry 取显示名）
+            // 离开提示（left 只有 ID，需按 ID 反查视图取显示名：几何区域或生物群系区域）
             for (Identifier leftId : left) {
-                Region leftRegion = RegionsRegistry.get().get(leftId);
+                RegionView leftRegion = RegionLocator.regionViewById(leftId);
                 player.sendSystemMessage(Component.translatable("rpgcraft.region.left", regionDisplayName(leftRegion)));
             }
         }
@@ -136,7 +136,7 @@ public final class RegionManager {
     }
 
     /** 区域显示名（空则用 ID path；null 时返回本地化的"未知区域"） */
-    private static Component regionDisplayName(Region r) {
+    private static Component regionDisplayName(RegionView r) {
         if (r == null) return Component.translatable("rpgcraft.region.unknown");
         return Component.literal(r.getName().isEmpty() ? r.getId().getPath() : r.getName());
     }
@@ -144,7 +144,7 @@ public final class RegionManager {
     /**
      * 应用单个区域的全部属性修饰符到玩家
      */
-    private static void applyRegionModifiers(ServerPlayer player, Region region) {
+    private static void applyRegionModifiers(ServerPlayer player, RegionView region) {
         for (AttributeMod mod : region.allMods()) {
             applyModifier(player, region.getId(), mod);
         }

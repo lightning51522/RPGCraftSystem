@@ -1,0 +1,22 @@
+{
+  "name": "雪原",
+  "biomes": [
+    "minecraft:snowy_plains",
+    "minecraft:ice_spikes",
+    "minecraft:frozen_river",
+    "minecraft:frozen_ocean",
+    "minecraft:deep_frozen_ocean",
+    "minecraft:grove",
+    "minecraft:snowy_slopes",
+    "minecraft:jagged_peaks",
+    "minecraft:snowy_beach"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": 15 },
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": -5 }
+  ],
+  "element_damage_bonus": {
+    "WATER": 1200,
+    "FIRE": 800
+  }
+}

@@ -41,8 +41,9 @@ import java.util.Map;
  *
  * @see RegionPolygon
  * @see AttributeMod
+ * @see RegionView
  */
-public final class Region {
+public final class Region implements RegionView {
 
     /**
      * DFU Codec（用于 datapack JSON 解析）

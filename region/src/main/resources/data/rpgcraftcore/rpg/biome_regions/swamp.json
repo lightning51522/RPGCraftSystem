@@ -1,0 +1,15 @@
+{
+  "name": "沼泽",
+  "biomes": [
+    "minecraft:swamp",
+    "minecraft:mangrove_swamp"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:poison_resistance", "op": "ADDITION", "value": 10 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": 5 }
+  ],
+  "element_damage_bonus": {
+    "POISON": 1200,
+    "WATER": 1100
+  }
+}

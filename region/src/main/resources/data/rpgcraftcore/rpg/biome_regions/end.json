@@ -1,0 +1,18 @@
+{
+  "name": "末地",
+  "biomes": [
+    "minecraft:the_end",
+    "minecraft:end_highlands",
+    "minecraft:end_midlands",
+    "minecraft:end_barrens",
+    "minecraft:small_end_islands"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:dark_resistance", "op": "ADDITION", "value": 20 },
+    { "attr": "rpgcraftcore:light_resistance", "op": "ADDITION", "value": -10 }
+  ],
+  "element_damage_bonus": {
+    "DARK": 1300,
+    "LIGHT": 800
+  }
+}

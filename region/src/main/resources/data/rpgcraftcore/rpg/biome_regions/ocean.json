@@ -1,0 +1,23 @@
+{
+  "name": "海洋",
+  "biomes": [
+    "minecraft:ocean",
+    "minecraft:deep_ocean",
+    "minecraft:cold_ocean",
+    "minecraft:deep_cold_ocean",
+    "minecraft:lukewarm_ocean",
+    "minecraft:deep_lukewarm_ocean",
+    "minecraft:warm_ocean",
+    "minecraft:river",
+    "minecraft:beach",
+    "minecraft:stony_shore"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": 20 },
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 10 }
+  ],
+  "element_damage_bonus": {
+    "WATER": 1300,
+    "FIRE": 700
+  }
+}

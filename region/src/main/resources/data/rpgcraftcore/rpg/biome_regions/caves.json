@@ -1,0 +1,13 @@
+{
+  "name": "洞穴",
+  "biomes": [
+    "minecraft:lush_caves",
+    "minecraft:dripstone_caves"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:poison_resistance", "op": "ADDITION", "value": 5 }
+  ],
+  "element_damage_bonus": {
+    "POISON": 1050
+  }
+}

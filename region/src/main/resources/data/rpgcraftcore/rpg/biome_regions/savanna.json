@@ -1,0 +1,14 @@
+{
+  "name": "稀树草原",
+  "biomes": [
+    "minecraft:savanna",
+    "minecraft:savanna_plateau",
+    "minecraft:windswept_savanna"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 10 }
+  ],
+  "element_damage_bonus": {
+    "FIRE": 1100
+  }
+}

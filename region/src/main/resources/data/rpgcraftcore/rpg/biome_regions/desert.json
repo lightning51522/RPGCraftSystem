@@ -1,0 +1,14 @@
+{
+  "name": "沙漠",
+  "biomes": [
+    "minecraft:desert"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 15 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": -10 }
+  ],
+  "element_damage_bonus": {
+    "FIRE": 1200,
+    "WATER": 800
+  }
+}

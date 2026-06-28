@@ -1,0 +1,14 @@
+{
+  "name": "丛林",
+  "biomes": [
+    "minecraft:jungle",
+    "minecraft:sparse_jungle",
+    "minecraft:bamboo_jungle"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:poison_resistance", "op": "ADDITION", "value": 15 }
+  ],
+  "element_damage_bonus": {
+    "POISON": 1200
+  }
+}

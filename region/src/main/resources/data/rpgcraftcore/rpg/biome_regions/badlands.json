@@ -1,0 +1,14 @@
+{
+  "name": "恶地",
+  "biomes": [
+    "minecraft:badlands",
+    "minecraft:wooded_badlands",
+    "minecraft:eroded_badlands"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 10 }
+  ],
+  "element_damage_bonus": {
+    "FIRE": 1100
+  }
+}

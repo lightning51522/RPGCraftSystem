@@ -1,0 +1,15 @@
+{
+  "name": "针叶林",
+  "biomes": [
+    "minecraft:taiga",
+    "minecraft:snowy_taiga",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:wind_resistance", "op": "ADDITION", "value": 5 }
+  ],
+  "element_damage_bonus": {
+    "WIND": 1100
+  }
+}

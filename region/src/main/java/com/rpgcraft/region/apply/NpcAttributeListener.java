@@ -5,7 +5,7 @@ import com.rpgcraft.core.event.RPGEventBus;
 import com.rpgcraft.core.event.attribute.GatherAttributeEvent;
 import com.rpgcraft.region.RegionManager;
 import com.rpgcraft.region.data.AttributeMod;
-import com.rpgcraft.region.data.Region;
+import com.rpgcraft.region.data.RegionView;
 import com.rpgcraft.region.spatial.RegionLocator;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
@@ -49,8 +49,8 @@ public final class NpcAttributeListener {
             // 仅服务端有意义（客户端无区域数据），且 GatherAttributeEvent 本身只在服务端触发
             if (entity.level().isClientSide()) return;
 
-            List<Region> regions = RegionLocator.regionsAt(entity);
-            for (Region region : regions) {
+            List<RegionView> regions = RegionLocator.regionsAt(entity);
+            for (RegionView region : regions) {
                 for (AttributeMod mod : region.allMods()) {
                     Identifier sourceId = RegionManager.modifierSourceId(region.getId(), mod.attr());
                     event.addModifier(mod.attr(),

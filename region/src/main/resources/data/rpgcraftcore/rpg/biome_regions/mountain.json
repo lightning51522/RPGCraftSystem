@@ -1,0 +1,15 @@
+{
+  "name": "山地",
+  "biomes": [
+    "minecraft:windswept_hills",
+    "minecraft:windswept_forest",
+    "minecraft:windswept_gravelly_hills",
+    "minecraft:stony_peaks"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:wind_resistance", "op": "ADDITION", "value": 10 }
+  ],
+  "element_damage_bonus": {
+    "WIND": 1100
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "深暗之域",
+  "biomes": [
+    "minecraft:deep_dark"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:dark_resistance", "op": "ADDITION", "value": 15 },
+    { "attr": "rpgcraftcore:light_resistance", "op": "ADDITION", "value": -5 }
+  ],
+  "element_damage_bonus": {
+    "DARK": 1200,
+    "LIGHT": 900
+  }
+}

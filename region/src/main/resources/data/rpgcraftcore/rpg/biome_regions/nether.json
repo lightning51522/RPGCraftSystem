@@ -1,0 +1,19 @@
+{
+  "name": "下界",
+  "biomes": [
+    "minecraft:nether_wastes",
+    "minecraft:soul_sand_valley",
+    "minecraft:crimson_forest",
+    "minecraft:warped_forest",
+    "minecraft:basalt_deltas"
+  ],
+  "attribute_mods": [
+    { "attr": "rpgcraftcore:fire_resistance", "op": "ADDITION", "value": 30 },
+    { "attr": "rpgcraftcore:water_resistance", "op": "ADDITION", "value": -20 },
+    { "attr": "rpgcraftcore:dark_resistance", "op": "ADDITION", "value": 10 }
+  ],
+  "element_damage_bonus": {
+    "FIRE": 1500,
+    "WATER": 500
+  }
+}

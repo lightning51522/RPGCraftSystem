@@ -1,0 +1,165 @@
+package com.rpgcraft.region;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
+import com.rpgcraft.region.data.BiomeCategory;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
+import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.biome.Biome;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
+import org.jspecify.annotations.NonNull;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 生物群系类别 JSON 加载器
+ * <p>
+ * 从 datapack 目录 {@code data/rpgcraftcore/rpg/biome_regions/*.json} 扫描所有类别定义，
+ * 每个文件代表一类生物群系区域（如「沙漠」），文件名（去 {@code .json}）即类别 ID 的 path，
+ * 命名空间固定 {@code rpgcraftcore}。
+ * <p>
+ * 加载完成后重建 {@link BiomeCategoryRegistry}（含正向表 + 反向索引），实现 {@code /reload}
+ * 即时生效。多 pack 叠加时栈顶（列表最后）优先级最高。
+ * <p>
+ * 兜底与校验（违规项打 WARN 并跳过该类别，不崩溃）：
+ * <ul>
+ *   <li>JSON 解析失败 / Codec 解码失败 → 跳过</li>
+ *   <li>生物群系列表为空 → 跳过（无意义）</li>
+ *   <li>同生物群系被多个类别收录 → 后者覆盖前者并 WARN（反向索引 last wins）</li>
+ *   <li>同 ID 重复定义 → 后者覆盖前者并 WARN</li>
+ * </ul>
+ *
+ * @see BiomeCategory
+ * @see BiomeCategoryRegistry
+ */
+@EventBusSubscriber(modid = RegionMod.MODID)
+public class BiomeCategoryLoader {
+
+    /** 类别定义文件所在目录（相对 datapack 根） */
+    private static final String BIOME_REGIONS_DIR = "rpg/biome_regions";
+    /** 类别命名空间（与其他 rpg 配置保持一致） */
+    public static final String NAMESPACE = "rpgcraftcore";
+
+    private static final Gson GSON = new Gson();
+
+    @SubscribeEvent
+    public static void onAddReloadListener(AddServerReloadListenersEvent event) {
+        event.addListener(
+                Identifier.fromNamespaceAndPath(NAMESPACE, "rpg/biome_regions"),
+                new SimplePreparableReloadListener<Map<String, JsonObject>>() {
+                    @Override
+                    protected @NonNull Map<String, JsonObject> prepare(@NonNull ResourceManager rm, @NonNull ProfilerFiller p) {
+                        return scanBiomeRegionFiles(rm);
+                    }
+
+                    @Override
+                    protected void apply(@NonNull Map<String, JsonObject> files, @NonNull ResourceManager rm, @NonNull ProfilerFiller p) {
+                        applyLoaded(files);
+                    }
+                });
+    }
+
+    // ------------------------------------------------------------------
+    // prepare 阶段：扫描 + 解析
+    // ------------------------------------------------------------------
+
+    /**
+     * 扫描 {@code data/rpgcraftcore/rpg/biome_regions/*.json}，返回 path → JSON
+     */
+    private static Map<String, JsonObject> scanBiomeRegionFiles(ResourceManager rm) {
+        Map<String, JsonObject> result = new LinkedHashMap<>();
+        Map<Identifier, List<Resource>> stacks = rm.listResourceStacks(BIOME_REGIONS_DIR,
+                id -> id.getNamespace().equals(NAMESPACE) && id.getPath().endsWith(".json"));
+        for (Map.Entry<Identifier, List<Resource>> entry : stacks.entrySet()) {
+            Identifier fileId = entry.getKey();
+            String path = fileId.getPath();
+            String nameWithExt = path.substring(path.lastIndexOf('/') + 1);
+            String categoryPath = nameWithExt.substring(0, nameWithExt.length() - ".json".length());
+            List<Resource> resources = entry.getValue();
+            for (int i = resources.size() - 1; i >= 0; i--) {
+                try (var reader = resources.get(i).openAsReader()) {
+                    JsonElement parsed = JsonParser.parseReader(reader);
+                    if (parsed != null && parsed.isJsonObject()) {
+                        result.put(categoryPath, parsed.getAsJsonObject());
+                        break;
+                    }
+                } catch (Exception e) {
+                    RegionMod.LOGGER.warn("解析生物群系类别定义失败: {} - {}: {}", fileId,
+                            e.getClass().getSimpleName(), e.getMessage());
+                }
+            }
+        }
+        return result;
+    }
+
+    // ------------------------------------------------------------------
+    // apply 阶段：解析 + 校验 + 重建注册表
+    // ------------------------------------------------------------------
+
+    private static void applyLoaded(Map<String, JsonObject> files) {
+        Map<Identifier, BiomeCategory> categories = new LinkedHashMap<>();
+        // 跨类别生物群系去重检测（用于「同一生物群系被多类收录」WARN）
+        Map<ResourceKey<Biome>, Identifier> seenBiomes = new LinkedHashMap<>();
+
+        for (Map.Entry<String, JsonObject> entry : files.entrySet()) {
+            String path = entry.getKey();
+            Identifier id = Identifier.fromNamespaceAndPath(NAMESPACE, path);
+            try {
+                BiomeCategory category = parseBiomeCategory(id, entry.getValue());
+                if (category == null) continue;
+                if (categories.containsKey(id)) {
+                    RegionMod.LOGGER.warn("生物群系类别 {} 重复定义，后者覆盖前者", id);
+                }
+                categories.put(id, category);
+                // 检测跨类别生物群系冲突
+                for (var biomeKey : category.biomes()) {
+                    Identifier prev = seenBiomes.put(biomeKey, id);
+                    if (prev != null && !prev.equals(id)) {
+                        RegionMod.LOGGER.warn("生物群系 {} 同时归入类别 {} 与 {}，后者（{}）生效",
+                                biomeKey.identifier(), prev, id, id);
+                    }
+                }
+            } catch (Exception e) {
+                RegionMod.LOGGER.warn("解析生物群系类别 {} 失败，已跳过: {}", id, e.getMessage());
+            }
+        }
+
+        BiomeCategoryRegistry.replaceAll(categories);
+        RegionMod.LOGGER.info("已加载 {} 个生物群系类别定义", categories.size());
+    }
+
+    /**
+     * 用 DFU Codec 解析单个生物群系类别 JSON
+     */
+    private static BiomeCategory parseBiomeCategory(Identifier id, JsonObject json) {
+        JsonObject withId = GSON.fromJson(json, JsonObject.class);
+        withId.addProperty("_id", id.toString());
+
+        var result = BiomeCategory.CODEC.parse(JsonOps.INSTANCE, withId);
+        if (result.error().isPresent()) {
+            RegionMod.LOGGER.warn("生物群系类别 {} Codec 解码失败: {}", id, result.error().get().message());
+            return null;
+        }
+        BiomeCategory category = result.result().orElseThrow(() -> new IllegalStateException(
+                "生物群系类别 " + id + " 解码无错误但结果为空（部分结果）"));
+
+        // 校验：生物群系列表非空
+        if (category.biomes().isEmpty()) {
+            RegionMod.LOGGER.warn("生物群系类别 {} 的 biomes 列表为空，已跳过", id);
+            return null;
+        }
+
+        return category;
+    }
+}
