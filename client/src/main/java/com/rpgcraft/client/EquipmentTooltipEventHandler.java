@@ -108,21 +108,16 @@ public class EquipmentTooltipEventHandler {
         // 按该件装备稀有度缩放加成显示（与服务端 calculateTotalBonus 口径一致：每升一级 +10%，向下取整）
         double multiplier = rarity.getBonusMultiplier();
 
-        // 非最低（GRAY）稀有度：将物品名染为稀有度颜色，并在名称下方插入 [等级名] 标签行
+        // 非最低（GRAY）稀有度：仅将物品名染为稀有度颜色（不再插入等级标签行）
         if (rarity != EquipmentRarity.GRAY) {
             List<Component> tooltip = event.getToolTip();
             int color = EquipmentRarityColors.resolveColor(rarity);
 
-            // 将物品名称染为稀有度颜色
             if (!tooltip.isEmpty()) {
                 Component originalName = tooltip.getFirst();
                 tooltip.set(0, Component.literal(originalName.getString())
                         .withStyle(s -> s.withColor(color)));
             }
-
-            // 插入稀有度标签行（显示等级枚举名，如 [BLUE]）
-            tooltip.add(1, Component.literal("[" + rarity.name() + "]")
-                    .withStyle(s -> s.withColor(color)));
         }
 
         // 追加属性加成（按稀有度缩放显示）
