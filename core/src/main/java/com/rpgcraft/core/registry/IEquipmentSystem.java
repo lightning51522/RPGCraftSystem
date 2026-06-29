@@ -1,5 +1,6 @@
 package com.rpgcraft.core.registry;
 
+import com.google.gson.JsonObject;
 import com.rpgcraft.core.equipment.api.IEquipmentRegistry;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,4 +42,24 @@ public interface IEquipmentSystem {
      * @return 配置文件标识符
      */
     Identifier getConfigId();
+
+    /**
+     * 获取稀有度宝石锻造配置文件资源定位符
+     * <p>
+     * 客户端镜像加载用：铁砧锻造预览（{@code AnvilUpdateEvent}）在客户端也触发，需读取 gemCost 决定
+     * 是否展示预览，但服务端 reload 监听器不在客户端触发，故客户端需镜像加载同一配置。
+     *
+     * @return 稀有度宝石锻造配置标识符；无该功能时返回 {@code null}
+     */
+    Identifier getGemstoneConfigId();
+
+    /**
+     * 应用稀有度宝石锻造配置（镜像加载入口，客户端调用）
+     * <p>
+     * 由客户端资源重载监听器在加载完 {@link #getGemstoneConfigId()} 指向的 JSON 后调用，
+     * 将解析结果写入装备模块的配置状态。
+     *
+     * @param json 已解析的稀有度宝石锻造配置 JSON
+     */
+    void applyGemstoneConfig(JsonObject json);
 }

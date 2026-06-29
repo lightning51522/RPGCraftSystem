@@ -54,6 +54,17 @@ public class EquipmentManager {
             public net.minecraft.resources.Identifier getConfigId() {
                 return DefaultEquipmentRegistry.CONFIG_ID;
             }
+
+            @Override
+            public net.minecraft.resources.Identifier getGemstoneConfigId() {
+                return RarityGemstoneConfig.getConfigId();
+            }
+
+            @Override
+            public void applyGemstoneConfig(com.google.gson.JsonObject json) {
+                // 客户端镜像加载入口：与 RarityGemstoneConfig.onAddReloadListener 走同一份 applyConfig 逻辑
+                RarityGemstoneConfig.loadFromJson(json, true);
+            }
         });
     }
 

@@ -28,6 +28,12 @@ public class EquipmentMod {
         // 注册装备附件类型到 Mod 事件总线
         EquipmentData.getAttachmentRegister().register(modEventBus);
 
+        // 注册自定义物品（如稀有度宝石）到 Mod 事件总线
+        RPGItems.getDeferredRegister().register(modEventBus);
+
+        // 注册稀有度宝石加入创造标签（BuildCreativeModeTabContentsEvent 走 Mod 事件总线）
+        modEventBus.addListener(RarityGemstoneCreativeTab::onBuildCreativeTab);
+
         // 注册快照贡献者
         SnapshotCoordinator.registerContributor(new EquipmentSnapshotContributor());
     }

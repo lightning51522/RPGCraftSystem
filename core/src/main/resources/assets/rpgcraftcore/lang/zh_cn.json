@@ -148,5 +148,8 @@
   "rpgcraft.skills.unknown": "未知技能: %s",
   "rpgcraft.skills.cast_success": "%s 释放了 %s",
   "rpgcraft.skills.cast_failed": "%s 无法释放 %s（冷却中或技能点不足）",
-  "rpgcraft.skills.reset": "已重置 %s 的全部技能冷却"
+  "rpgcraft.skills.reset": "已重置 %s 的全部技能冷却",
+
+  "//_equipment_items": "=== 装备模块物品（equipment 模块自定义物品） ===",
+  "item.rpgcraftequipment.rarity_gemstone": "稀有度宝石"
 }

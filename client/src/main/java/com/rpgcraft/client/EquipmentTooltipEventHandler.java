@@ -49,17 +49,7 @@ public class EquipmentTooltipEventHandler {
         event.addListener(configId, new SimplePreparableReloadListener<JsonObject>() {
             @Override
             protected @NonNull JsonObject prepare(@NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
-                try {
-                    var resource = resourceManager.getResource(configId);
-                    if (resource.isPresent()) {
-                        try (var reader = resource.get().openAsReader()) {
-                            return GSON.fromJson(reader, JsonObject.class);
-                        }
-                    }
-                } catch (Exception e) {
-                    RPGCraftCore.LOGGER.error("客户端加载装备属性配置失败", e);
-                }
-                return new JsonObject();
+                return readJson(resourceManager, configId, "装备属性配置");
             }
 
             @Override
@@ -67,6 +57,38 @@ public class EquipmentTooltipEventHandler {
                 RPGSystems.getEquipmentSystem().getRegistry().loadFromJson(json);
             }
         });
+
+        // 稀有度宝石锻造配置客户端镜像：铁砧锻造预览（AnvilUpdateEvent）在客户端也触发，需读取 gemCost
+        // 决定是否展示预览；但服务端 reload 监听器不在客户端触发，故此处镜像加载同一 JSON。
+        Identifier gemstoneConfigId = RPGSystems.getEquipmentSystem().getGemstoneConfigId();
+        if (gemstoneConfigId != null) {
+            event.addListener(gemstoneConfigId, new SimplePreparableReloadListener<JsonObject>() {
+                @Override
+                protected @NonNull JsonObject prepare(@NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
+                    return readJson(resourceManager, gemstoneConfigId, "稀有度宝石锻造配置");
+                }
+
+                @Override
+                protected void apply(@NonNull JsonObject json, @NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
+                    RPGSystems.getEquipmentSystem().applyGemstoneConfig(json);
+                }
+            });
+        }
+    }
+
+    /** 读取一份 JSON 配置（找不到或解析失败返回空对象）。 */
+    private static JsonObject readJson(ResourceManager resourceManager, Identifier configId, String displayName) {
+        try {
+            var resource = resourceManager.getResource(configId);
+            if (resource.isPresent()) {
+                try (var reader = resource.get().openAsReader()) {
+                    return GSON.fromJson(reader, JsonObject.class);
+                }
+            }
+        } catch (Exception e) {
+            RPGCraftCore.LOGGER.error("客户端加载{}失败: {}", displayName, configId, e);
+        }
+        return new JsonObject();
     }
 
     @SubscribeEvent

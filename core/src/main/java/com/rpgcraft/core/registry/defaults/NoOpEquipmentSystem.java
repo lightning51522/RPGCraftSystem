@@ -56,6 +56,17 @@ public final class NoOpEquipmentSystem implements IEquipmentSystem {
         return null;
     }
 
+    @Override
+    public Identifier getGemstoneConfigId() {
+        warnOnce();
+        return null;
+    }
+
+    @Override
+    public void applyGemstoneConfig(JsonObject json) {
+        warnOnce();
+    }
+
     /** 空装备注册表：所有查询返回空/默认。 */
     private static final class EmptyEquipmentRegistry implements IEquipmentRegistry {
         @Override

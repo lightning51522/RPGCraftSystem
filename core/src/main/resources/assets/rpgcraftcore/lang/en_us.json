@@ -148,5 +148,8 @@
   "rpgcraft.skills.unknown": "Unknown skill: %s",
   "rpgcraft.skills.cast_success": "%s cast %s",
   "rpgcraft.skills.cast_failed": "%s cannot cast %s (on cooldown or insufficient skill points)",
-  "rpgcraft.skills.reset": "Reset all skill cooldowns for %s"
+  "rpgcraft.skills.reset": "Reset all skill cooldowns for %s",
+
+  "//_equipment_items": "=== Equipment module items (equipment module custom items) ===",
+  "item.rpgcraftequipment.rarity_gemstone": "Rarity Gemstone"
 }
