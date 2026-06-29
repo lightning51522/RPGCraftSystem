@@ -27,13 +27,17 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * 命令列表：
  * <pre>
  * /rpg setrarity &lt;物品ID&gt; &lt;稀有度&gt; [player] — 设置指定玩家背包中所有该 ID 物品的稀有度
+ * /rpg setlevel &lt;物品ID&gt; &lt;等级&gt; [player] — 设置指定玩家背包中所有该 ID 物品的装备等级
  * </pre>
  * <p>
  * 稀有度取 {@link EquipmentRarity} 的枚举名（小写，如 {@code white}/{@code blue}/{@code rainbow}），
- * 未匹配返回失败提示（不静默兜底为 GRAY）。
+ * 未匹配返回失败提示（不静默兜底为 GRAY）。装备等级为 0~6 的整数（0 = 清除等级）。
  */
 @EventBusSubscriber(modid = EquipmentMod.MODID)
 public class EquipmentCommands {
+
+    /** 装备等级上限（与 EQUIPMENT_LEVEL 组件的 intRange 及 EquipmentLevelForgeHandler 一致）。 */
+    private static final int MAX_LEVEL = 6;
 
     private EquipmentCommands() {
         // 禁止实例化
@@ -69,6 +73,29 @@ public class EquipmentCommands {
                                                         EntityArgument.getPlayer(context, "player"),
                                                         IdentifierArgument.getId(context, "item"),
                                                         StringArgumentType.getString(context, "rarity")))
+                                        )
+                                )
+                        )
+                )
+
+                // === 设置装备等级指令 ===
+                .then(Commands.literal("setlevel")
+                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                        .then(Commands.argument("item", IdentifierArgument.id())
+                                .suggests((context, builder) -> {
+                                    BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
+                                    return builder.buildFuture();
+                                })
+                                .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, MAX_LEVEL))
+                                        .executes(context -> executeSetLevel(context,
+                                                context.getSource().getPlayerOrException(),
+                                                IdentifierArgument.getId(context, "item"),
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(context -> executeSetLevel(context,
+                                                        EntityArgument.getPlayer(context, "player"),
+                                                        IdentifierArgument.getId(context, "item"),
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
                                         )
                                 )
                         )
@@ -119,6 +146,46 @@ public class EquipmentCommands {
             final int count = modified;
             context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.equipment.setrarity",
                     count, target.getName(), rarity.name()), true);
+        }
+        return modified;
+    }
+
+    /**
+     * 设置指定玩家背包中所有匹配物品 ID 的堆叠的装备等级。
+     * <p>
+     * 遍历 {@link Inventory#getContainerSize()} 覆盖的全部槽位（主背包 + 护甲 + 副手），
+     * 对每个非空且 ID 匹配的堆叠写入等级组件（0 用 {@code remove} 省 NBT，与无等级物品一致）。
+     * 服务端写入后由 {@code networkSynchronized} 自动同步客户端，无需手动发包。
+     *
+     * @param context 命令上下文
+     * @param target  目标玩家
+     * @param itemId  物品 ID（如 minecraft:diamond_sword）
+     * @param level   目标等级（0~6，0 = 清除等级）
+     * @return 修改的物品堆叠数（0 表示无匹配）
+     */
+    private static int executeSetLevel(CommandContext<CommandSourceStack> context, ServerPlayer target,
+                                       Identifier itemId, int level) {
+        Inventory inv = target.getInventory();
+        int modified = 0;
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack stack = inv.getItem(i);
+            if (stack.isEmpty()) continue;
+            if (!itemId.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()))) continue;
+            if (level <= 0) {
+                stack.remove(RPGComponents.EQUIPMENT_LEVEL.get()); // 0 = 默认（无组件），remove 省 NBT
+            } else {
+                stack.set(RPGComponents.EQUIPMENT_LEVEL.get(), level);
+            }
+            modified++;
+        }
+
+        if (modified == 0) {
+            context.getSource().sendFailure(Component.translatable("rpgcraft.equipment.setlevel.no_match",
+                    target.getName(), itemId));
+        } else {
+            final int count = modified;
+            context.getSource().sendSuccess(() -> Component.translatable("rpgcraft.equipment.setlevel",
+                    count, target.getName(), level), true);
         }
         return modified;
     }
