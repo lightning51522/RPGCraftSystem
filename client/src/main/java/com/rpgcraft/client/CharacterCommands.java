@@ -22,7 +22,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * <p>
  * 命令流程：
  * <pre>
- * /rpg character
+ * /rpg client character
  *   → 服务端创建全量属性快照
  *   → 发送 SyncAttributeSnapshotPacket（快照数据）
  *   → 发送 OpenCharacterScreenPacket（打开界面信号）
@@ -53,9 +53,11 @@ public class CharacterCommands {
 
         dispatcher.register(Commands.literal("rpg")
 
-                // === 角色界面命令 ===
-                .then(Commands.literal("character")
-                        .executes(CharacterCommands::executeCharacter)
+                // === 角色界面命令：/rpg client character ===
+                .then(Commands.literal("client")
+                        .then(Commands.literal("character")
+                                .executes(CharacterCommands::executeCharacter)
+                        )
                 )
         );
     }

@@ -42,41 +42,44 @@ public class LevelingCommands {
 
         dispatcher.register(Commands.literal("rpg")
 
-                // === 等级系统命令 ===
-                .then(Commands.literal("level")
-                        .executes(context -> executeLevel(context,
-                                context.getSource().getPlayerOrException()))
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                                .executes(context -> executeLevel(context,
-                                        EntityArgument.getPlayer(context, "player")))
-                        )
-                )
+                // === 等级系统命令：/rpg leveling <level|setlevel|addexp> ... ===
+                .then(Commands.literal("leveling")
 
-                .then(Commands.literal("setlevel")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.argument("level", IntegerArgumentType.integer(1))
-                                .executes(context -> executeSetLevel(context,
-                                        context.getSource().getPlayerOrException(),
-                                        IntegerArgumentType.getInteger(context, "level")))
+                        .then(Commands.literal("level")
+                                .executes(context -> executeLevel(context,
+                                        context.getSource().getPlayerOrException()))
                                 .then(Commands.argument("player", EntityArgument.player())
-                                        .executes(context -> executeSetLevel(context,
-                                                EntityArgument.getPlayer(context, "player"),
-                                                IntegerArgumentType.getInteger(context, "level")))
+                                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                        .executes(context -> executeLevel(context,
+                                                EntityArgument.getPlayer(context, "player")))
                                 )
                         )
-                )
 
-                .then(Commands.literal("addexp")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.argument("amount", IntegerArgumentType.integer(1))
-                                .executes(context -> executeAddExp(context,
-                                        context.getSource().getPlayerOrException(),
-                                        IntegerArgumentType.getInteger(context, "amount")))
-                                .then(Commands.argument("player", EntityArgument.player())
+                        .then(Commands.literal("setlevel")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeSetLevel(context,
+                                                context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "level")))
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(context -> executeSetLevel(context,
+                                                        EntityArgument.getPlayer(context, "player"),
+                                                        IntegerArgumentType.getInteger(context, "level")))
+                                        )
+                                )
+                        )
+
+                        .then(Commands.literal("addexp")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("amount", IntegerArgumentType.integer(1))
                                         .executes(context -> executeAddExp(context,
-                                                EntityArgument.getPlayer(context, "player"),
+                                                context.getSource().getPlayerOrException(),
                                                 IntegerArgumentType.getInteger(context, "amount")))
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(context -> executeAddExp(context,
+                                                        EntityArgument.getPlayer(context, "player"),
+                                                        IntegerArgumentType.getInteger(context, "amount")))
+                                        )
                                 )
                         )
                 )

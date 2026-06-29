@@ -61,42 +61,46 @@ public class CombatCommands {
 
         dispatcher.register(Commands.literal("rpg")
 
-                // === 战斗日志开关指令 ===
-                .then(Commands.literal("combatlog")
-                        .executes(context -> executeCombatLogStatus(context))
-                        .then(Commands.literal("on")
-                                .executes(context -> executeCombatLogToggle(context, true)))
-                        .then(Commands.literal("off")
-                                .executes(context -> executeCombatLogToggle(context, false)))
-                )
+                // === 战斗指令：/rpg combat <log|randspawn|spawn> ... ===
+                .then(Commands.literal("combat")
 
-                // === 随机刷新开关指令 ===
-                .then(Commands.literal("randspawn")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .executes(context -> executeRandSpawnStatus(context))
-                        .then(Commands.literal("on")
-                                .executes(context -> executeRandSpawnToggle(context, true)))
-                        .then(Commands.literal("off")
-                                .executes(context -> executeRandSpawnToggle(context, false)))
-                )
+                        // === 战斗日志开关：/rpg combat log [on|off] ===
+                        .then(Commands.literal("log")
+                                .executes(context -> executeCombatLogStatus(context))
+                                .then(Commands.literal("on")
+                                        .executes(context -> executeCombatLogToggle(context, true)))
+                                .then(Commands.literal("off")
+                                        .executes(context -> executeCombatLogToggle(context, false)))
+                        )
 
-                // === 召唤指令 ===
-                .then(Commands.literal("spawn")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.argument("entity", IdentifierArgument.id())
-                                .suggests((context, builder) -> {
-                                    BuiltInRegistries.ENTITY_TYPE.keySet().forEach(id -> builder.suggest(id.toString()));
-                                    return builder.buildFuture();
-                                })
-                                .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
-                                        .executes(context -> executeSpawn(context,
-                                                IdentifierArgument.getId(context, "entity"),
-                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
-                                        .then(Commands.argument("attributes", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
-                                                .executes(context -> executeSpawnCustom(context,
+                        // === 随机刷新开关：/rpg combat randspawn [on|off] ===
+                        .then(Commands.literal("randspawn")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .executes(context -> executeRandSpawnStatus(context))
+                                .then(Commands.literal("on")
+                                        .executes(context -> executeRandSpawnToggle(context, true)))
+                                .then(Commands.literal("off")
+                                        .executes(context -> executeRandSpawnToggle(context, false)))
+                        )
+
+                        // === 召唤指令：/rpg combat spawn <实体ID> <等级> [属性JSON] ===
+                        .then(Commands.literal("spawn")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("entity", IdentifierArgument.id())
+                                        .suggests((context, builder) -> {
+                                            BuiltInRegistries.ENTITY_TYPE.keySet().forEach(id -> builder.suggest(id.toString()));
+                                            return builder.buildFuture();
+                                        })
+                                        .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                .executes(context -> executeSpawn(context,
                                                         IdentifierArgument.getId(context, "entity"),
-                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level"),
-                                                        com.mojang.brigadier.arguments.StringArgumentType.getString(context, "attributes")))
+                                                        com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
+                                                .then(Commands.argument("attributes", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                                        .executes(context -> executeSpawnCustom(context,
+                                                                IdentifierArgument.getId(context, "entity"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level"),
+                                                                com.mojang.brigadier.arguments.StringArgumentType.getString(context, "attributes")))
+                                                )
                                         )
                                 )
                         )

@@ -25,8 +25,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * <p>
  * 命令列表：
  * <pre>
- * /rpg hud          — 查看 HUD 开关状态
- * /rpg hud on/off   — 开关 HUD（属性面板 + 准星提示）
+ * /rpg client hud          — 查看 HUD 开关状态
+ * /rpg client hud on/off   — 开关 HUD（属性面板 + 准星提示）
  * </pre>
  */
 @EventBusSubscriber(modid = ClientMod.MODID)
@@ -42,13 +42,15 @@ public class ClientCommands {
 
         dispatcher.register(Commands.literal("rpg")
 
-                // === HUD 开关指令 ===
-                .then(Commands.literal("hud")
-                        .executes(context -> executeHudStatus(context))
-                        .then(Commands.literal("on")
-                                .executes(context -> executeHudToggle(context, true)))
-                        .then(Commands.literal("off")
-                                .executes(context -> executeHudToggle(context, false)))
+                // === HUD 开关指令：/rpg client hud [on|off] ===
+                .then(Commands.literal("client")
+                        .then(Commands.literal("hud")
+                                .executes(context -> executeHudStatus(context))
+                                .then(Commands.literal("on")
+                                        .executes(context -> executeHudToggle(context, true)))
+                                .then(Commands.literal("off")
+                                        .executes(context -> executeHudToggle(context, false)))
+                        )
                 )
         );
     }

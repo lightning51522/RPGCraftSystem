@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.18.2--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.19.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -673,28 +673,33 @@ baseValue
 
 ##  游戏命令
 
-所有命令以 `/rpg` 为根节点。`op-2` 表示需要 `LEVEL_GAMEMASTERS` 权限（管理员等级 2）。
+所有命令以 `/rpg` 为根节点，统一格式为 `/rpg <模块> <动作> [参数...]`。`op-2` 表示需要 `LEVEL_GAMEMASTERS` 权限（管理员等级 2）；查询/个人开关类命令对所有人开放，指定 `[player]`（作用于他人）时需 op-2。
 
-### 属性管理
-
-| 命令 | 权限 | 说明 |
-|------|------|------|
-| `/rpg list [player]` | op-2 | 列出指定玩家（或自己）的全部属性值 |
-| `/rpg get <属性名> [player]` | op-2 | 查询单个属性值 |
-| `/rpg set <属性名> <值> [player]` | op-2 | 设置当前值（自动同步原版血条） |
-| `/rpg setmax <属性名> <值> [player]` | op-2 | 设置上限值 |
-| `/rpg reset [player]` | op-2 | 重置全部属性到默认值 |
-| `/rpg deathmode <snapshot\|rescan\|status>` | op-2 | 设置/查看死亡恢复模式 |
-
-### 等级与经验
+### 属性（attribute）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg level [player]` | 无 | 查看等级和经验 |
-| `/rpg setlevel <等级> [player]` | op-2 | 设置等级（经验清零） |
-| `/rpg addexp <经验值> [player]` | op-2 | 增加经验（自动升级） |
+| `/rpg attribute list [player]` | 无 / op-2 | 列出指定玩家（或自己）的全部属性值 |
+| `/rpg attribute get <属性名> [player]` | 无 / op-2 | 查询单个属性值 |
+| `/rpg attribute set <属性名> <值> [player]` | op-2 | 设置当前值（自动同步原版血条） |
+| `/rpg attribute setmax <属性名> <值> [player]` | op-2 | 设置上限值 |
+| `/rpg attribute reset [player]` | op-2 | 重置全部属性到默认值 |
 
-### 职业
+### core（全局）
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg core deathmode <snapshot\|rescan>` | op-2 | 设置/查看死亡恢复模式 |
+
+### 等级（leveling）
+
+| 命令 | 权限 | 说明 |
+|------|------|------|
+| `/rpg leveling level [player]` | 无 / op-2 | 查看等级和经验 |
+| `/rpg leveling setlevel <等级> [player]` | op-2 | 设置等级（经验清零） |
+| `/rpg leveling addexp <经验值> [player]` | op-2 | 增加经验（自动升级） |
+
+### 职业（profession）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
@@ -704,25 +709,25 @@ baseValue
 
 > 职业**升级、进阶、副职业切换**等操作不通过命令，而是在 **职业面板**（按 `P` 键打开）中完成。命令只负责查看和 GM 强制切换。
 
-### 属性点
+### 属性点（attrpoints）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg attrpoints [player]` | 无 | 查看可分配点数与各属性已分配情况 |
+| `/rpg attrpoints` | 无 | 查看可分配点数与各属性已分配情况 |
 | `/rpg attrpoints add <数量> [player]` | op-2 | 授予可分配点数 |
 | `/rpg attrpoints reset [player]` | op-2 | 重置全部分配并退还所有已分配点数 |
 
 > 玩家每升一级自动获得 1 个可分配点数；点数可在角色界面（按 `R`）分配到除 `life`/`skill_point` 之外的能力型属性（综合属性不可加点）。
 
-### 战斗 / 怪物
+### 战斗（combat）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg combatlog on\|off` | 无 | 开关个人战斗日志（持久化） |
-| `/rpg randspawn on\|off` | op-2 | 开关随机刷怪等级化（不持久化） |
-| `/rpg spawn <实体ID> <等级> [json覆盖]` | op-2 | 生成指定等级的自定义怪物 |
+| `/rpg combat log [on\|off]` | 无 | 查询/开关个人战斗日志（持久化） |
+| `/rpg combat randspawn [on\|off]` | op-2 | 查询/开关随机刷怪等级化（不持久化） |
+| `/rpg combat spawn <实体ID> <等级> [json覆盖]` | op-2 | 生成指定等级的自定义怪物 |
 
-`/rpg spawn` 的 JSON 覆盖字段：
+`/rpg combat spawn` 的 JSON 覆盖字段：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -732,52 +737,53 @@ baseValue
 | `base_exp` | int | 击杀经验覆盖 |
 
 ```bash
-/rpg spawn minecraft:zombie 5
-/rpg spawn minecraft:skeleton 10 {"rating":"ELITE"}
-/rpg spawn minecraft:spider 15 {"attack_type":"MAGIC","attributes":{"life":1000,"strength":200}}
+/rpg combat spawn minecraft:zombie 5
+/rpg combat spawn minecraft:skeleton 10 {"rating":"ELITE"}
+/rpg combat spawn minecraft:spider 15 {"attack_type":"MAGIC","attributes":{"life":1000,"strength":200}}
 ```
 
-### 区域
+### 区域（region）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg findregion [名称]` | 无 | 查找最近的区域，返回其中心地面/水面坐标 |
+| `/rpg region find [名称]` | 无 | 查找最近的区域，返回其中心地面/水面坐标 |
 
 - **省略名称**：返回命令源当前维度下、距离最近的区域
 - **带名称**：按区域显示名（如 `火山`）或区域 ID（`rpgcraftcore:volcano` / `volcano`）任一匹配，在匹配集合中取最近的
 - **中心地面坐标**：区域多边形 XZ 包围盒中心 + 该位置的地表 Y（`MOTION_BLOCKING` 高度图，含水面/树叶）。目标 chunk 未生成时会**强制加载**以获得准确高度，避免返回世界底部（如主世界 -64 虚空）
 
 ```bash
-/rpg findregion              # 当前维度最近的区域
-/rpg findregion 火山          # 按显示名查找
-/rpg findregion volcano      # 按 ID path 查找
+/rpg region find              # 当前维度最近的区域
+/rpg region find 火山          # 按显示名查找
+/rpg region find volcano      # 按 ID path 查找
 ```
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg setregion <ID> <NAME> <SIZE> init` | op-2 | 初始化草稿：玩家为中心、边长 SIZE 的正方形，绑定环境类型 ID |
-| `/rpg addregion <NAME>` | op-2 | 将玩家当前整数坐标加入 NAME 草稿，重算凹包边界（自相交则抛弃该点） |
-| `/rpg setregion <ID> <NAME> done` | op-2 | 定稿：草稿转为正式区域，套用环境类型效果并持久化（忽略 SIZE） |
-| `/rpg delregion <NAME>` | op-2 | 删除 NAME 运行时区域（仅能删 setregion 创建的，不删 datapack 静态区域） |
-| `/rpg regionnotify [on\|off]` | 无 | 查询/开关区域进出聊天提示（每玩家独立，持久化，默认开启） |
+| `/rpg region set <ID> <NAME> <SIZE> init` | op-2 | 初始化草稿：玩家为中心、边长 SIZE 的正方形，绑定环境类型 ID |
+| `/rpg region add <NAME>` | op-2 | 将玩家当前整数坐标加入 NAME 草稿，重算凹包边界（自相交则抛弃该点） |
+| `/rpg region set <ID> <NAME> done` | op-2 | 定稿：草稿转为正式区域，套用环境类型效果并持久化（忽略 SIZE） |
+| `/rpg region delete <NAME>` | op-2 | 删除 NAME 运行时区域（仅能删 region set 创建的，不删 datapack 静态区域） |
+| `/rpg region notify [on\|off]` | 无 | 查询/开关区域进出聊天提示（每玩家独立，持久化，默认开启） |
+| `/rpg region biome [on\|off]` | op-2 | 查询/开关生物群系区域全局功能（影响全服，默认关闭） |
 
 ```bash
-/rpg setregion volcano camp1 20 init   # 玩家为中心 20×20 正方形草稿，环境=火山
-/rpg addregion camp1                    # 走到某处加点（重复多次扩展边界）
-/rpg setregion volcano camp1 done       # 定稿为正式区域
-/rpg delregion camp1                    # 删除
-/rpg regionnotify off                   # 关闭进出提示
+/rpg region set volcano camp1 20 init   # 玩家为中心 20×20 正方形草稿，环境=火山
+/rpg region add camp1                    # 走到某处加点（重复多次扩展边界）
+/rpg region set volcano camp1 done       # 定稿为正式区域
+/rpg region delete camp1                 # 删除
+/rpg region notify off                   # 关闭进出提示
 ```
 
-> 草稿仅存内存（服务器重启丢失），定稿后才持久化。运行时区域与 datapack 静态区域共存，查询（findregion / 属性生效）合并两者。
+> 草稿仅存内存（服务器重启丢失），定稿后才持久化。运行时区域与 datapack 静态区域共存，查询（region find / 属性生效）合并两者。
 
-### 装备
+### 装备（equipment）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg setrarity <物品ID> <稀有度> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的稀有度 |
-| `/rpg setlevel <物品ID> <等级> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的装备等级 |
-| `/rpg give equipment <物品ID> [稀有度] [等级] [数量] [player]` | op-2 | 发放带指定稀有度/等级的装备（仿原版 give） |
+| `/rpg equipment setrarity <物品ID> <稀有度> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的稀有度 |
+| `/rpg equipment setlevel <物品ID> <等级> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的装备等级 |
+| `/rpg equipment give <物品ID> [稀有度] [等级] [数量] [player]` | op-2 | 发放带指定稀有度/等级的装备（仿原版 give） |
 
 - **物品ID**：原版或任意模组物品 ID（如 `minecraft:diamond_sword`），支持 Tab 补全
 - **稀有度**：`gray`/`white`/`green`/`blue`/`purple`/`orange`/`pink`/`gold`/`red`/`rainbow`（不区分大小写）
@@ -787,14 +793,14 @@ baseValue
 - **give 的可选参数**：稀有度/等级/数量/player 均可选，省略时分别默认 `gray`/`0`/`1`/自己（位置参数，需按顺序补齐：物品 → 稀有度 → 等级 → 数量 → player）
 
 ```bash
-/rpg setrarity minecraft:diamond_sword blue               # 把自己背包所有钻石剑设为蓝色
-/rpg setrarity minecraft:diamond_sword rainbow Steve      # 把 Steve 背包所有钻石剑设为彩虹色
-/rpg setrarity minecraft:netherite_sword gray Notch       # 清除（设回灰色）
-/rpg setlevel minecraft:diamond_sword 4                   # 把自己背包所有钻石剑设为 4 级（★☆☆）
-/rpg setlevel minecraft:diamond_sword 0 Steve             # 清除 Steve 背包所有钻石剑的等级
-/rpg give equipment minecraft:diamond_sword blue 4        # 给自己发 1 把蓝色 4 级钻石剑
-/rpg give equipment minecraft:diamond_sword rainbow 6 5 Steve  # 给 Steve 发 5 把彩虹 6 级钻石剑
-/rpg give equipment minecraft:diamond_sword                # 给自己发 1 把普通（gray/0）钻石剑
+/rpg equipment setrarity minecraft:diamond_sword blue               # 把自己背包所有钻石剑设为蓝色
+/rpg equipment setrarity minecraft:diamond_sword rainbow Steve      # 把 Steve 背包所有钻石剑设为彩虹色
+/rpg equipment setrarity minecraft:netherite_sword gray Notch       # 清除（设回灰色）
+/rpg equipment setlevel minecraft:diamond_sword 4                   # 把自己背包所有钻石剑设为 4 级（★☆☆）
+/rpg equipment setlevel minecraft:diamond_sword 0 Steve             # 清除 Steve 背包所有钻石剑的等级
+/rpg equipment give minecraft:diamond_sword blue 4        # 给自己发 1 把蓝色 4 级钻石剑
+/rpg equipment give minecraft:diamond_sword rainbow 6 5 Steve  # 给 Steve 发 5 把彩虹 6 级钻石剑
+/rpg equipment give minecraft:diamond_sword                # 给自己发 1 把普通（gray/0）钻石剑
 ```
 
 #### 装备稀有度与等级（铁砧锻造）
@@ -810,11 +816,11 @@ baseValue
 
 **等级星形展示**（装备名后缀，最多 3 个星位）：L0 无星；L1~L3 为 1~3 个空心星（☆~☆☆☆）；L4~L6 从左到右依次变实心（★☆☆ / ★★☆ / ★★★）。
 
-### 技能
+### 技能（skills）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg skills [player]` | 无 | 查看技能信息与冷却状态 |
+| `/rpg skills` | 无 | 查看技能信息与冷却状态 |
 | `/rpg skills list` | 无 | 列出所有已注册技能定义 |
 | `/rpg skills cast <技能ID> [player]` | op-2 | 强制释放某技能（仍走完整校验） |
 | `/rpg skills cooldown reset [player]` | op-2 | 重置玩家全部技能冷却 |
@@ -825,12 +831,12 @@ baseValue
 /rpg skills cooldown reset
 ```
 
-### 客户端 UI
+### 客户端 UI（client）
 
 | 命令 | 权限 | 说明 |
 |------|------|------|
-| `/rpg hud [on\|off]` | 无 | 切换 HUD 十字准星目标信息浮窗 |
-| `/rpg character` | 无 | 打开角色信息界面（也可按 R） |
+| `/rpg client hud [on\|off]` | 无 | 查询/切换 HUD 十字准星目标信息浮窗 |
+| `/rpg client character` | 无 | 打开角色信息界面（也可按 R） |
 
 ---
 

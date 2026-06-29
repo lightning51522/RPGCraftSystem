@@ -26,9 +26,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * <p>
  * 命令列表：
  * <pre>
- * /rpg setrarity &lt;物品ID&gt; &lt;稀有度&gt; [player] — 设置指定玩家背包中所有该 ID 物品的稀有度
- * /rpg setlevel &lt;物品ID&gt; &lt;等级&gt; [player] — 设置指定玩家背包中所有该 ID 物品的装备等级
- * /rpg give equipment &lt;物品ID&gt; [稀有度] [等级] [数量] [player] — 发放带指定稀有度/等级的装备
+ * /rpg equipment setrarity &lt;物品ID&gt; &lt;稀有度&gt; [player] — 设置指定玩家背包中所有该 ID 物品的稀有度
+ * /rpg equipment setlevel &lt;物品ID&gt; &lt;等级&gt; [player] — 设置指定玩家背包中所有该 ID 物品的装备等级
+ * /rpg equipment give &lt;物品ID&gt; [稀有度] [等级] [数量] [player] — 发放带指定稀有度/等级的装备
  * </pre>
  * <p>
  * 稀有度取 {@link EquipmentRarity} 的枚举名（小写，如 {@code white}/{@code blue}/{@code rainbow}），
@@ -53,65 +53,67 @@ public class EquipmentCommands {
 
         dispatcher.register(Commands.literal("rpg")
 
-                // === 设置稀有度指令 ===
-                .then(Commands.literal("setrarity")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.argument("item", IdentifierArgument.id())
-                                .suggests((context, builder) -> {
-                                    BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
-                                    return builder.buildFuture();
-                                })
-                                .then(Commands.argument("rarity", StringArgumentType.word())
+                // === 装备指令：/rpg equipment <setrarity|setlevel|give> ... ===
+                .then(Commands.literal("equipment")
+
+                        // === 设置稀有度：/rpg equipment setrarity <物品ID> <稀有度> [player] ===
+                        .then(Commands.literal("setrarity")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("item", IdentifierArgument.id())
                                         .suggests((context, builder) -> {
-                                            for (EquipmentRarity r : EquipmentRarity.values()) {
-                                                builder.suggest(r.name().toLowerCase());
-                                            }
+                                            BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
                                             return builder.buildFuture();
                                         })
-                                        .executes(context -> executeSetRarity(context,
-                                                context.getSource().getPlayerOrException(),
-                                                IdentifierArgument.getId(context, "item"),
-                                                StringArgumentType.getString(context, "rarity")))
-                                        .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("rarity", StringArgumentType.word())
+                                                .suggests((context, builder) -> {
+                                                    for (EquipmentRarity r : EquipmentRarity.values()) {
+                                                        builder.suggest(r.name().toLowerCase());
+                                                    }
+                                                    return builder.buildFuture();
+                                                })
                                                 .executes(context -> executeSetRarity(context,
-                                                        EntityArgument.getPlayer(context, "player"),
+                                                        context.getSource().getPlayerOrException(),
                                                         IdentifierArgument.getId(context, "item"),
                                                         StringArgumentType.getString(context, "rarity")))
+                                                .then(Commands.argument("player", EntityArgument.player())
+                                                        .executes(context -> executeSetRarity(context,
+                                                                EntityArgument.getPlayer(context, "player"),
+                                                                IdentifierArgument.getId(context, "item"),
+                                                                StringArgumentType.getString(context, "rarity")))
+                                                )
                                         )
                                 )
                         )
-                )
 
-                // === 设置装备等级指令 ===
-                .then(Commands.literal("setlevel")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.argument("item", IdentifierArgument.id())
-                                .suggests((context, builder) -> {
-                                    BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
-                                    return builder.buildFuture();
-                                })
-                                .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, MAX_LEVEL))
-                                        .executes(context -> executeSetLevel(context,
-                                                context.getSource().getPlayerOrException(),
-                                                IdentifierArgument.getId(context, "item"),
-                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
-                                        .then(Commands.argument("player", EntityArgument.player())
+                        // === 设置装备等级：/rpg equipment setlevel <物品ID> <等级> [player] ===
+                        .then(Commands.literal("setlevel")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                                .then(Commands.argument("item", IdentifierArgument.id())
+                                        .suggests((context, builder) -> {
+                                            BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
+                                            return builder.buildFuture();
+                                        })
+                                        .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, MAX_LEVEL))
                                                 .executes(context -> executeSetLevel(context,
-                                                        EntityArgument.getPlayer(context, "player"),
+                                                        context.getSource().getPlayerOrException(),
                                                         IdentifierArgument.getId(context, "item"),
                                                         com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
+                                                .then(Commands.argument("player", EntityArgument.player())
+                                                        .executes(context -> executeSetLevel(context,
+                                                                EntityArgument.getPlayer(context, "player"),
+                                                                IdentifierArgument.getId(context, "item"),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "level")))
+                                                )
                                         )
                                 )
                         )
-                )
 
-                // === 发放装备指令（仿原版 give，附加稀有度/等级组件）===
-                // /rpg give equipment <物品ID> [稀有度] [等级] [数量] [player]
-                // 稀有度/等级/数量/player 均可选；省略时分别默认 GRAY/0/1/自己。
-                // 位置参数链：物品 → 稀有度? → 等级? → 数量? → player?
-                .then(Commands.literal("give")
-                        .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
-                        .then(Commands.literal("equipment")
+                        // === 发放装备（仿原版 give，附加稀有度/等级组件）===
+                        // /rpg equipment give <物品ID> [稀有度] [等级] [数量] [player]
+                        // 稀有度/等级/数量/player 均可选；省略时分别默认 GRAY/0/1/自己。
+                        // 位置参数链：物品 → 稀有度? → 等级? → 数量? → player?
+                        .then(Commands.literal("give")
+                                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                                 .then(Commands.argument("item", IdentifierArgument.id())
                                         .suggests((context, builder) -> {
                                             BuiltInRegistries.ITEM.keySet().forEach(id -> builder.suggest(id.toString()));
