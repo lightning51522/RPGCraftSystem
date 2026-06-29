@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.18.1--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.18.2--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -777,12 +777,14 @@ baseValue
 |------|------|------|
 | `/rpg setrarity <物品ID> <稀有度> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的稀有度 |
 | `/rpg setlevel <物品ID> <等级> [player]` | op-2 | 设置指定玩家背包中所有该 ID 物品的装备等级 |
+| `/rpg give equipment <物品ID> [稀有度] [等级] [数量] [player]` | op-2 | 发放带指定稀有度/等级的装备（仿原版 give） |
 
 - **物品ID**：原版或任意模组物品 ID（如 `minecraft:diamond_sword`），支持 Tab 补全
 - **稀有度**：`gray`/`white`/`green`/`blue`/`purple`/`orange`/`pink`/`gold`/`red`/`rainbow`（不区分大小写）
 - **等级**：0~6 的整数（0 = 清除等级）
 - **范围**：整个背包（主背包 + 护甲 + 副手），所有匹配 ID 的物品堆叠统一设为指定稀有度/等级
 - **`[player]`**：省略时作用于自己
+- **give 的可选参数**：稀有度/等级/数量/player 均可选，省略时分别默认 `gray`/`0`/`1`/自己（位置参数，需按顺序补齐：物品 → 稀有度 → 等级 → 数量 → player）
 
 ```bash
 /rpg setrarity minecraft:diamond_sword blue               # 把自己背包所有钻石剑设为蓝色
@@ -790,6 +792,9 @@ baseValue
 /rpg setrarity minecraft:netherite_sword gray Notch       # 清除（设回灰色）
 /rpg setlevel minecraft:diamond_sword 4                   # 把自己背包所有钻石剑设为 4 级（★☆☆）
 /rpg setlevel minecraft:diamond_sword 0 Steve             # 清除 Steve 背包所有钻石剑的等级
+/rpg give equipment minecraft:diamond_sword blue 4        # 给自己发 1 把蓝色 4 级钻石剑
+/rpg give equipment minecraft:diamond_sword rainbow 6 5 Steve  # 给 Steve 发 5 把彩虹 6 级钻石剑
+/rpg give equipment minecraft:diamond_sword                # 给自己发 1 把普通（gray/0）钻石剑
 ```
 
 #### 装备稀有度与等级（铁砧锻造）
