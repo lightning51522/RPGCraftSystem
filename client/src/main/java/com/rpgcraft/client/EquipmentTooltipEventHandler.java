@@ -10,6 +10,7 @@ import com.rpgcraft.core.equipment.EquipmentRarity;
 import com.rpgcraft.core.registry.RPGSystems;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -108,15 +109,25 @@ public class EquipmentTooltipEventHandler {
         // 按该件装备稀有度缩放加成显示（与服务端 calculateTotalBonus 口径一致：每升一级 +10%，向下取整）
         double multiplier = rarity.getBonusMultiplier();
 
-        // 非最低（GRAY）稀有度：仅将物品名染为稀有度颜色（不再插入等级标签行）
-        if (rarity != EquipmentRarity.GRAY) {
-            List<Component> tooltip = event.getToolTip();
-            int color = EquipmentRarityColors.resolveColor(rarity);
+        // 装备等级（>0 时在名称后追加星形后缀）
+        Integer levelObj = stack.get(com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_LEVEL.get());
+        int level = levelObj != null ? levelObj : 0;
 
+        // 非最低（GRAY）稀有度 或 有装备等级 → 改写名称行：染稀有度颜色（若有）并追加等级星
+        if (rarity != EquipmentRarity.GRAY || level > 0) {
+            List<Component> tooltip = event.getToolTip();
             if (!tooltip.isEmpty()) {
                 Component originalName = tooltip.getFirst();
-                tooltip.set(0, Component.literal(originalName.getString())
-                        .withStyle(s -> s.withColor(color)));
+                StringBuilder name = new StringBuilder(originalName.getString());
+                if (level > 0) {
+                    name.append(' ').append(com.rpgcraft.core.equipment.EquipmentLevelStars.stars(level));
+                }
+                MutableComponent styled = Component.literal(name.toString());
+                if (rarity != EquipmentRarity.GRAY) {
+                    int color = EquipmentRarityColors.resolveColor(rarity);
+                    styled.withStyle(s -> s.withColor(color));
+                }
+                tooltip.set(0, styled);
             }
         }
 

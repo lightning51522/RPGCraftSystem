@@ -41,6 +41,23 @@ public final class RPGComponents {
                             .networkSynchronized(EquipmentRarity.STREAM_CODEC)
                             .build());
 
+    /**
+     * 装备等级组件：存储每件 {@code ItemStack} 的等级（0~6，缺省 0）。
+     * <p>
+     * 通过铁砧用同物品 ID + 同等级的另一件装备合成升级（每次 +1，最高 6，无失败）。
+     * 等级用星形后缀展示在装备名后（见 {@link EquipmentLevelStars}）。读取用
+     * {@code stack.getOrDefault(EQUIPMENT_LEVEL.get(), 0)}。
+     * <p>
+     * Codec 仅在存档加载时校验 [0,6] 区间（仿 {@code MAX_STACK_SIZE} 的 intRange）；
+     * 运行时写入需自行钳制到 6。
+     */
+    public static final Supplier<DataComponentType<Integer>> EQUIPMENT_LEVEL =
+            DEFERRED_REGISTER.register("equipment_level",
+                    () -> DataComponentType.<Integer>builder()
+                            .persistent(net.minecraft.util.ExtraCodecs.intRange(0, 6))
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT)
+                            .build());
+
     public static DeferredRegister<DataComponentType<?>> getDeferredRegister() {
         return DEFERRED_REGISTER;
     }

@@ -89,6 +89,11 @@ public final class SelectedItemNameOverlay {
         int nameColor = resolveNameColor(lastHighlight);
 
         MutableComponent str = Component.empty().append(lastHighlight.getHoverName()).withStyle(style -> style.withColor(nameColor));
+        // 装备等级 > 0 时在名称后追加星形后缀（与 tooltip 口径一致，继承名称颜色）
+        int level = currentLevel(lastHighlight);
+        if (level > 0) {
+            str.append(" " + com.rpgcraft.core.equipment.EquipmentLevelStars.stars(level));
+        }
         if (lastHighlight.has(DataComponents.CUSTOM_NAME)) {
             str.withStyle(ChatFormatting.ITALIC);
         }
@@ -105,6 +110,12 @@ public final class SelectedItemNameOverlay {
         if (alpha > 0) {
             graphics.textWithBackdrop(mc.font, str, x, y, strWidth, ARGB.white(alpha));
         }
+    }
+
+    /** 读取堆叠的当前装备等级（无组件视为 0）。 */
+    private static int currentLevel(ItemStack stack) {
+        Integer level = stack.get(RPGComponents.EQUIPMENT_LEVEL.get());
+        return level != null ? level : 0;
     }
 
     /**
