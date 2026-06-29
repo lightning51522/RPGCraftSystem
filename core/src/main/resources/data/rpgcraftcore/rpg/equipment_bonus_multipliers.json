@@ -1,0 +1,5 @@
+{
+  "//doc": "装备属性加成系数配置。rarityBonusPerTier=稀有度每级增幅（系数=1+perTier×tier，tier=0..9 对应 GRAY..RAINBOW）；levelBonusPerLevel=装备等级每级增幅（系数=1+perLevel×level，level=0..6）。最终加成=基础加成×稀有度系数×等级系数（向下取整）。默认：稀有度每级+0.1（GRAY=1.0×、RAINBOW=1.9×），等级每级+0.2（L0=1.0×、L4=1.8×、L6=2.2×）。可用 /reload 热更新。",
+  "rarityBonusPerTier": 0.1,
+  "levelBonusPerLevel": 0.2
+}

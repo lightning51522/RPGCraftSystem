@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.17.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.18.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -794,8 +794,10 @@ baseValue
 
 | 维度 | 来源 | 升级方式 | 上限 |
 |------|------|---------|------|
-| **稀有度** | 10 级（灰/白/绿/蓝/紫/橙/粉/金/红/彩虹） | 铁砧右槽放**稀有度宝石**，按目标稀有度消耗一定数量并有几率提升一级（失败退部分宝石） | 彩虹（每升一级 +10% 属性加成） |
-| **等级** | 0~6 | 铁砧右槽放**同物品 ID + 同等级**的另一件装备（不要求同稀有度），无失败提升一级 | 6 |
+| **稀有度** | 10 级（灰/白/绿/蓝/紫/橙/粉/金/红/彩虹） | 铁砧右槽放**稀有度宝石**，按目标稀有度消耗一定数量并有几率提升一级（失败退部分宝石） | 彩虹（默认每升一级 +10% 属性加成） |
+| **等级** | 0~6 | 铁砧右槽放**同物品 ID + 同等级**的另一件装备（不要求同稀有度），无失败提升一级 | 6（默认每升一级 +20% 属性加成） |
+
+**属性加成系数**：稀有度系数与等级系数**相乘**作用于属性加成（`最终值 = floor(基础加成 × 稀有度系数 × 等级系数)`）。两套系数的每级增幅可由 `data/rpgcraftcore/rpg/equipment_bonus_multipliers.json` 配置（`rarityBonusPerTier` 默认 0.1、`levelBonusPerLevel` 默认 0.2，`/reload` 热更新）。
 
 **等级星形展示**（装备名后缀，最多 3 个星位）：L0 无星；L1~L3 为 1~3 个空心星（☆~☆☆☆）；L4~L6 从左到右依次变实心（★☆☆ / ★★☆ / ★★★）。
 

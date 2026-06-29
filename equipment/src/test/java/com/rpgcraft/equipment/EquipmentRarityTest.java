@@ -48,22 +48,41 @@ class EquipmentRarityTest {
     }
 
     @Test
-    void multiplier_isOnePlusPointOnePerTier() {
-        // GRAY=1.0×，每升一级 +0.1
-        assertEquals(1.0, EquipmentRarity.GRAY.getBonusMultiplier(), 1e-9);
-        assertEquals(1.1, EquipmentRarity.WHITE.getBonusMultiplier(), 1e-9);
-        assertEquals(1.5, EquipmentRarity.ORANGE.getBonusMultiplier(), 1e-9);
-        assertEquals(1.9, EquipmentRarity.RAINBOW.getBonusMultiplier(), 1e-9);
+    void rarityMultiplier_isConfigDrivenOnePlusPerTierTimesTier() {
+        // 默认 rarityBonusPerTier=0.1：GRAY(0)=1.0×、WHITE(1)=1.1×、ORANGE(5)=1.5×、RAINBOW(9)=1.9×
+        assertEquals(1.0, EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.GRAY.getTier()), 1e-9);
+        assertEquals(1.1, EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.WHITE.getTier()), 1e-9);
+        assertEquals(1.5, EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.ORANGE.getTier()), 1e-9);
+        assertEquals(1.9, EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.RAINBOW.getTier()), 1e-9);
     }
 
     @Test
-    void floorScalingMatchesExpectedValues() {
-        // 验证 +10%/级 在整数加成上的效果（floor）
+    void floorScalingMatchesConfiguredMultiplier() {
+        // 默认稀有度系数 +10%/级 在整数加成上的效果（floor）
         // 基础 10：GRAY=10、WHITE=11、ORANGE(×1.5)=15、RAINBOW(×1.9)=19
-        assertEquals(10, (int) Math.floor(10 * EquipmentRarity.GRAY.getBonusMultiplier()));
-        assertEquals(11, (int) Math.floor(10 * EquipmentRarity.WHITE.getBonusMultiplier()));
-        assertEquals(15, (int) Math.floor(10 * EquipmentRarity.ORANGE.getBonusMultiplier()));
-        assertEquals(19, (int) Math.floor(10 * EquipmentRarity.RAINBOW.getBonusMultiplier()));
+        assertEquals(10, (int) Math.floor(10 * EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.GRAY.getTier())));
+        assertEquals(11, (int) Math.floor(10 * EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.WHITE.getTier())));
+        assertEquals(15, (int) Math.floor(10 * EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.ORANGE.getTier())));
+        assertEquals(19, (int) Math.floor(10 * EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.RAINBOW.getTier())));
+    }
+
+    @Test
+    void levelMultiplier_isOnePlusPointTwoPerLevel() {
+        // 默认 levelBonusPerLevel=0.2：L0=1.0×、L1=1.2×、L4=1.8×、L6=2.2×
+        assertEquals(1.0, EquipmentBonusMultiplierConfig.getLevelMultiplier(0), 1e-9);
+        assertEquals(1.2, EquipmentBonusMultiplierConfig.getLevelMultiplier(1), 1e-9);
+        assertEquals(1.8, EquipmentBonusMultiplierConfig.getLevelMultiplier(4), 1e-9);
+        assertEquals(2.2, EquipmentBonusMultiplierConfig.getLevelMultiplier(6), 1e-9);
+    }
+
+    @Test
+    void combinedMultiplier_isRarityTimesLevel() {
+        // 相乘组合：BLUE(tier=3, 1.3) × 4级(1.8) = 2.34
+        double rarity = EquipmentBonusMultiplierConfig.getRarityMultiplier(EquipmentRarity.BLUE.getTier());
+        double level = EquipmentBonusMultiplierConfig.getLevelMultiplier(4);
+        assertEquals(1.3, rarity, 1e-9);
+        assertEquals(1.8, level, 1e-9);
+        assertEquals(2.34, rarity * level, 1e-9);
     }
 
     @Test

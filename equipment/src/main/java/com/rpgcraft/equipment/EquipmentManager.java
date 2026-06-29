@@ -65,6 +65,27 @@ public class EquipmentManager {
                 // 客户端镜像加载入口：与 RarityGemstoneConfig.onAddReloadListener 走同一份 applyConfig 逻辑
                 RarityGemstoneConfig.loadFromJson(json, true);
             }
+
+            @Override
+            public net.minecraft.resources.Identifier getBonusMultiplierConfigId() {
+                return EquipmentBonusMultiplierConfig.getConfigId();
+            }
+
+            @Override
+            public void applyBonusMultiplierConfig(com.google.gson.JsonObject json) {
+                // 客户端镜像加载入口：与服务端 reload 监听器走同一份 applyConfig 逻辑
+                EquipmentBonusMultiplierConfig.loadFromJson(json, true);
+            }
+
+            @Override
+            public double getRarityMultiplier(int tier) {
+                return EquipmentBonusMultiplierConfig.getRarityMultiplier(tier);
+            }
+
+            @Override
+            public double getLevelMultiplier(int level) {
+                return EquipmentBonusMultiplierConfig.getLevelMultiplier(level);
+            }
         });
     }
 

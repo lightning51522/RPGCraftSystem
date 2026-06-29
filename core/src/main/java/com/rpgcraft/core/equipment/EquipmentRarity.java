@@ -14,8 +14,9 @@ import net.minecraft.network.codec.StreamCodec;
  * <p>
  * 标签行直接显示枚举名（如 {@code [BLUE]}）。
  * <p>
- * <b>等级（tier）与加成缩放</b>：{@link #getTier()} 为序号（GRAY=0 … RAINBOW=9），
- * 每升一级该件装备的全部属性加成 +10%（{@link #getBonusMultiplier()} = {@code 1 + 0.1×tier}）。
+ * <b>等级（tier）</b>：{@link #getTier()} 为序号（GRAY=0 … RAINBOW=9）。属性加成缩放系数由
+ * {@code EquipmentBonusMultiplierConfig}（equipment 模块）按 tier 与装备等级配置驱动，
+ * 默认稀有度每级 +10%、装备等级每级 +20%（相乘）。
  * <p>
  * 稀有度现为<b>动态、按物品实例</b>的属性：通过 {@code DataComponentType}（见
  * {@code RPGComponents.EQUIPMENT_RARITY}）存储在 {@code ItemStack} 上，在制作/进入世界时
@@ -57,14 +58,9 @@ public enum EquipmentRarity {
         return rainbow;
     }
 
-    /** 等级序号：GRAY=0 … RAINBOW=9。用于稀有度加成缩放。 */
+    /** 等级序号：GRAY=0 … RAINBOW=9。用于稀有度加成缩放（系数见 EquipmentBonusMultiplierConfig）。 */
     public int getTier() {
         return ordinal();
-    }
-
-    /** 属性加成倍率：{@code 1 + 0.1 × tier}（GRAY=1.0×、RAINBOW=1.9×）。 */
-    public double getBonusMultiplier() {
-        return 1.0 + 0.1 * getTier();
     }
 
     /**

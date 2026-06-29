@@ -93,11 +93,13 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
             Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
             Optional<Map<Identifier, EquipmentBonus>> bonuses = registry.getBonuses(itemId);
             if (bonuses.isEmpty()) continue;
-            // 按该件装备的（动态）稀有度缩放加成：每升一级 +10%（GRAY=1.0×，向下取整）
+            // 按该件装备的（动态）稀有度与等级缩放加成：最终系数 = 稀有度系数 × 等级系数（向下取整）
             EquipmentRarity rarity = stack.getOrDefault(
                     com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_RARITY.get(),
                     EquipmentRarity.GRAY);
-            double multiplier = rarity.getBonusMultiplier();
+            int level = stack.getOrDefault(com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_LEVEL.get(), 0);
+            double multiplier = EquipmentBonusMultiplierConfig.getRarityMultiplier(rarity.getTier())
+                    * EquipmentBonusMultiplierConfig.getLevelMultiplier(level);
             for (Map.Entry<Identifier, EquipmentBonus> entry : bonuses.get().entrySet()) {
                 int scaled = (int) Math.floor(entry.getValue().value() * multiplier);
                 total.merge(entry.getKey(), new EquipmentBonus(scaled), EquipmentBonus::add);

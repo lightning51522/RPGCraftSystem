@@ -75,6 +75,23 @@ public class EquipmentTooltipEventHandler {
                 }
             });
         }
+
+        // 装备加成系数配置客户端镜像：tooltip 显示加成数值时需按稀有度/等级系数缩放，
+        // 与服务端 calculateTotalBonus 同口径；服务端 reload 监听器不在客户端触发，故镜像加载。
+        Identifier multiplierConfigId = RPGSystems.getEquipmentSystem().getBonusMultiplierConfigId();
+        if (multiplierConfigId != null) {
+            event.addListener(multiplierConfigId, new SimplePreparableReloadListener<JsonObject>() {
+                @Override
+                protected @NonNull JsonObject prepare(@NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
+                    return readJson(resourceManager, multiplierConfigId, "装备加成系数配置");
+                }
+
+                @Override
+                protected void apply(@NonNull JsonObject json, @NonNull ResourceManager resourceManager, @NonNull ProfilerFiller profiler) {
+                    RPGSystems.getEquipmentSystem().applyBonusMultiplierConfig(json);
+                }
+            });
+        }
     }
 
     /** 读取一份 JSON 配置（找不到或解析失败返回空对象）。 */
@@ -106,12 +123,11 @@ public class EquipmentTooltipEventHandler {
         if (rarity == null) {
             rarity = RPGSystems.getEquipmentSystem().getRegistry().getRarity(itemId);
         }
-        // 按该件装备稀有度缩放加成显示（与服务端 calculateTotalBonus 口径一致：每升一级 +10%，向下取整）
-        double multiplier = rarity.getBonusMultiplier();
-
+        // 按该件装备稀有度与等级缩放加成显示（与服务端 calculateTotalBonus 口径一致：稀有度系数×等级系数，向下取整）
         // 装备等级（>0 时在名称后追加星形后缀）
-        Integer levelObj = stack.get(com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_LEVEL.get());
-        int level = levelObj != null ? levelObj : 0;
+        int level = stack.getOrDefault(com.rpgcraft.core.equipment.RPGComponents.EQUIPMENT_LEVEL.get(), 0);
+        double multiplier = RPGSystems.getEquipmentSystem().getRarityMultiplier(rarity.getTier())
+                * RPGSystems.getEquipmentSystem().getLevelMultiplier(level);
 
         // 非最低（GRAY）稀有度 或 有装备等级 → 改写名称行：染稀有度颜色（若有）并追加等级星
         if (rarity != EquipmentRarity.GRAY || level > 0) {

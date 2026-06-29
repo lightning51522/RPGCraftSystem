@@ -67,6 +67,29 @@ public final class NoOpEquipmentSystem implements IEquipmentSystem {
         warnOnce();
     }
 
+    @Override
+    public Identifier getBonusMultiplierConfigId() {
+        warnOnce();
+        return null;
+    }
+
+    @Override
+    public void applyBonusMultiplierConfig(JsonObject json) {
+        warnOnce();
+    }
+
+    @Override
+    public double getRarityMultiplier(int tier) {
+        warnOnce();
+        return 1.0 + 0.1 * tier; // 默认每级 +10%
+    }
+
+    @Override
+    public double getLevelMultiplier(int level) {
+        warnOnce();
+        return 1.0 + 0.2 * level; // 默认每级 +20%
+    }
+
     /** 空装备注册表：所有查询返回空/默认。 */
     private static final class EmptyEquipmentRegistry implements IEquipmentRegistry {
         @Override

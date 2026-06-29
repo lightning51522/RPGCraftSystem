@@ -62,4 +62,37 @@ public interface IEquipmentSystem {
      * @param json 已解析的稀有度宝石锻造配置 JSON
      */
     void applyGemstoneConfig(JsonObject json);
+
+    /**
+     * 获取装备加成系数配置文件资源定位符
+     * <p>
+     * 客户端镜像加载用：装备属性加成的稀有度/等级缩放系数需在 tooltip 显示时读取，
+     * 但服务端 reload 监听器不在客户端触发，故客户端需镜像加载同一配置。
+     *
+     * @return 加成系数配置标识符；无该功能时返回 {@code null}
+     */
+    Identifier getBonusMultiplierConfigId();
+
+    /**
+     * 应用装备加成系数配置（镜像加载入口，客户端调用）
+     *
+     * @param json 已解析的加成系数配置 JSON
+     */
+    void applyBonusMultiplierConfig(JsonObject json);
+
+    /**
+     * 稀有度加成系数 = {@code 1 + rarityBonusPerTier × tier}（配置驱动，客户端 tooltip 与服务端共用）。
+     *
+     * @param tier 稀有度序号（GRAY=0 … RAINBOW=9）
+     * @return 稀有度系数
+     */
+    double getRarityMultiplier(int tier);
+
+    /**
+     * 装备等级加成系数 = {@code 1 + levelBonusPerLevel × level}（配置驱动，客户端 tooltip 与服务端共用）。
+     *
+     * @param level 装备等级（0~6）
+     * @return 等级系数
+     */
+    double getLevelMultiplier(int level);
 }
