@@ -4,6 +4,21 @@
 
 ---
 
+## [0.20.2-alpha] - 2026-07-01
+
+> 重构 `/rpg gemstone givegem` 指令，新增宝石物品 ID 参数，为未来多种宝石种类预留。
+
+### 变更
+
+#### givegem 指令重构
+
+- 新参数结构：`/rpg gemstone givegem <宝石物品ID> <稀有度> <词条ID> [词条ID2] [词条ID3] [player]`
+- 新增必填的 `<宝石物品ID>` 参数（位于 givegem 之后、稀有度之前）：Tab 补全 gemstone 模块注册的所有宝石物品，运行时校验为本模块宝石（未来新增宝石种类自动纳入）
+- 发放逻辑解耦：不再硬编码 `WATERMELON_TOURMALINE`，按解析出的宝石物品 ID 构造 ItemStack，支持任意宝石种类
+- 新增失败提示 `rpgcraft.gemstone.givegem.unknown_gem`；成功提示补充宝石物品 ID
+
+---
+
 ## [0.20.1-alpha] - 2026-06-30
 
 > 新增独立的「RPG 宝石」创造模式标签页，集中存放所有宝石物品（稀有度宝石、镶嵌宝石），与原版物品分离。
