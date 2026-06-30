@@ -1,5 +1,6 @@
 {
-  "//doc": "稀有度宝石铁砧锻造配置。键=目标稀有度（从当前稀有度升到此级所需），gemCost=消耗宝石数（成功全额、失败按 failConsumeRate），chance=成功率[0,1]，failConsumeRate=失败时消耗的宝石比例[0,1]（实际消耗=ceil(gemCost×failConsumeRate)）。规则：铁砧左槽放入已注册可装备物 + 右槽放入宝石，取出时按「目标=当前下一级」查询规则掷骰，成功升一级（每次最多+1，最高 RAINBOW），失败保留原武器并退部分宝石。GRAY 不在此表（最低级无升级目标）。可用 /reload 热更新。",
+  "//doc": "稀有度宝石铁砧锻造配置。键=目标稀有度（从当前稀有度升到此级所需），gemCost=消耗宝石数（成功全额、失败按 failConsumeRate），chance=成功率[0,1]，failConsumeRate=失败时消耗的宝石比例[0,1]（实际消耗=ceil(gemCost×failConsumeRate)）。规则：铁砧左槽放入已注册可装备物 + 右槽放入宝石，取出时按「目标=当前下一级」查询规则掷骰，成功升一级（每次最多+1，最高 RED），失败保留原武器并退部分宝石。GRAY 不在此表（最低级无升级目标）。可用 /reload 热更新。",
+  "//note": "RAINBOW 彩虹稀有度暂时屏蔽（最高到红色 RED），故无 rainbow 锻造规则（无法锻造到 RAINBOW）。",
   "white":  {"gemCost": 1,  "chance": 0.90, "failConsumeRate": 0.5},
   "green":  {"gemCost": 2,  "chance": 0.75, "failConsumeRate": 0.5},
   "blue":   {"gemCost": 3,  "chance": 0.60, "failConsumeRate": 0.5},
@@ -7,6 +8,5 @@
   "orange": {"gemCost": 8,  "chance": 0.30, "failConsumeRate": 0.5},
   "pink":   {"gemCost": 12, "chance": 0.20, "failConsumeRate": 0.5},
   "gold":   {"gemCost": 16, "chance": 0.12, "failConsumeRate": 0.5},
-  "red":    {"gemCost": 24, "chance": 0.06, "failConsumeRate": 0.5},
-  "rainbow":{"gemCost": 32, "chance": 0.02, "failConsumeRate": 0.5}
+  "red":    {"gemCost": 24, "chance": 0.06, "failConsumeRate": 0.5}
 }

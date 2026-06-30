@@ -121,7 +121,8 @@ public final class SelectedItemNameOverlay {
     /**
      * 解析选中物品名称应使用的颜色（RGB）。
      * <p>
-     * 有 RPG 稀有度组件且非 GRAY → {@link EquipmentRarityColors#resolveColor}（含 RAINBOW 动画）；
+     * 按优先级查找 RPG 稀有度：装备读 {@code EQUIPMENT_RARITY} 组件、宝石物品读 {@code GEM_INSTANCE}
+     * 组件的稀有度。任一非 GRAY → {@link EquipmentRarityColors#resolveColor}（含 RAINBOW 动画）；
      * 否则回落原版 {@link ItemStack#getRarity} 的颜色（{@code Rarity.color()} 返回的 ChatFormatting）。
      * <p>
      * {@code Rarity.color()} 在本 MC 版本被标记为过时，但原版 {@code Gui.extractSelectedItemName}
@@ -129,7 +130,13 @@ public final class SelectedItemNameOverlay {
      */
     @SuppressWarnings("deprecation") // Rarity.color() 已过时，但原版选中名渲染仍用之，回落路径保持一致
     private static int resolveNameColor(ItemStack stack) {
+        // 装备稀有度（EQUIPMENT_RARITY 组件）
         EquipmentRarity rarity = stack.get(RPGComponents.EQUIPMENT_RARITY.get());
+        // 宝石物品自身稀有度（GEM_INSTANCE 组件，与装备组件互斥：一件物品不会同时是两者）
+        if (rarity == null) {
+            com.rpgcraft.core.equipment.GemInstance gem = stack.get(RPGComponents.GEM_INSTANCE.get());
+            if (gem != null) rarity = gem.rarity();
+        }
         if (rarity != null && rarity != EquipmentRarity.GRAY) {
             return EquipmentRarityColors.resolveColor(rarity);
         }

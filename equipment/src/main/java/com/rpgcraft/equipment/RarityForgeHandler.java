@@ -20,7 +20,7 @@ import net.neoforged.neoforge.event.entity.player.AnvilCraftEvent;
  * 稀有度宝石铁砧锻造处理器
  * <p>
  * 在铁砧中用 {@link RPGItems#RARITY_GEMSTONE 稀有度宝石} 作为材料（右槽）锻造一件已注册的可装备物品（左槽），
- * 有几率将其稀有度提升一级（每次最多 +1，最高 {@link EquipmentRarity#RAINBOW}）。
+ * 有几率将其稀有度提升一级（每次最多 +1，最高 {@link EquipmentRarity#RED}，RAINBOW 暂时屏蔽）。
  * <p>
  * <b>预览/取出分离设计（方案 B，预览诚实）</b>：
  * <ul>
@@ -49,7 +49,7 @@ import net.neoforged.neoforge.event.entity.player.AnvilCraftEvent;
  * </ul>
  * <p>
  * <b>适用范围</b>：左槽必须是已注册可装备物品（{@code IEquipmentRegistry.getBonuses} 非空），
- * 且当前稀有度 &lt; {@link EquipmentRarity#RAINBOW}。
+ * 且当前稀有度 &lt; {@link EquipmentRarity#RED}（RAINBOW 暂时屏蔽，最高到 RED）。
  *
  * @see RarityGemstoneConfig 升级规则（消耗/概率/失败消耗比例）
  */
@@ -58,6 +58,12 @@ public class RarityForgeHandler {
 
     /** 锻造的基础经验消耗（可在此扩展为配置项）。 */
     private static final int FORGE_XP_COST = 1;
+    /**
+     * 当前可锻造到的最高稀有度。
+     * <p>
+     * RAINBOW 彩虹稀有度暂时屏蔽，最高到红色 RED。已达到此稀有度的装备不可再锻造升级。
+     */
+    private static final EquipmentRarity MAX_RARITY = EquipmentRarity.RED;
 
     @SubscribeEvent
     public static void onAnvilUpdate(AnvilUpdateEvent event) {
@@ -72,11 +78,11 @@ public class RarityForgeHandler {
         // 右槽必须是稀有度宝石
         if (!isGemstone(right)) return;
 
-        // 左槽必须是已注册可装备物品且可升级（当前稀有度 < RAINBOW）
+        // 左槽必须是已注册可装备物品且可升级（当前稀有度 < MAX_RARITY）
         Identifier leftId = BuiltInRegistries.ITEM.getKey(left.getItem());
         if (RPGSystems.getEquipmentSystem().getRegistry().getBonuses(leftId).isEmpty()) return;
         EquipmentRarity current = currentRarity(left);
-        if (current == EquipmentRarity.RAINBOW) return;
+        if (current.ordinal() >= MAX_RARITY.ordinal()) return;
 
         // 查询升级规则（两端同一份配置）
         EquipmentRarity target = nextTier(current);
@@ -100,13 +106,13 @@ public class RarityForgeHandler {
 
         ItemStack leftSnapshot = event.getLeft();
         ItemStack rightSnapshot = event.getRight();
-        // 判定本次取出是否为宝石锻造：右槽是宝石 + 左槽是可装备物且稀有度 < RAINBOW
+        // 判定本次取出是否为宝石锻造：右槽是宝石 + 左槽是可装备物且稀有度 < MAX_RARITY
         if (rightSnapshot.isEmpty() || !isGemstone(rightSnapshot)) return;
         if (leftSnapshot.isEmpty()) return;
         Identifier leftId = BuiltInRegistries.ITEM.getKey(leftSnapshot.getItem());
         if (RPGSystems.getEquipmentSystem().getRegistry().getBonuses(leftId).isEmpty()) return;
         EquipmentRarity current = currentRarity(leftSnapshot);
-        if (current == EquipmentRarity.RAINBOW) return;
+        if (current.ordinal() >= MAX_RARITY.ordinal()) return;
 
         EquipmentRarity target = nextTier(current);
         RarityGemstoneConfig.UpgradeRule rule = RarityGemstoneConfig.getUpgradeRule(target);
@@ -199,11 +205,15 @@ public class RarityForgeHandler {
         return r != null ? r : EquipmentRarity.GRAY;
     }
 
-    /** 目标稀有度 = 序号 +1，cap 在 RAINBOW。 */
+    /**
+     * 目标稀有度 = 序号 +1，cap 在 {@link #MAX_RARITY}（RED）。
+     * <p>
+     * 调用方已保证 {@code current.ordinal() < MAX_RARITY.ordinal()}，故此处的 cap 主要防御性兜底。
+     */
     private static EquipmentRarity nextTier(EquipmentRarity current) {
         EquipmentRarity[] tiers = EquipmentRarity.values();
         int idx = current.ordinal();
-        return idx < tiers.length - 1 ? tiers[idx + 1] : EquipmentRarity.RAINBOW;
+        return idx < MAX_RARITY.ordinal() ? tiers[idx + 1] : MAX_RARITY;
     }
 
     /** 判断堆叠是否为稀有度宝石。 */

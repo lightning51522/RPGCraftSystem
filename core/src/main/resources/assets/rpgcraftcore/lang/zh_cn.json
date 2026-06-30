@@ -156,7 +156,7 @@
   "//_equipment_commands": "=== 装备模块命令（EquipmentCommands） ===",
   "rpgcraft.equipment.setrarity": "已将 %2$s 的 %1$d 件物品稀有度设为 %3$s",
   "rpgcraft.equipment.setrarity.no_match": "%s 的背包中没有 %s 对应的物品",
-  "rpgcraft.equipment.setrarity.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red/rainbow）",
+  "rpgcraft.equipment.setrarity.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red）",
   "rpgcraft.equipment.setlevel": "已将 %2$s 的 %1$d 件物品装备等级设为 %3$d",
   "rpgcraft.equipment.setlevel.no_match": "%s 的背包中没有 %s 对应的物品",
   "rpgcraft.equipment.give": "已向 %3$s 发放 %1$d 件 %2$s（稀有度 %4$s、等级 %5$d）",
@@ -171,7 +171,7 @@
   "//_gemstone_commands": "=== 宝石模块命令（GemstoneCommands） ===",
   "rpgcraft.gemstone.givegem": "已向 %2$s 发放 1 颗 %1$s 镶嵌宝石（稀有度 %3$s、%4$d 个词条）",
   "rpgcraft.gemstone.givegem.unknown_gem": "未知宝石物品: %s（须为 gemstone 模块注册的宝石物品，如 rpgcraftgemstone:watermelon_tourmaline）",
-  "rpgcraft.gemstone.givegem.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red/rainbow）",
+  "rpgcraft.gemstone.givegem.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red）",
   "rpgcraft.gemstone.givegem.unknown_affix": "未知词条: %s（须在 socket_gem_affixes.json 中定义）",
   "rpgcraft.gemstone.givegem.affix_count": "词条数量必须在 %1$d~%2$d 之间"
 }

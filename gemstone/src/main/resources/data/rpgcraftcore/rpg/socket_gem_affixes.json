@@ -11,7 +11,7 @@
     "attribute": "rpgcraftcore:strength",
     "values": {
       "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6, "rainbow": 8
+      "orange": 3, "pink": 4, "gold": 5, "red": 6
     }
   },
 
@@ -20,7 +20,7 @@
     "attribute": "rpgcraftcore:agility",
     "values": {
       "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6, "rainbow": 8
+      "orange": 3, "pink": 4, "gold": 5, "red": 6
     }
   },
 
@@ -29,7 +29,7 @@
     "attribute": "rpgcraftcore:intelligence",
     "values": {
       "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6, "rainbow": 8
+      "orange": 3, "pink": 4, "gold": 5, "red": 6
     }
   },
 
@@ -38,7 +38,7 @@
     "attribute": "rpgcraftcore:vitality",
     "values": {
       "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6, "rainbow": 8
+      "orange": 3, "pink": 4, "gold": 5, "red": 6
     }
   },
 

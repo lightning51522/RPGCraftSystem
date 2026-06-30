@@ -4,6 +4,35 @@
 
 ---
 
+## [0.20.3-alpha] - 2026-07-01
+
+> 宝石物品 tooltip/HUD 稀有度染色完善；暂时屏蔽彩虹（RAINBOW）稀有度，最高到红色（RED）。
+
+### 新增
+
+#### 宝石物品 tooltip / HUD 显示完善
+
+- 宝石物品手持时 tooltip 名称按稀有度染色（含词条行 + 创造标签页归属行「RPG 宝石」）
+- 宝石物品 tooltip 染色由 client 模块统一负责（用 `EquipmentRarityColors.resolveColor`，与装备口径一致）
+- 主界面「选中物品名称」HUD（屏幕底部淡入淡出）支持宝石物品稀有度染色（`SelectedItemNameOverlay` 扩展 GEM_INSTANCE 查找）
+
+### 变更
+
+#### 屏蔽彩虹（RAINBOW）稀有度
+
+暂时屏蔽所有彩虹稀有度，最高稀有度到红色（RED）。保留 `RAINBOW` 枚举常量（避免破坏 ordinal 序列化），在所有产出点屏蔽：
+
+- `equipment_rarity.json` 删除 `rainbow` 生成概率（不再随机生成）
+- `rarity_gemstone.json` 删除 `rainbow` 锻造规则（无法锻造到 RAINBOW）
+- `RarityForgeHandler` 锻造上限改为 RED（`MAX_RARITY = RED`），RED 不可再升
+- `EquipmentCommands` / `GemstoneCommands` 指令补全跳过 RAINBOW
+- `socket_gem_affixes.json` 删除 4 处 `rainbow` 数值
+- 语言文件 `unknown_rarity` 错误提示移除 `/rainbow` 合法值
+
+彩虹动画代码（`EquipmentRarityColors`）作为无害死代码保留，未来恢复只需放开上述屏蔽点。
+
+---
+
 ## [0.20.2-alpha] - 2026-07-01
 
 > 重构 `/rpg gemstone givegem` 指令，新增宝石物品 ID 参数，为未来多种宝石种类预留。

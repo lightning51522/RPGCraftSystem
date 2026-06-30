@@ -39,7 +39,7 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
     /** 未镶嵌时的空槽颜色（灰色）。 */
     private static final int EMPTY_SLOT_COLOR = EquipmentRarity.GRAY.getColor();
     /** 特效词条的占位文本颜色（青色，§b）。 */
-    private static final String SPECIAL_AFFIX_TEXT = "§b◆ 特殊效果";
+    static final String SPECIAL_AFFIX_TEXT = "§b◆ 特殊效果";
 
     @Override
     public String getContributorId() {
@@ -66,7 +66,7 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
     }
 
     /**
-     * 构建宝石词条的 tooltip 文本行。
+     * 构建宝石词条的 tooltip 文本行（供本类与客户端宝石 tooltip 处理共用）。
      * <p>
      * 属性词条查 {@link SocketGemConfig} 数值表并解析目标属性显示名；特效词条显示占位文本
      * （待特效实现后可细化为具体效果描述）。
@@ -74,7 +74,7 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
      * @param gem 宝石实例
      * @return 文本行列表
      */
-    private List<Component> buildAffixLines(GemInstance gem) {
+    static List<Component> buildAffixLines(GemInstance gem) {
         List<Component> lines = new ArrayList<>();
         for (Identifier affixId : gem.affixIds()) {
             if (SocketGemConfig.isAttribute(affixId)) {

@@ -114,6 +114,15 @@ public class EquipmentTooltipEventHandler {
         ItemStack stack = event.getItemStack();
         if (stack.isEmpty()) return;
 
+        // 宝石物品名称染色：携带 GEM_INSTANCE 组件的宝石按其稀有度染色（含 RAINBOW 逐 tick 渐变）。
+        // 由 client 模块统一负责名称染色（能访问 EquipmentRarityColors 的彩虹动画）；gemstone 模块
+        // 仅负责词条数值行。染色后继续后续装备逻辑（宝石不是装备，会在 bonuses 检查处自然 return）。
+        com.rpgcraft.core.equipment.GemInstance gemInstance =
+                stack.get(com.rpgcraft.core.equipment.RPGComponents.GEM_INSTANCE.get());
+        if (gemInstance != null) {
+            colorizeName(event.getToolTip(), gemInstance.rarity());
+        }
+
         Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         Optional<Map<Identifier, EquipmentBonus>> bonuses = RPGSystems.getEquipmentSystem().getRegistry().getBonuses(itemId);
         if (bonuses.isEmpty()) return;
@@ -156,5 +165,22 @@ public class EquipmentTooltipEventHandler {
             String text = "§a" + attrEntry.getDisplayName() + " +" + value;
             event.getToolTip().add(Component.literal(text));
         }
+    }
+
+    /**
+     * 按稀有度给 tooltip 的物品名第一行染色（含 RAINBOW 逐 tick 渐变）。
+     * <p>
+     * 仅染色，不追加等级星（宝石无等级）。GRAY 不染色（保持原版默认色）。
+     * 供宝石物品名称染色调用（装备名称染色因含等级星后缀，在 {@link #onItemTooltip} 内联处理）。
+     *
+     * @param tooltip 物品 tooltip 行列表
+     * @param rarity  宝石稀有度
+     */
+    private static void colorizeName(List<Component> tooltip, EquipmentRarity rarity) {
+        if (rarity == EquipmentRarity.GRAY || tooltip.isEmpty()) return;
+        Component originalName = tooltip.getFirst();
+        MutableComponent styled = Component.literal(originalName.getString());
+        styled.withStyle(s -> s.withColor(EquipmentRarityColors.resolveColor(rarity)));
+        tooltip.set(0, styled);
     }
 }

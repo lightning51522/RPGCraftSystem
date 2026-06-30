@@ -75,6 +75,7 @@ public class GemstoneCommands {
                                         .then(Commands.argument("rarity", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
                                                     for (EquipmentRarity r : EquipmentRarity.values()) {
+                                                        if (r == EquipmentRarity.RAINBOW) continue; // RAINBOW 暂时屏蔽
                                                         builder.suggest(r.name().toLowerCase());
                                                     }
                                                     return builder.buildFuture();
