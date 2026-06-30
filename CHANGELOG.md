@@ -4,6 +4,63 @@
 
 ---
 
+## [0.20.0-alpha] - 2026-06-30
+
+> 新增 `gemstone` 模块（镶嵌宝石系统），并通过 core 的两个贡献者 SPI（装备加成贡献者、tooltip 图像贡献者）实现与 equipment / client 模块的彻底解耦 —— 删除 gemstone 模块，equipment + client 仍正常工作。
+
+### 新增
+
+#### gemstone 模块（rpgcraftgemstone）
+
+独立的镶嵌宝石系统，每件装备可镶嵌 **1 颗**宝石（通过铁砧，无失败），带来属性词条加成（灰~紫）或战斗特殊效果（橙及以上）。与 equipment 模块的「稀有度宝石」（升级装备稀有度）是**完全不同的系统**。
+
+- 模块骨架：`gradle.properties`、`build.gradle`、`mods.toml` 模板（依赖 rpgcraftcore required、rpgcraftequipment optional）、`@Mod` 入口 `GemstoneMod`、mod id `rpgcraftgemstone`、包 `com.rpgcraft.gemstone`、版本 `0.20.0-alpha`
+- **解耦设计**：gemstone 模块**仅依赖 core**，零 equipment / client 依赖。通过 core 的两个扩展点 SPI 接入，铁砧三 handler 靠右槽物品天然互斥
+- 镶嵌宝石物品 `watermelon_tourmaline`（西瓜电气石，不加入创造栏，仅由指令生成）
+
+#### core 扩展点 SPI（解耦关键）
+
+仿 `SnapshotCoordinator` / `ISnapshotContributor` 的贡献者协调模式，新增两个扩展点，使外部模块能为装备追加加成 / tooltip 而不修改 equipment：
+
+- `IEquipmentBonusContributor` + `EquipmentBonusCoordinator`（`core/.../equipment/api/`）：装备加成贡献者。`DefaultEquipmentHandler.calculateTotalBonus` 算完基础加成后聚合所有贡献者
+- `ITooltipImageContributor` + `TooltipImageData` + `TooltipImageContributorCoordinator`（`core/.../ui/`）：tooltip 图像贡献者（数据-渲染分离，纯数据，core 可见）。client 通用渲染器读取所有贡献者数据
+
+#### core 数据结构
+
+- `GemInstance`（`core/.../equipment/`）：宝石实例 record（稀有度 + 1~3 个 affixId），带 Codec / StreamCodec，紧凑构造器校验词条数量
+- `RPGComponents` 新增两个 DataComponent：`EQUIPMENT_SOCKET`（装备镶嵌的那颗宝石，单值）、`GEM_INSTANCE`（宝石物品自身实例数据）。命名空间 `rpgcraftcore`
+
+#### 宝石词条配置（留接口）
+
+- `SocketGemConfig`（gemstone）：加载 `data/rpgcraftcore/rpg/socket_gem_affixes.json`，定义属性词条（affixId → 目标属性 + 各稀有度数值表）与特效词条（affixId → effect_id）。**数值为占位（1~8），后续改 JSON + /reload 即可**
+- 支持服务端 reload + 客户端镜像加载（`GemstoneClientEventHandler`），使 tooltip 在客户端正确显示数值
+
+#### 铁砧镶嵌（无失败）
+
+- `SocketGemForgeHandler`：铁砧左槽装备 + 右槽镶嵌宝石 → 镶嵌到装备（每件 1 颗，确定性输出无随机，仅需 `AnvilUpdateEvent`）。校验：装备未镶嵌、宝石稀有度不超过装备两级以上
+
+#### tooltip 真实贴图渲染（client 通用框架）
+
+- `RpgTooltipImageComponent`（数据载体，`TooltipComponent`）+ `RpgTooltipImageClientComponent`（渲染器，`ClientTooltipComponent`，用 MC 26.1 `extractImage` API + `GuiGraphicsExtractor.fill/item/text` 画方形槽 + 物品图标 + 词条文本）
+- `RpgTooltipEventHandler`：注册工厂（Mod 事件总线）+ `RenderTooltipEvent.GatherComponents` 注入（Game 事件总线，因装备是原版物品无法覆写 `getTooltipImage`）
+- 通用渲染器不绑定任何业务，只读 `TooltipImageData` 抽象字段；client 对 gemstone 零依赖
+
+#### 战斗特效框架（纯接口）
+
+- `GemSpecialEffect`（接口）+ `GemSpecialEffectRegistry`（静态注册表）+ `GemCombatEventListener`（向 core 的 `RPGEventBus` 注册 `RPGDamageEvent.Pre/Post`，遍历攻击者装备宝石收集特效 effect_id 调用对应实现）
+- **本次不实现任何特效**，注册表为空，监听器空跑 —— 仅验证管线连通（接入 RPGEventBus 而非 NeoForge LivingDamageEvent，避免与战斗公式重复）
+
+#### 指令
+
+- `/rpg gemstone givegem <稀有度> <词条ID> [词条ID2] [词条ID3] [player]`：生成带指定稀有度与 1~3 个词条的镶嵌宝石
+
+### 变更
+
+- `DefaultEquipmentHandler.calculateTotalBonus` 接入 `EquipmentBonusCoordinator.collectAll`（聚合外部加成贡献者；无贡献者时行为不变）—— equipment 模块**唯一**改动
+- `settings.gradle` 新增 `include 'gemstone'`；`core/build.gradle` 注册 `rpgcraftgemstone` source set + `runtimeOnly project(':gemstone')`
+
+---
+
 ## [0.14.0-alpha] - 2026-06-28
 
 > 新增 `entities` 模块（BlockBench 自定义生物承载点）并引入 GeckoLib 动画库；同时在文档中明确规定 GeckoLib 与 PAL 的动画库分工。

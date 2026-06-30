@@ -58,6 +58,36 @@ public final class RPGComponents {
                             .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT)
                             .build());
 
+    /**
+     * 装备镶嵌宝石组件：记录该件装备当前镶嵌的那颗宝石（每件装备 1 颗）。
+     * <p>
+     * 缺省（组件不存在）= 未镶嵌（空槽）。这与 {@link #EQUIPMENT_RARITY}（缺省 GRAY）、
+     * {@link #EQUIPMENT_LEVEL}（缺省 0）的省空间约定一致：未镶嵌时不写组件、用 {@code remove} 清除。
+     * 读取用 {@code stack.get(EQUIPMENT_SOCKET.get())}，{@code null} 视为空槽。
+     * <p>
+     * <b>设计：每件装备仅 1 颗</b>（单值组件，非列表），简化插槽规则。镶嵌宝石由独立的
+     * {@code gemstone} 模块通过铁砧写入；本组件仅做数据载体，不耦合宝石模块逻辑。
+     */
+    public static final Supplier<DataComponentType<GemInstance>> EQUIPMENT_SOCKET =
+            DEFERRED_REGISTER.register("equipment_socket",
+                    () -> DataComponentType.<GemInstance>builder()
+                            .persistent(GemInstance.CODEC)
+                            .networkSynchronized(GemInstance.STREAM_CODEC)
+                            .build());
+
+    /**
+     * 宝石物品实例组件：记录一颗<b>宝石物品</b>自身的稀有度与词条（区别于装备上镶嵌的那颗）。
+     * <p>
+     * 仅写在宝石物品（如 {@code socket_gem}）的 ItemStack 上，描述「这颗宝石是什么」。
+     * 缺省（无组件）= 普通非宝石物品。读取用 {@code stack.get(GEM_INSTANCE.get())}，{@code null} 视为非宝石。
+     */
+    public static final Supplier<DataComponentType<GemInstance>> GEM_INSTANCE =
+            DEFERRED_REGISTER.register("gem_instance",
+                    () -> DataComponentType.<GemInstance>builder()
+                            .persistent(GemInstance.CODEC)
+                            .networkSynchronized(GemInstance.STREAM_CODEC)
+                            .build());
+
     public static DeferredRegister<DataComponentType<?>> getDeferredRegister() {
         return DEFERRED_REGISTER;
     }

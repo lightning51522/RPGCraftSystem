@@ -160,5 +160,14 @@
   "rpgcraft.equipment.setlevel": "Set equipment level of %d item(s) in %s's inventory to %d",
   "rpgcraft.equipment.setlevel.no_match": "%s has no %s in their inventory",
   "rpgcraft.equipment.give": "Gave %d %s to %s (rarity %s, level %d)",
-  "rpgcraft.equipment.give.unknown_item": "Unknown item: %s"
+  "rpgcraft.equipment.give.unknown_item": "Unknown item: %s",
+
+  "//_gemstone_items": "=== Gemstone module items (gemstone module custom items) ===",
+  "item.rpgcraftgemstone.watermelon_tourmaline": "Watermelon Tourmaline",
+
+  "//_gemstone_commands": "=== Gemstone module commands (GemstoneCommands) ===",
+  "rpgcraft.gemstone.givegem": "Gave 1 socket gem to %s (rarity %s, %d affixes)",
+  "rpgcraft.gemstone.givegem.unknown_rarity": "Unknown rarity: %s (valid: gray/white/green/blue/purple/orange/pink/gold/red/rainbow)",
+  "rpgcraft.gemstone.givegem.unknown_affix": "Unknown affix: %s (must be defined in socket_gem_affixes.json)",
+  "rpgcraft.gemstone.givegem.affix_count": "Affix count must be between %d and %d"
 }

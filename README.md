@@ -4,7 +4,7 @@
 > Minecraft **26.1.2** / NeoForge **26.1.2.68-beta** / Java **25**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Status](https://img.shields.io/badge/status-0.19.0--alpha-orange)](#)
+[![Status](https://img.shields.io/badge/status-0.20.0--alpha-orange)](#)
 [![Minecraft](https://img.shields.io/badge/minecraft-26.1.2-brightgreen)](#)
 [![NeoForge](https://img.shields.io/badge/NeoForge-26.1.2.68--beta-blue)](#)
 [![Java](https://img.shields.io/badge/Java-25-red)](#)
@@ -37,6 +37,7 @@ RPGCraftSystem/
 ├── attributes/       20 个默认 RPG 属性 + 战斗（伤害公式 / 怪物初始化 / 治疗 / 命令）
 ├── leveling/         等级（上限 300）/ 经验 / 怪物属性按等级缩放
 ├── equipment/        装备加成（修饰符模式） + 装备追踪
+├── gemstone/         镶嵌宝石（每件装备 1 颗，词条加成 + 战斗特效，铁砧镶嵌）
 ├── profession/       职业注册 + 职业树 / 进阶 / 副职业 / 职业等级与经验池
 ├── attributepoints/  自由属性点分配系统（升级获点，玩家自行分配到任意属性）
 ├── skills/           主动技能系统（PAL 玩家动画 + 资源消耗 + 冷却 + RPG 伤害）
@@ -51,6 +52,7 @@ RPGCraftSystem/
 | attributes | `rpgcraftattributes` | `AttributesMod` | core |
 | leveling | `rpgcraftleveling` | `LevelingMod` | core |
 | equipment | `rpgcraftequipment` | `EquipmentMod` | core |
+| gemstone | `rpgcraftgemstone` | `GemstoneMod` | core |
 | profession | `rpgcraftprofession` | `ProfessionMod` | core |
 | professions | `rpgcraftprofessions` | `ProfessionsMod` | core |
 | attributepoints | `rpgcraftattributepoints` | `AttributePointsMod` | core |

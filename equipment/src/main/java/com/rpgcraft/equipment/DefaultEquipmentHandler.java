@@ -104,6 +104,11 @@ public class DefaultEquipmentHandler implements IEquipmentHandler {
                 int scaled = (int) Math.floor(entry.getValue().value() * multiplier);
                 total.merge(entry.getKey(), new EquipmentBonus(scaled), EquipmentBonus::add);
             }
+
+            // 聚合外部加成贡献者（如宝石模块的镶嵌宝石词条）。无贡献者时返回空映射，行为不变。
+            // 这使宝石等扩展系统能为装备追加加成，而本模块对它们零编译期依赖。
+            com.rpgcraft.core.equipment.api.EquipmentBonusCoordinator.collectAll(stack)
+                    .forEach((attrId, bonus) -> total.merge(attrId, bonus, EquipmentBonus::add));
         }
         return total;
     }
