@@ -4,6 +4,25 @@
 
 ---
 
+## [0.20.1-alpha] - 2026-06-30
+
+> 新增独立的「RPG 宝石」创造模式标签页，集中存放所有宝石物品（稀有度宝石、镶嵌宝石），与原版物品分离。
+
+### 新增
+
+#### 「RPG 宝石」创造标签页
+
+- core 新增 `RpgCreativeTabs`：用 `DeferredRegister<CreativeModeTab>` 注册 `rpgcraftcore:gemstones` 标签页，暴露 `GEMSTONES_TAB_ID` 常量，并在 `RPGCraftCore` 接入 Mod 事件总线
+- **图标用稀有度宝石**：core 通过物品 ID（`rpgcraftequipment:rarity_gemstone`）运行时查 `BuiltInRegistries.ITEM` 获取图标（零编译期依赖 equipment；equipment 未加载时回退钻石）
+- equipment 的 `RarityGemstoneCreativeTab`、gemstone 的 `GemstoneCreativeTab` 从「工具与实用物品」改为贡献到新标签（通过 `Identifier` 字符串匹配，互不依赖）
+- 语言文件新增 `creativetab.rpgcraftcore.gemstones`（中文「RPG 宝石」/英文「RPG Gemstones」）
+
+### 变更
+
+- 西瓜电气石材质手动微调更新
+
+---
+
 ## [0.20.0-alpha] - 2026-06-30
 
 > 新增 `gemstone` 模块（镶嵌宝石系统），并通过 core 的两个贡献者 SPI（装备加成贡献者、tooltip 图像贡献者）实现与 equipment / client 模块的彻底解耦 —— 删除 gemstone 模块，equipment + client 仍正常工作。

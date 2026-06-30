@@ -165,6 +165,9 @@
   "//_gemstone_items": "=== 宝石模块物品（gemstone 模块自定义物品） ===",
   "item.rpgcraftgemstone.watermelon_tourmaline": "西瓜电气石",
 
+  "//_creative_tabs": "=== 创造模式标签页 ===",
+  "creativetab.rpgcraftcore.gemstones": "RPG 宝石",
+
   "//_gemstone_commands": "=== 宝石模块命令（GemstoneCommands） ===",
   "rpgcraft.gemstone.givegem": "已向 %1$s 发放 1 颗镶嵌宝石（稀有度 %2$s、%3$d 个词条）",
   "rpgcraft.gemstone.givegem.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red/rainbow）",
