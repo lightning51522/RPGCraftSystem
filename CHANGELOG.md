@@ -4,6 +4,39 @@
 
 ---
 
+## [0.21.0-alpha] - 2026-07-01
+
+> 宝石属性词条重构：从硬编码 JSON 列表改为运行时枚举属性注册表，第三方注入的属性可自动成为词条来源；属性侧新增「能否作为词条」独立配置 flag。
+
+### 新增
+
+#### 属性侧「能否作为词条」flag（core / attributes）
+
+- `IAttributeEntry` 新增默认方法 `isAvailableAsAffix()`（默认 `false`）：声明某属性是否可作为宝石镶嵌词条出现。该 flag 是纯查询语义，与加点 / 装备加成 / 重生恢复等行为正交；**未加载 gemstone 模块时无任何调用方，对 core / attributes / equipment 原流程零影响**。
+- `DefaultAttributeRegistry` 注册链新增含 `availableAsAffix` 的重载（沿用 `allocatable` 的模式，向后兼容）。
+- `attributes` 模块为适合作词条的 25 个属性声明 `availableAsAffix=true`（力量 / 智力 / 敏捷 / 精准 / 法抗 / 暴击率 / 暴击伤害 / 固定伤害 / 双穿 / 经验加成 + 7 元素抗性 + 7 元素伤害加成）；技力、生命保持 `false`。
+
+#### 通过 core 中转自动读取属性为词条来源（gemstone）
+
+- 宝石属性词条候选池改为运行时枚举 `IAttributeRegistry.getAllEntries()` 中 `isAvailableAsAffix()==true` 的属性 —— 第三方通过 `registerAttributeModule` 注入的属性只要在注册时声明该 flag，即自动出现在宝石词条候选中，gemstone 与第三方属性模块**零编译期依赖**。
+
+### 变更
+
+#### 属性词条 ID 统一为单层映射（gemstone）
+
+- 消除旧设计 `affixId ↔ attributeId` 的冗余双层映射，**词条 ID 直接 = RPG 属性 ID**。JSON、命令、tooltip、加成贡献者全部以 attributeId 为唯一键。
+- `socket_gem_affixes.json` 降级为纯数值表：`_default` 全局默认表（未单独配置数值的属性走它，第三方属性**零配置**即可作词条）+ 可选的 per-attribute 专属覆盖（想精调再加条目，支持 `/reload`）。
+- 特效词条子系统独立保留，不受影响。
+
+#### 消费端简化（gemstone）
+
+- `SocketGemBonusContributor` / `SocketGemTooltipContributor` 以 attributeId 直接查值（专属表缺失回退默认表），省去二次解析。
+- `GemstoneCommands` 无需改动（已走 `getAllAffixIds` / `getAffixType`，自动枚举注册表 + 特效并集）。
+
+> **不兼容**：alpha 期已生成的旧宝石物品（`GEM_INSTANCE` 存的是旧 affixId）会失效，需用 `/rpg gemstone givegem` 重新生成。
+
+---
+
 ## [0.20.3-alpha] - 2026-07-01
 
 > 宝石物品 tooltip/HUD 稀有度染色完善；暂时屏蔽彩虹（RAINBOW）稀有度，最高到红色（RED）。
