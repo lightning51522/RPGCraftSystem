@@ -11,7 +11,6 @@ import com.rpgcraft.core.equipment.GemInstance;
 import com.rpgcraft.core.equipment.RPGComponents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -24,7 +23,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +34,7 @@ import java.util.Map;
  * <p>
  * 命令：
  * <pre>
- * /rpg gemstone givegem &lt;宝石物品ID&gt; &lt;稀有度&gt; &lt;词条ID&gt; [词条数值] [词条ID2] [词条2数值] [词条ID3] [词条3数值] [player]
+ * /rpg gemstone givegem &lt;宝石物品ID&gt; &lt;稀有度&gt; &lt;词条ID&gt; [词条数值] [词条ID2] [词条2数值] [词条ID3] [词条3数值]
  * </pre>
  * <ul>
  *   <li><b>宝石物品ID</b>：gemstone 模块注册的宝石物品种类（当前为 {@code rpgcraftgemstone:watermelon_tourmaline}，
@@ -45,10 +43,11 @@ import java.util.Map;
  *   <li><b>词条ID</b>：必须为合法词条（可作词条的 RPG 属性，或 {@code socket_gem_affixes.json} 定义的特效词条），1~3 个</li>
  *   <li><b>词条数值</b>：可选，紧跟在对应词条ID之后；指定则覆盖默认查表值（任意整数，含负数），
  *       省略则按宝石稀有度查默认数值表。属性词条与特效词条均可指定数值</li>
- *   <li><b>player</b>：可选，省略时默认自己</li>
  * </ul>
  * 数值参数（{@code IntegerArgumentType}）与词条ID参数（{@code IdentifierArgument}）类型不同，
- * Brigadier 据此自动区分，无需引号。{@code player} 可跟在任意合法终止点之后。
+ * Brigadier 据此自动区分，无需引号。
+ * <p>
+ * <b>无 player 参数</b>：命令始终作用于执行者自己。原因见 {@link #affixValueChain(int)} 的说明。
  * <p>
  * 生成的宝石物品携带 {@code GEM_INSTANCE} 组件，记录其稀有度、词条与自定义数值；在铁砧中作为材料锻造
  * 装备时，{@link SocketGemForgeHandler} 会将其镶嵌到装备上。
@@ -67,10 +66,10 @@ public class GemstoneCommands {
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
 
-        // === /rpg gemstone givegem <宝石物品ID> <稀有度> <词条ID> [词条数值] [词条ID2] [词条2数值] ... [player] ===
-        // 词条与数值交替出现：每个词条ID后可选跟一个数值参数。
-        // 用 affixValueChain() 递归构建「词条1 → [数值1] → 词条2 → [数值2] → 词条3 → [数值3]」的参数链，
-        // 每个可终止节点都允许接 [player]（作用于他人）或省略（默认自己）。
+        // === /rpg gemstone givegem <宝石物品ID> <稀有度> <词条ID> [词条数值] [词条ID2] [词条2数值] ... ===
+        // 词条与数值交替出现：每个词条ID后可选跟一个数值参数。命令作用于执行者自己（无 player 参数，
+        // 见下方说明）。用 affixValueChain() 递归构建「词条1 → [数值1] → 词条2 → [数值2] → 词条3 → [数值3]」
+        // 的参数链，每个可终止节点都可执行。
         dispatcher.register(Commands.literal("rpg")
                 .then(Commands.literal("gemstone")
                         .then(Commands.literal("givegem")
@@ -104,13 +103,16 @@ public class GemstoneCommands {
      * <p>
      * 第 {@code index} 个词条（affixN）后：
      * <ul>
-     *   <li>当前节点可执行（已收集 1~3 个词条）—— 默认作用于自己</li>
-     *   <li>可选接 {@code [player]}（作用于他人）</li>
+     *   <li>当前节点可执行（已收集 1~3 个词条）—— 作用于执行者自己</li>
      *   <li>可选接数值 {@code valueN}（覆盖该词条默认值）—— 数值后又可接下一个词条或执行</li>
      *   <li>若还未到第 3 个词条，可选接 {@code affix(N+1)} 继续链</li>
      * </ul>
-     * 数值参数（IntegerArgumentType）与词条ID（IdentifierArgument）/player（EntityArgument）类型互不相同，
-     * Brigadier 据此自动区分，无歧义。
+     * 数值参数（IntegerArgumentType）与词条ID（IdentifierArgument）类型不同，Brigadier 据此自动区分，无歧义。
+     * <p>
+     * <b>为何无 player 参数</b>：EntityArgument.player() 的 parse 阶段会贪婪消费任意 token（含纯数字如 "10"），
+     * 与数值参数在同位置产生竞争，导致 {@code <词条> 10} 中的 10 被误解析为玩家名。为彻底消除歧义，
+     * 本命令不支持 player 参数，始终作用于执行者自己；需要发给他人时由目标玩家自行执行，或通过
+     * 其它指令转发。
      *
      * @param index 当前词条序号（1-based）
      */
@@ -126,19 +128,13 @@ public class GemstoneCommands {
                     return builder.buildFuture();
                 });
 
-        // 在词条N 节点下：当前可作为终止点（执行）—— 默认自己
+        // 在词条N 节点下：当前可作为终止点（执行）—— 作用于自己
         affixNode.executes(context -> executeGiveGem(context, context.getSource().getPlayerOrException()));
-        // [player] 可接在词条N 后
-        affixNode.then(Commands.argument("player", EntityArgument.player())
-                .executes(context -> executeGiveGem(context, EntityArgument.getPlayer(context, "player"))));
 
         // 词条N 后可选接数值 valueN
         ArgumentBuilder<CommandSourceStack, ?> valueNode = Commands.argument(valueArg, IntegerArgumentType.integer());
-        // 数值N 后可作为终止点（执行）—— 默认自己
+        // 数值N 后可作为终止点（执行）—— 作用于自己
         valueNode.executes(context -> executeGiveGem(context, context.getSource().getPlayerOrException()));
-        // 数值N 后可接 [player]
-        valueNode.then(Commands.argument("player", EntityArgument.player())
-                .executes(context -> executeGiveGem(context, EntityArgument.getPlayer(context, "player"))));
 
         // 数值N 后若未达词条上限，可继续接下一个词条
         if (index < GemInstance.MAX_AFFIXES) {
