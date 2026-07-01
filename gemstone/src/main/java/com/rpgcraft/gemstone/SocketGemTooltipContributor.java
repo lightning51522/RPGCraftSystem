@@ -28,7 +28,7 @@ import java.util.List;
  * <ul>
  *   <li>装备未注册为可装备物 → 返回 {@code null}（不贡献）</li>
  *   <li>未镶嵌 → 返回空槽（{@code iconStack=null}，灰色槽，无词条行）</li>
- *   <li>已镶嵌 → 返回宝石图标（携带 GEM_INSTANCE 组件的 WATERMELON_TOURMALINE 堆叠）、宝石稀有度色、词条文本行</li>
+ *   <li>已镶嵌 → 返回宝石图标（按 GemInstance 记录的物品 ID 还原，旧存档回退西瓜电气石）、宝石稀有度色、词条文本行</li>
  * </ul>
  * 词条文本：属性词条 {@code §a<属性名> +<值>}，特效词条 {@code §b特殊效果}（占位，待特效实现后细化）。
  *
@@ -58,7 +58,17 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
         }
 
         // 已镶嵌：构造宝石图标（携带 GEM_INSTANCE 组件）+ 稀有度色 + 词条文本
-        ItemStack icon = new ItemStack(GemstoneItems.WATERMELON_TOURMALINE.get());
+        // 优先用 GemInstance 记录的宝石物品 ID 还原对应图标；旧存档（gemItemId 为 null）或物品未注册时
+        // 回退到西瓜电气石，保持旧行为
+        net.minecraft.world.item.Item iconItem = GemstoneItems.WATERMELON_TOURMALINE.get(); // 默认回退
+        if (gem.gemItemId() != null) {
+            net.minecraft.world.item.Item resolved = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getOptional(gem.gemItemId()).orElse(null);
+            if (resolved != null && resolved != net.minecraft.world.item.Items.AIR) {
+                iconItem = resolved;
+            }
+        }
+        ItemStack icon = new ItemStack(iconItem);
         icon.set(RPGComponents.GEM_INSTANCE.get(), gem);
         int slotColor = gem.rarity().getColor();
         List<Component> lines = buildAffixLines(gem);

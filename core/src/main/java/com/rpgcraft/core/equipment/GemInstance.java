@@ -7,6 +7,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,12 +18,16 @@ import java.util.Map;
 /**
  * 宝石实例（不可变值对象）
  * <p>
- * 表示一颗镶嵌宝石：其（宝石自身）稀有度 + 1~3 个词条标识符，以及可选的<b>自定义数值</b>。
+ * 表示一颗镶嵌宝石：其（宝石自身）稀有度 + 1~3 个词条标识符、可选的<b>自定义数值</b>，
+ * 以及<b>宝石物品 ID</b>（用于镶嵌后还原 tooltip 图标）。
  * <p>
  * <b>数值来源</b>：词条默认按宝石稀有度查表（满足「同名词条在不同稀有度的宝石上数值不同」，
  * 且数值调整无需改代码、只改 JSON + {@code /reload}）。但若 {@link #customValues} 中存在该词条的条目，
  * 则<b>自定义数值优先</b> —— 由 {@code /rpg gemstone givegem} 命令指定，覆盖默认查表值。
  * {@link #customValues} 只记录「有自定义数值」的词条，未出现的走默认查表。
+ * <p>
+ * <b>宝石物品 ID</b>：记录这颗宝石对应的物品 ID（如 {@code rpgcraftgemstone:red_garnet}），供装备 tooltip
+ * 在镶嵌后还原显示对应宝石的贴图图标。旧存档可能缺失此字段（{@code null}），渲染端应回退到默认宝石。
  * <p>
  * <b>两类用途</b>：
  * <ul>
@@ -37,8 +42,10 @@ import java.util.Map;
  * @param affixIds      词条标识符列表（1~3 个，不可为空）
  * @param customValues  自定义数值覆盖表（affixId → 数值）；只记录有自定义数值的词条，
  *                      未出现的走默认查表。可为空 map（全部走默认）
+ * @param gemItemId     宝石物品 ID（用于还原 tooltip 图标）；旧存档可能为 {@code null}
  */
-public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map<Identifier, Integer> customValues) {
+public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds,
+                          Map<Identifier, Integer> customValues, @Nullable Identifier gemItemId) {
 
     /** 词条数量下限。 */
     public static final int MIN_AFFIXES = 1;
@@ -47,13 +54,20 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
 
     /** 空哨兵：用于缺省/兜底（GRAY + 单个占位 affixId）。 */
     public static final GemInstance EMPTY =
-            new GemInstance(EquipmentRarity.GRAY, List.of(Identifier.parse("rpgcraftcore:empty")), Collections.emptyMap());
+            new GemInstance(EquipmentRarity.GRAY, List.of(Identifier.parse("rpgcraftcore:empty")), Collections.emptyMap(), null);
 
     /**
-     * 兼容旧调用的二元构造器：不带自定义数值（全部走默认查表）。
+     * 兼容旧调用的二元构造器：不带自定义数值与物品 ID（全部走默认查表，图标回退默认）。
      */
     public GemInstance(EquipmentRarity rarity, List<Identifier> affixIds) {
-        this(rarity, affixIds, Collections.emptyMap());
+        this(rarity, affixIds, Collections.emptyMap(), null);
+    }
+
+    /**
+     * 兼容旧调用的三元构造器：带自定义数值但不带物品 ID（图标回退默认）。
+     */
+    public GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map<Identifier, Integer> customValues) {
+        this(rarity, affixIds, customValues, null);
     }
 
     /**
@@ -62,6 +76,7 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
      * @param rarity        宝石稀有度
      * @param affixIds      词条标识符列表
      * @param customValues  自定义数值覆盖表（可为 null，按空 map 处理）
+     * @param gemItemId     宝石物品 ID（可为 null）
      * @throws IllegalArgumentException 词条数量不在 [1,3] 区间
      */
     public GemInstance {
@@ -108,9 +123,9 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
     /**
      * 持久化编解码：
      * <pre>{@code
-     * { rarity: "blue", affixes: ["rpgcraftcore:strength"], values: { "rpgcraftcore:strength": 5 } }
+     * { rarity: "blue", affixes: ["rpgcraftcore:strength"], values: { "rpgcraftcore:strength": 5 }, gem_item: "rpgcraftgemstone:red_garnet" }
      * }</pre>
-     * {@code values} 为可选字段（向后兼容旧存档；缺省视作空 map，全部走默认查表）。
+     * {@code values} / {@code gem_item} 均为可选字段（向后兼容旧存档；缺省分别视作空 map / null）。
      * 属性词条 ID = 属性 ID。{@code values} 只记录有自定义数值的词条。
      */
     public static final Codec<GemInstance> CODEC = RecordCodecBuilder.create(instance ->
@@ -120,8 +135,11 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
                             .fieldOf("affixes").forGetter(GemInstance::affixIds),
                     Codec.unboundedMap(Identifier.CODEC, Codec.INT)
                             .optionalFieldOf("values", Collections.emptyMap())
-                            .forGetter(GemInstance::customValues)
-            ).apply(instance, GemInstance::new));
+                            .forGetter(GemInstance::customValues),
+                    Identifier.CODEC.optionalFieldOf("gem_item")
+                            .forGetter(gem -> java.util.Optional.ofNullable(gem.gemItemId))
+            ).apply(instance, (rarity, affixes, values, gemItemId) ->
+                    new GemInstance(rarity, affixes, values, gemItemId.orElse(null))));
 
     /** Identifier 列表的网络流编解码（buffer 类型为 ByteBuf，RegistryFriendlyByteBuf 是其子类故兼容）。 */
     private static final StreamCodec<ByteBuf, List<Identifier>> AFFIX_LIST_STREAM_CODEC =
@@ -132,9 +150,9 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
             ByteBufCodecs.map(LinkedHashMap::new, Identifier.STREAM_CODEC, ByteBufCodecs.INT);
 
     /**
-     * 网络流编解码：稀有度 ordinal + 词条列表 + 自定义数值 map。
+     * 网络流编解码：稀有度 ordinal + 词条列表 + 自定义数值 map + 可选宝石物品 ID。
      * <p>
-     * 自定义数值 map 总是传输（空也写长度 0），保证编解码对称。
+     * 自定义数值 map 总是传输（空也写长度 0）；宝石物品 ID 用 boolean 标志位标记是否存在。
      */
     public static final StreamCodec<RegistryFriendlyByteBuf, GemInstance> STREAM_CODEC =
             StreamCodec.of(
@@ -143,11 +161,16 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds, Map
                         AFFIX_LIST_STREAM_CODEC.encode(buf, gem.affixIds);
                         Map<Identifier, Integer> cv = gem.customValues == null ? Collections.emptyMap() : gem.customValues;
                         CUSTOM_VALUES_STREAM_CODEC.encode(buf, cv);
+                        buf.writeBoolean(gem.gemItemId != null);
+                        if (gem.gemItemId != null) {
+                            Identifier.STREAM_CODEC.encode(buf, gem.gemItemId);
+                        }
                     },
                     buf -> {
                         EquipmentRarity rarity = EquipmentRarity.values()[buf.readVarInt()];
                         List<Identifier> affixes = new ArrayList<>(AFFIX_LIST_STREAM_CODEC.decode(buf));
                         Map<Identifier, Integer> customValues = CUSTOM_VALUES_STREAM_CODEC.decode(buf);
-                        return new GemInstance(rarity, affixes, customValues);
+                        Identifier gemItemId = buf.readBoolean() ? Identifier.STREAM_CODEC.decode(buf) : null;
+                        return new GemInstance(rarity, affixes, customValues, gemItemId);
                     });
 }

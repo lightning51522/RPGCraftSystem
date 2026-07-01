@@ -213,8 +213,8 @@ public class GemstoneCommands {
             return 0;
         }
 
-        // 构造宝石实例并发放
-        GemInstance gem = new GemInstance(rarity, affixIds, customValues);
+        // 构造宝石实例并发放（记录宝石物品 ID，供镶嵌后 tooltip 还原图标）
+        GemInstance gem = new GemInstance(rarity, affixIds, customValues, gemItemId);
         ItemStack stack = new ItemStack(gemItem);
         stack.set(RPGComponents.GEM_INSTANCE.get(), gem);
         target.getInventory().placeItemBackInInventory(stack);
