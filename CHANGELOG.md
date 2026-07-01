@@ -4,6 +4,34 @@
 
 ---
 
+## [0.21.2-alpha] - 2026-07-01
+
+> 新增石榴石（red_garnet）镶嵌宝石；修复镶嵌后装备 tooltip 的宝石图标还原。
+
+### 新增
+
+#### 石榴石（red_garnet）镶嵌宝石（gemstone）
+
+- 新增物品 `rpgcraftgemstone:red_garnet`，与西瓜电气石同型（堆叠 64、`GEM_INSTANCE` 组件携带词条）
+- 贴图、物品定义 / 模型 JSON、中英语言文件（石榴石 / Red Garnet）
+- 加入「RPG 宝石」创造标签页
+- `SocketGemForgeHandler` 铁砧镶嵌判定从硬编码西瓜电气石改为识别本模块任意宝石（新增 `isSocketGemItem`）
+- 可通过 `/rpg gemstone givegem rpgcraftgemstone:red_garnet ...` 生成
+
+### 修复
+
+#### 镶嵌后装备 tooltip 还原正确的宝石图标（core / gemstone）
+
+- 问题：装备镶嵌宝石后 tooltip 图标硬编码显示西瓜电气石，石榴石等其它宝石镶嵌后图标错误
+- `GemInstance` 新增 `gemItemId` 字段（`Identifier`，可空），Codec / StreamCodec 向后兼容旧存档
+- `givegem` 命令构造时记录宝石物品 ID；`SocketGemTooltipContributor` 按 ID 查注册表还原图标，null 回退西瓜电气石
+
+### 变更
+
+- 西瓜电气石（watermelon_tourmaline）贴图手动微调
+
+---
+
 ## [0.21.1-alpha] - 2026-07-01
 
 > givegem 命令支持每词条自定义数值；修复 player 参数与数值参数的解析歧义、负数数值显示问题。
