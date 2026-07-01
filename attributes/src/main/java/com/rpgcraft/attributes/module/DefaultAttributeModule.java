@@ -43,57 +43,58 @@ public class DefaultAttributeModule implements IAttributeModule {
                 100, 100, true, false);
 
         // === 能力型属性（无上限或独立上限） ===
+        // 末参 availableAsAffix=true：这些属性均可作为宝石镶嵌词条出现（由宝石系统枚举 isAvailableAsAffix）。
         registry.register(AttributeIds.STRENGTH_ID, "力量", "提高物理攻击力与物理防御力，并少量提升魔法攻击力。",
-                10, Integer.MAX_VALUE, false, false);
+                10, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.INTELLIGENCE_ID, "智力", "提高魔法攻击力，并少量提升物理攻击力。",
-                10, Integer.MAX_VALUE, false, false);
+                10, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.AGILE_ID, "敏捷", "每 5 点增加 1 点暴击率。",
-                10, Integer.MAX_VALUE, false, false);
+                10, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.PRECISION_ID, "精准", "每 5 点增加 2 点暴击伤害。",
-                10, Integer.MAX_VALUE, false, false);
+                10, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.RESISTANCE_ID, "法抗", "减免受到的法术伤害（百分比）。",
-                0, 100, false, false);
+                0, 100, false, false, true, true, null);
 
         registry.register(AttributeIds.CRITICAL_RATE_ID, "暴击率", "攻击触发暴击的百分比概率，另受敏捷派生（每 5 敏捷 +1）。不可加点，装备加成生效。",
-                5, 300, false, false, false, null);
+                5, 300, false, false, false, true, null);
 
         registry.register(AttributeIds.CRITICAL_RATIO_ID, "暴击伤害", "暴击时额外提升的伤害百分比倍率，另受精准派生（每 5 精准 +2）。不可加点，装备加成生效。",
-                50, Integer.MAX_VALUE, false, false, false, null);
+                50, Integer.MAX_VALUE, false, false, false, true, null);
 
         registry.register(AttributeIds.FIXED_DAMAGE_ID, "固定伤害", "每次攻击额外附加的固定伤害。",
-                0, Integer.MAX_VALUE, false, false);
+                0, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.PHYSICAL_PENETRATE_ID, "物理穿透", "攻击时无视目标物理防御的值。",
-                0, Integer.MAX_VALUE, false, false);
+                0, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.MAGICAL_PENETRATE_ID, "法术穿透", "攻击时无视目标法抗的值。",
-                0, Integer.MAX_VALUE, false, false);
+                0, Integer.MAX_VALUE, false, false, true, true, null);
 
         registry.register(AttributeIds.EXP_BONUS_ID, "经验加成", "按百分比提升击杀获得的经验（叠加在等级差曲线之上）。不可加点，装备/职业加成生效。",
-                0, Integer.MAX_VALUE, false, false, false, null);
+                0, Integer.MAX_VALUE, false, false, false, true, null);
 
         // === 元素抗性型属性（默认 0，上限 100，不可加点，装备加成生效） ===
         // 减免对应元素标签攻击的伤害：基础减伤后额外乘以 (1 - 抗性/100)。
         // 当前所有攻击元素默认为 NONE（不触发元素减伤层），故默认行为零变化。
         // 未来通过实现 IElementResolver 可为武器/怪物配置元素标签启用此机制。
         registry.register(AttributeIds.ELECTRIC_RESISTANCE_ID, "电抗", "减免受到的电属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.FIRE_RESISTANCE_ID, "火抗", "减免受到的火属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.WIND_RESISTANCE_ID, "风抗", "减免受到的风属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.WATER_RESISTANCE_ID, "水抗", "减免受到的水属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.LIGHT_RESISTANCE_ID, "光抗", "减免受到的光属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.POISON_RESISTANCE_ID, "毒抗", "减免受到的毒属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
         registry.register(AttributeIds.DARK_RESISTANCE_ID, "暗抗", "减免受到的暗属性攻击伤害（百分比）。不可加点，装备加成生效。",
-                0, 100, false, false, false, null);
+                0, 100, false, false, false, true, null);
 
         // === 元素伤害加成型属性（默认 1000 = 1.0× 倍率，千分制，不可加点，装备/区域加成生效） ===
         // 作用于输出端：攻击者造成带元素标签伤害时，输出公式计算后乘以 加成/1000。
@@ -101,18 +102,18 @@ public class DefaultAttributeModule implements IAttributeModule {
         // 当前所有攻击元素默认为 NONE（不触发输出倍率），故默认行为零变化。
         // 未来通过实现 IElementResolver 或区域系统（rpgcraftregion）可启用此机制。
         registry.register(AttributeIds.ELECTRIC_DAMAGE_BONUS_ID, "电属性伤害加成", "提升造成的电属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.FIRE_DAMAGE_BONUS_ID, "火属性伤害加成", "提升造成的火属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.WIND_DAMAGE_BONUS_ID, "风属性伤害加成", "提升造成的风属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.WATER_DAMAGE_BONUS_ID, "水属性伤害加成", "提升造成的水属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.LIGHT_DAMAGE_BONUS_ID, "光属性伤害加成", "提升造成的光属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.POISON_DAMAGE_BONUS_ID, "毒属性伤害加成", "提升造成的毒属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
         registry.register(AttributeIds.DARK_DAMAGE_BONUS_ID, "暗属性伤害加成", "提升造成的暗属性伤害（千分制，1000=基准不变）。不可加点，装备/区域加成生效。",
-                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, null);
+                Element.DAMAGE_BONUS_BASE, Integer.MAX_VALUE, false, false, false, true, null);
     }
 }

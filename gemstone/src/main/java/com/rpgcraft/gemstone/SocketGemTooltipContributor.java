@@ -68,7 +68,8 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
     /**
      * 构建宝石词条的 tooltip 文本行（供本类与客户端宝石 tooltip 处理共用）。
      * <p>
-     * 属性词条查 {@link SocketGemConfig} 数值表并解析目标属性显示名；特效词条显示占位文本
+     * 词条 ID 直接就是 RPG 属性 ID（单层映射）。属性词条查 {@link SocketGemConfig} 数值表
+     * （专属表缺失回退默认表）并解析属性显示名；特效词条显示占位文本
      * （待特效实现后可细化为具体效果描述）。
      *
      * @param gem 宝石实例
@@ -78,11 +79,9 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
         List<Component> lines = new ArrayList<>();
         for (Identifier affixId : gem.affixIds()) {
             if (SocketGemConfig.isAttribute(affixId)) {
-                SocketGemConfig.AttributeAffixDef def = SocketGemConfig.getAttributeAffix(affixId);
-                if (def == null) continue;
-                int value = def.getValue(gem.rarity());
-                IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(def.attributeId());
-                String name = attrEntry != null ? attrEntry.getDisplayName() : def.attributeId().toString();
+                int value = SocketGemConfig.getAttributeValue(affixId, gem.rarity());
+                IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(affixId);
+                String name = attrEntry != null ? attrEntry.getDisplayName() : affixId.toString();
                 lines.add(Component.literal("§a" + name + " +" + value));
             } else if (SocketGemConfig.isSpecial(affixId)) {
                 lines.add(Component.literal(SPECIAL_AFFIX_TEXT));

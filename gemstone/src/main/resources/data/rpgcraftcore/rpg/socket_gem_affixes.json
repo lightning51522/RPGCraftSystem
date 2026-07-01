@@ -1,55 +1,37 @@
 {
-  "//comment": "镶嵌宝石词条定义。数值为占位（待设计），后续直接改本文件 + /reload 即可调整，无需改代码。",
-  "//schema": "每条键为 affixId（namespace:path），值为对象：{ type: 'attribute'|'special', ... }",
-  "//attribute_schema": "type=attribute: { attribute: <目标属性ID>, values: { <稀有度>: <数值>, ... } }",
-  "//special_schema": "type=special: { effect_id: <特效ID> } —— effect_id 须在 GemSpecialEffectRegistry 注册",
+  "//comment": [
+    "镶嵌宝石词条数值配置。",
+    "属性词条 ID 直接 = RPG 属性 ID（单层映射）；候选池由属性注册表的 isAvailableAsAffix 决定，",
+    "本文件仅承载「数值表」，不再枚举词条列表。第三方注入的属性零配置即可作词条（走 _default）。",
+    "数值为占位（待设计），后续直接改本文件 + /reload 即可调整，无需改代码。"
+  ],
+  "//schema": [
+    "_default: { values: { <稀有度>: <数值>, ... } } —— 全局默认数值表，未单独配置的属性词条查它",
+    "<属性ID>: { values: { <稀有度>: <数值>, ... } } —— 该属性的专属数值表（覆盖 _default），如 rpgcraftcore:strength",
+    "<特效词条ID>: { type: 'special', effect_id: <特效ID> } —— 特效词条，effect_id 须在 GemSpecialEffectRegistry 注册"
+  ],
+  "//rarity_order": "gray < white < green < blue < purple < orange < pink < gold < red",
 
-  "//attr_examples": "属性词条：加成目标 RPG 属性（数值按宝石稀有度查表，同名词条不同稀有度数值不同）",
-
-  "rpgcraftequipment:strength": {
-    "type": "attribute",
-    "attribute": "rpgcraftcore:strength",
+  "_default": {
     "values": {
       "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
       "orange": 3, "pink": 4, "gold": 5, "red": 6
     }
   },
 
-  "rpgcraftequipment:agility": {
-    "type": "attribute",
-    "attribute": "rpgcraftcore:agility",
-    "values": {
-      "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6
-    }
-  },
-
-  "rpgcraftequipment:intelligence": {
-    "type": "attribute",
-    "attribute": "rpgcraftcore:intelligence",
-    "values": {
-      "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6
-    }
-  },
-
-  "rpgcraftequipment:vitality": {
-    "type": "attribute",
-    "attribute": "rpgcraftcore:vitality",
-    "values": {
-      "gray": 1, "white": 1, "green": 2, "blue": 2, "purple": 3,
-      "orange": 3, "pink": 4, "gold": 5, "red": 6
-    }
-  },
+  "//per_attribute_examples": [
+    "为个别属性提供专属数值表以覆盖 _default。以下为示例（数值仍为占位）：",
+    "  \"rpgcraftcore:strength\": { \"values\": { \"gray\": 2, ... } }"
+  ],
 
   "//special_examples": "特效词条：仅橙及以上稀有度宝石会有，提供战斗特殊效果。本次仅留接口占位，无实现",
 
-  "rpgcraftequipment:lifesteal": {
+  "rpgcraftgemstone:lifesteal": {
     "type": "special",
     "effect_id": "rpgcraftgemstone:lifesteal"
   },
 
-  "rpgcraftequipment:thorns": {
+  "rpgcraftgemstone:thorns": {
     "type": "special",
     "effect_id": "rpgcraftgemstone:thorns"
   }

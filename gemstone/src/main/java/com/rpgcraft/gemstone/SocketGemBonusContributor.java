@@ -19,9 +19,10 @@ import java.util.Map;
  * {@code DefaultEquipmentHandler.calculateTotalBonus} 会聚合本贡献者的返回值 —— equipment 模块
  * 对 gemstone 模块零编译期依赖。
  * <p>
- * <b>逻辑</b>：读取装备的 {@code EQUIPMENT_SOCKET} 组件（镶嵌的那颗宝石），遍历其词条，
- * 对每个属性词条按宝石稀有度查 {@link SocketGemConfig} 数值表累加。特效词条不在此处理
- * （由 {@link GemCombatEventListener} 接入战斗事件）。
+ * <b>逻辑</b>：读取装备的 {@code EQUIPMENT_SOCKET} 组件（镶嵌的那颗宝石），遍历其词条。
+ * 词条 ID 直接就是 RPG 属性 ID（单层映射），属性词条按宝石稀有度查 {@link SocketGemConfig}
+ * 数值表（专属表缺失回退 {@code _default} 默认表）累加到对应属性的 {@link EquipmentBonus}。
+ * 特效词条不在此处理（由 {@link GemCombatEventListener} 接入战斗事件）。
  * <p>
  * <b>缩放</b>：宝石词条数值固定（由宝石稀有度查表），不再乘装备稀有度/等级缩放系数 ——
  * 「同名词条在不同稀有度宝石上数值不同」已由配置的 per-rarity values 体现。
@@ -44,12 +45,11 @@ public class SocketGemBonusContributor implements IEquipmentBonusContributor {
         }
         Map<Identifier, EquipmentBonus> total = new HashMap<>();
         for (Identifier affixId : gem.affixIds()) {
-            if (!SocketGemConfig.isAttribute(affixId)) continue; // 特效词条不加属性
-            SocketGemConfig.AttributeAffixDef def = SocketGemConfig.getAttributeAffix(affixId);
-            if (def == null) continue;
-            int value = def.getValue(gem.rarity());
+            // 词条 ID 直接就是 attributeId（单层映射）。非可作词条属性（含特效词条）跳过。
+            if (!SocketGemConfig.isAttribute(affixId)) continue;
+            int value = SocketGemConfig.getAttributeValue(affixId, gem.rarity());
             if (value == 0) continue;
-            total.merge(def.attributeId(), new EquipmentBonus(value), EquipmentBonus::add);
+            total.merge(affixId, new EquipmentBonus(value), EquipmentBonus::add);
         }
         return total;
     }

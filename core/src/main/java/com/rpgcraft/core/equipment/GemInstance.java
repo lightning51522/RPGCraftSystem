@@ -75,7 +75,7 @@ public record GemInstance(EquipmentRarity rarity, List<Identifier> affixIds) {
     // 序列化（供 DataComponentType 持久化 + 网络同步用）
     // ==================================================================
 
-    /** 持久化编解码：{ rarity: "blue", affixes: ["rpgcraftequipment:strength"] }。 */
+    /** 持久化编解码：{ rarity: "blue", affixes: ["rpgcraftcore:strength"] }（属性词条 ID = 属性 ID）。 */
     public static final Codec<GemInstance> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     EquipmentRarity.CODEC.fieldOf("rarity").forGetter(GemInstance::rarity),

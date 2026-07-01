@@ -172,6 +172,6 @@
   "rpgcraft.gemstone.givegem": "Gave 1 %1$s socket gem to %2$s (rarity %3$s, %4$d affixes)",
   "rpgcraft.gemstone.givegem.unknown_gem": "Unknown gem item: %s (must be a gemstone-module gem item, e.g. rpgcraftgemstone:watermelon_tourmaline)",
   "rpgcraft.gemstone.givegem.unknown_rarity": "Unknown rarity: %s (valid: gray/white/green/blue/purple/orange/pink/gold/red)",
-  "rpgcraft.gemstone.givegem.unknown_affix": "Unknown affix: %s (must be defined in socket_gem_affixes.json)",
+  "rpgcraft.gemstone.givegem.unknown_affix": "Unknown affix: %s (must be an affix-available RPG attribute, or a special affix defined in socket_gem_affixes.json)",
   "rpgcraft.gemstone.givegem.affix_count": "Affix count must be between %d and %d"
 }

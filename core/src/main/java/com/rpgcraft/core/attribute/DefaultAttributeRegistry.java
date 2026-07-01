@@ -46,6 +46,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 	        private final boolean resetOnRespawn;
 	        private final boolean equipmentAffectsMax;
 	        private final boolean allocatable;
+	        private final boolean availableAsAffix;
 	        private final IAttributeRendererFactory rendererFactory;
 
 	        DefaultEntry(Identifier id, String displayName, String description,
@@ -61,6 +62,15 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 	                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
 	                     boolean equipmentAffectsMax, boolean allocatable,
 	                     IAttributeRendererFactory rendererFactory) {
+	            this(id, displayName, description, supplier, defaultValue, defaultMaxValue,
+	                    resetOnRespawn, equipmentAffectsMax, allocatable, false, rendererFactory);
+	        }
+
+	        DefaultEntry(Identifier id, String displayName, String description,
+	                     Supplier<AttachmentType<EntityAttribute>> supplier,
+	                     int defaultValue, int defaultMaxValue, boolean resetOnRespawn,
+	                     boolean equipmentAffectsMax, boolean allocatable, boolean availableAsAffix,
+	                     IAttributeRendererFactory rendererFactory) {
 	            this.id = id;
 	            this.displayName = displayName;
 	            this.description = description;
@@ -70,6 +80,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 	            this.resetOnRespawn = resetOnRespawn;
 	            this.equipmentAffectsMax = equipmentAffectsMax;
 	            this.allocatable = allocatable;
+	            this.availableAsAffix = availableAsAffix;
 	            this.rendererFactory = rendererFactory;
 	        }
 
@@ -108,6 +119,9 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
 
         @Override
         public boolean isAllocatable() { return allocatable; }
+
+        @Override
+        public boolean isAvailableAsAffix() { return availableAsAffix; }
     }
 
     public DefaultAttributeRegistry(String modId) {
@@ -172,6 +186,24 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
                          int defaultValue, int defaultMaxValue,
                          boolean resetOnRespawn, boolean equipmentAffectsMax,
                          boolean allocatable, IAttributeRendererFactory rendererFactory) {
+        register(id, displayName, description, defaultValue, defaultMaxValue,
+                resetOnRespawn, equipmentAffectsMax, allocatable, false, rendererFactory);
+    }
+
+    /**
+     * 注册属性（完整参数 + allocatable 控制 + 词条可用性标志）—— 注册链的最终调用点。
+     * <p>
+     * 与上一重载的区别仅在末尾追加 {@code availableAsAffix}：声明此属性是否可作为宝石镶嵌词条出现
+     * （详见 {@link IAttributeEntry#isAvailableAsAffix()}）。供需要把自己暴露给宝石系统的属性注册方使用
+     * （如 {@code rpgcraftattributes} 的默认属性集、第三方属性模块）。
+     *
+     * @param availableAsAffix 是否允许此属性作为宝石词条出现；{@code false} 时宝石系统不会枚举到它
+     */
+    public void register(Identifier id, String displayName, String description,
+                         int defaultValue, int defaultMaxValue,
+                         boolean resetOnRespawn, boolean equipmentAffectsMax,
+                         boolean allocatable, boolean availableAsAffix,
+                         IAttributeRendererFactory rendererFactory) {
         boolean capped = defaultMaxValue < Integer.MAX_VALUE;
         Supplier<AttachmentType<EntityAttribute>> supplier = deferredRegister.register(
                 id.getPath(),
@@ -184,7 +216,7 @@ public class DefaultAttributeRegistry implements IAttributeRegistry {
                         .build()
         );
         DefaultEntry entry = new DefaultEntry(id, displayName, description, supplier, defaultValue, defaultMaxValue,
-                resetOnRespawn, equipmentAffectsMax, allocatable, rendererFactory);
+                resetOnRespawn, equipmentAffectsMax, allocatable, availableAsAffix, rendererFactory);
         entries.put(id, entry);
         if (resetOnRespawn) {
             respawnResetEntries.add(entry);

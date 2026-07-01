@@ -101,4 +101,22 @@ public interface IAttributeEntry {
     default boolean isAllocatable() {
         return !shouldResetOnRespawn();
     }
+
+    /**
+     * 是否允许此属性作为宝石镶嵌词条出现。
+     * <p>
+     * <b>设计意图</b>：宝石系统的属性词条候选池由各属性注册方自行声明，而非由宝石模块
+     * 用其它 flag（如 {@link #isAllocatable()}）推导。第三方属性模块只需在注册时通过
+     * {@code register(..., availableAsAffix=true)} 显式开启，即可自动被宝石系统枚举为词条来源
+     * （宝石模块通过 {@link IAttributeRegistry#getAllEntries()} 运行时枚举本 flag 为 true 的条目）。
+     * <p>
+     * <b>独立性</b>：本 flag 是纯查询语义，与加点、装备加成、重生恢复等行为完全正交。
+     * 默认 {@code false}（保守）：避免生命等关键属性在未显式声明时被意外纳入词条池。
+     * <b>当宝石模块未加载时，本方法没有任何调用方，对 core / attributes / equipment 等原流程零影响。</b>
+     *
+     * @return {@code true} 表示此属性可作宝石词条；默认 {@code false}
+     */
+    default boolean isAvailableAsAffix() {
+        return false;
+    }
 }
