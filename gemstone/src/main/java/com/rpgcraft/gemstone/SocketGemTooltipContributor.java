@@ -84,7 +84,9 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
                         SocketGemConfig.getAttributeValue(affixId, gem.rarity()));
                 IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(affixId);
                 String name = attrEntry != null ? attrEntry.getDisplayName() : affixId.toString();
-                lines.add(Component.literal("§a" + name + " +" + value));
+                // 正数显示「+N」，负数直接显示「-N」（避免「+-N」）
+                String sign = value >= 0 ? "+" : "";
+                lines.add(Component.literal("§a" + name + " " + sign + value));
             } else if (SocketGemConfig.isSpecial(affixId)) {
                 lines.add(Component.literal(SPECIAL_AFFIX_TEXT));
             }
