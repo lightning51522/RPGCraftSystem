@@ -164,6 +164,7 @@
 
   "//_gemstone_items": "=== 宝石模块物品（gemstone 模块自定义物品） ===",
   "item.rpgcraftgemstone.watermelon_tourmaline": "西瓜电气石",
+  "item.rpgcraftgemstone.red_garnet": "石榴石",
 
   "//_creative_tabs": "=== 创造模式标签页 ===",
   "creativetab.rpgcraftcore.gemstones": "RPG 宝石",

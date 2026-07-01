@@ -33,6 +33,7 @@ public final class GemstoneCreativeTab {
     public static void onBuildCreativeTab(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey().identifier().equals(RpgCreativeTabs.GEMSTONES_TAB_ID)) {
             event.accept(GemstoneItems.WATERMELON_TOURMALINE.get());
+            event.accept(GemstoneItems.RED_GARNET.get());
         }
     }
 }

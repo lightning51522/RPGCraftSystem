@@ -164,6 +164,7 @@
 
   "//_gemstone_items": "=== Gemstone module items (gemstone module custom items) ===",
   "item.rpgcraftgemstone.watermelon_tourmaline": "Watermelon Tourmaline",
+  "item.rpgcraftgemstone.red_garnet": "Red Garnet",
 
   "//_creative_tabs": "=== Creative mode tabs ===",
   "creativetab.rpgcraftcore.gemstones": "RPG Gemstones",

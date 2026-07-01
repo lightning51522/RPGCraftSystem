@@ -14,7 +14,7 @@ import net.neoforged.neoforge.event.AnvilUpdateEvent;
 /**
  * 镶嵌宝石铁砧处理器
  * <p>
- * 在铁砧中用 {@link GemstoneItems#WATERMELON_TOURMALINE 镶嵌宝石} 作为材料（右槽）锻造一件已注册的可装备物品
+ * 在铁砧中用本模块注册的<b>任意镶嵌宝石</b>（西瓜电气石、石榴石等）作为材料（右槽）锻造一件已注册的可装备物品
  * （左槽），将宝石镶嵌到装备上（每件装备 1 颗，<b>无失败</b>）。
  * <p>
  * <b>规则</b>：
@@ -26,7 +26,7 @@ import net.neoforged.neoforge.event.AnvilUpdateEvent;
  * </ul>
  * 命中 → 输出左槽装备副本（写入 EQUIPMENT_SOCKET 组件 = 右槽宝石实例），消耗右槽 1 颗。
  * <p>
- * <b>与其他铁砧处理器的互斥</b>：本处理器只认 {@link GemstoneItems#WATERMELON_TOURMALINE}（gemstone 模块物品），
+ * <b>与其他铁砧处理器的互斥</b>：本处理器只认 gemstone 模块注册的宝石物品（经 {@link #isSocketGemItem} 判定），
  * equipment 模块的两个处理器各认 {@code RARITY_GEMSTONE}（稀有度宝石）/ 同 ID 装备 —— 三者右槽物品
  * 不相交，天然互斥，无需修改 equipment 的任何处理器。
  * <p>
@@ -49,8 +49,8 @@ public class SocketGemForgeHandler {
         ItemStack right = event.getRight();
         if (left.isEmpty() || right.isEmpty()) return;
 
-        // 右槽必须是本模块的镶嵌宝石
-        if (right.getItem() != GemstoneItems.WATERMELON_TOURMALINE.get()) return;
+        // 右槽必须是本模块注册的镶嵌宝石（西瓜电气石、石榴石等任意宝石物品）
+        if (!isSocketGemItem(right.getItem())) return;
 
         // 右槽宝石必须携带 GEM_INSTANCE 组件（描述这颗宝石的稀有度与词条）
         GemInstance gem = right.get(RPGComponents.GEM_INSTANCE.get());
@@ -74,5 +74,18 @@ public class SocketGemForgeHandler {
         event.setOutput(result);
         event.setMaterialCost(1);
         event.setXpCost(SOCKET_XP_COST);
+    }
+
+    /**
+     * 判断物品是否为 gemstone 模块注册的镶嵌宝石物品。
+     * <p>
+     * 通过比对 gemstone 模块 DeferredRegister 的注册条目，识别任意本模块宝石（西瓜电气石、石榴石等）。
+     * 新增宝石种类自动纳入，无需改本方法。与 {@code GemstoneCommands#isGemstoneItem} 同型。
+     */
+    private static boolean isSocketGemItem(net.minecraft.world.item.Item item) {
+        for (var holder : GemstoneItems.DEFERRED_REGISTER.getEntries()) {
+            if (holder.get() == item) return true;
+        }
+        return false;
     }
 }

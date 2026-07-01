@@ -37,6 +37,20 @@ public final class GemstoneItems {
             DEFERRED_REGISTER.registerItem("watermelon_tourmaline",
                     props -> new Item(props.stacksTo(64)));
 
+    /**
+     * 石榴石（镶嵌宝石）。
+     * <p>
+     * 与西瓜电气石同型的镶嵌宝石载体，仅物品 ID 与贴图不同。镶嵌机制、稀有度/词条携带方式
+     * （{@code GEM_INSTANCE} 组件）、堆叠上限（64）均与 {@link #WATERMELON_TOURMALINE} 一致。
+     * <p>
+     * 由 GM 指令 {@code /rpg gemstone givegem rpgcraftgemstone:red_garnet ...} 生成；裸物品无加成。
+     *
+     * @see SocketGemForgeHandler 镶嵌逻辑
+     */
+    public static final DeferredItem<Item> RED_GARNET =
+            DEFERRED_REGISTER.registerItem("red_garnet",
+                    props -> new Item(props.stacksTo(64)));
+
     public static DeferredRegister.Items getDeferredRegister() {
         return DEFERRED_REGISTER;
     }
