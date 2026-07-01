@@ -47,7 +47,9 @@ public class SocketGemBonusContributor implements IEquipmentBonusContributor {
         for (Identifier affixId : gem.affixIds()) {
             // 词条 ID 直接就是 attributeId（单层映射）。非可作词条属性（含特效词条）跳过。
             if (!SocketGemConfig.isAttribute(affixId)) continue;
-            int value = SocketGemConfig.getAttributeValue(affixId, gem.rarity());
+            // 自定义数值优先（命令指定）；缺失则按宝石稀有度查默认表
+            int value = gem.customValueOf(affixId).orElse(
+                    SocketGemConfig.getAttributeValue(affixId, gem.rarity()));
             if (value == 0) continue;
             total.merge(affixId, new EquipmentBonus(value), EquipmentBonus::add);
         }

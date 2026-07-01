@@ -169,7 +169,7 @@
   "creativetab.rpgcraftcore.gemstones": "RPG 宝石",
 
   "//_gemstone_commands": "=== 宝石模块命令（GemstoneCommands） ===",
-  "rpgcraft.gemstone.givegem": "已向 %2$s 发放 1 颗 %1$s 镶嵌宝石（稀有度 %3$s、%4$d 个词条）",
+  "rpgcraft.gemstone.givegem": "已向 %2$s 发放 1 颗 %1$s 镶嵌宝石（稀有度 %3$s、%4$d 个词条、%5$d 个自定义数值）",
   "rpgcraft.gemstone.givegem.unknown_gem": "未知宝石物品: %s（须为 gemstone 模块注册的宝石物品，如 rpgcraftgemstone:watermelon_tourmaline）",
   "rpgcraft.gemstone.givegem.unknown_rarity": "未知稀有度: %s（合法值: gray/white/green/blue/purple/orange/pink/gold/red）",
   "rpgcraft.gemstone.givegem.unknown_affix": "未知词条: %s（须为可作词条的 RPG 属性，或在 socket_gem_affixes.json 中定义的特效词条）",

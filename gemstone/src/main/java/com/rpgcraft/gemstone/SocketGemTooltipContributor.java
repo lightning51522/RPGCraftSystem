@@ -79,7 +79,9 @@ public class SocketGemTooltipContributor implements ITooltipImageContributor {
         List<Component> lines = new ArrayList<>();
         for (Identifier affixId : gem.affixIds()) {
             if (SocketGemConfig.isAttribute(affixId)) {
-                int value = SocketGemConfig.getAttributeValue(affixId, gem.rarity());
+                // 自定义数值优先（命令指定）；缺失则按宝石稀有度查默认表
+                int value = gem.customValueOf(affixId).orElse(
+                        SocketGemConfig.getAttributeValue(affixId, gem.rarity()));
                 IAttributeEntry attrEntry = AttributeManager.getRegistry().getEntry(affixId);
                 String name = attrEntry != null ? attrEntry.getDisplayName() : affixId.toString();
                 lines.add(Component.literal("§a" + name + " +" + value));
